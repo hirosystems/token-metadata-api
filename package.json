@@ -1,0 +1,25 @@
+{
+  "name": "token-metadata-service",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "rimraf ./dist && tsc --project tsconfig.build.json",
+    "start": "node dist/index.js",
+    "start-ts": "ts-node ./src/index.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/jest": "^28.1.4",
+    "jest": "^28.1.2",
+    "rimraf": "^3.0.2",
+    "ts-jest": "^28.0.5",
+    "ts-node": "^10.8.2",
+    "typescript": "^4.7.4"
+  },
+  "dependencies": {
+    "fastify": "^4.2.0",
+    "undici": "^5.6.1"
+  }
+}
