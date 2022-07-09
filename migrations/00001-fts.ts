@@ -9,6 +9,7 @@ export const up = async (sql: Sql<any>) => {
       decimals            INT NOT NULL,
       total_supply        INT NOT NULL,
       token_uri           TEXT NOT NULL,
+
       CONSTRAINT fts_smart_contract_id_fk FOREIGN KEY(smart_contract_id) REFERENCES smart_contracts(id),
       CONSTRAINT fts_smart_contract_id_unique UNIQUE(smart_contract_id)
     )`;

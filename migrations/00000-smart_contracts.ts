@@ -8,6 +8,7 @@ export const up = async (sql: Sql<any>) => {
       sender_address      TEXT NOT NULL,
       created_at          TIMESTAMP NOT NULL,
       updated_at          TIMESTAMP,
+
       CONSTRAINT smart_contracts_contract_id_unique UNIQUE(contract_id)
     )`;
 };
