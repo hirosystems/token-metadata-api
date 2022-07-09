@@ -3,6 +3,16 @@ import { Static, Type } from '@sinclair/typebox';
 /**
  * SIP-016 Token Metadata
  */
+export const TokenMetadataValue = Type.Union([
+  Type.Object({}),
+  Type.String(),
+  Type.Number(),
+  Type.Integer(),
+  Type.Boolean(),
+  Type.Array(Type.Any()),
+], { $id: 'token-metadata-value' });
+export type TokenMetadataValueType = Static<typeof TokenMetadataValue>;
+
 export const TokenMetadata = Type.Object({
   sip: Type.Integer(),
   name: Type.String(),
@@ -11,18 +21,17 @@ export const TokenMetadata = Type.Object({
   attributes: Type.Optional(Type.Array(
     Type.Object({
       trait_type: Type.String(),
-      value: Type.Union([
-        Type.Object({}),
-        Type.String(),
-        Type.Number(),
-        Type.Integer(),
-        Type.Boolean(),
-        Type.Array(Type.Any()),
-      ]),
+      value: Type.Ref(TokenMetadataValue),
       display_type: Type.Optional(Type.String())
     })
   )),
-  properties: Type.Optional(Type.Object({})),
+  properties: Type.Optional(Type.Array(
+    Type.Object({
+      type: Type.Optional(Type.String()),
+      value: Type.Optional(Type.Ref(TokenMetadataValue)),
+      description: Type.Optional(Type.String())
+    })
+  )),
   localization: Type.Optional(Type.Object({
     uri: Type.String({ format: 'uri' }),
     default: Type.String(),
