@@ -1,8 +1,23 @@
 import { FastifyPluginCallback } from 'fastify';
-import { NonFungibleTokenParams, NonFungibleTokenParamsType, NonFungibleTokenType } from './types';
+import {
+  NonFungibleTokenResponse,
+  NonFungibleTokenParams,
+  NonFungibleTokenParamsType,
+  NonFungibleTokenResponseType
+} from './types';
 
 export const NftRoutes: FastifyPluginCallback = (fastify, options, done) => {
-  fastify.get<{ Params: NonFungibleTokenParamsType, Reply: NonFungibleTokenType }>('/nft/:contract_id/:token_id', { schema: { params: NonFungibleTokenParams } }, (request, reply) => {
+  fastify.get<{
+    Params: NonFungibleTokenParamsType,
+    Reply: NonFungibleTokenResponseType
+  }>('/nft/:contract_id/:token_id', {
+    schema: {
+      params: NonFungibleTokenParams,
+      response: {
+        200: NonFungibleTokenResponse
+      },
+    }
+  }, (request, reply) => {
     const contractId = request.params.contract_id;
     const tokenId = request.params.token_id;
     reply.send({

@@ -34,7 +34,7 @@ export type TokenMetadataType = Static<typeof TokenMetadata>;
 /**
  * SIP-010 Fungible Token
  */
-export const FungibleToken = Type.Object({
+export const FungibleTokenResponse = Type.Object({
   name: Type.String(),
   symbol: Type.String(),
   decimals: Type.Integer(),
@@ -42,7 +42,7 @@ export const FungibleToken = Type.Object({
   token_uri: Type.String({ format: 'uri' }),
   metadata: Type.Ref(TokenMetadata),
 });
-export type FungibleTokenType = Static<typeof FungibleToken>;
+export type FungibleTokenResponseType = Static<typeof FungibleTokenResponse>;
 
 export const FungibleTokenParams = Type.Object({
   contract_id: Type.String(),
@@ -52,11 +52,11 @@ export type FungibleTokenParamsType = Static<typeof FungibleTokenParams>;
 /**
  * SIP-009 Non-Fungible Token
  */
-export const NonFungibleToken = Type.Object({
+export const NonFungibleTokenResponse = Type.Object({
   token_uri: Type.String({ format: 'uri' }),
   metadata: Type.Ref(TokenMetadata),
 });
-export type NonFungibleTokenType = Static<typeof NonFungibleToken>;
+export type NonFungibleTokenResponseType = Static<typeof NonFungibleTokenResponse>;
 
 export const NonFungibleTokenParams = Type.Object({
   contract_id: Type.String(),
