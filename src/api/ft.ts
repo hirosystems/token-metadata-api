@@ -1,9 +1,23 @@
 import { FastifyPluginCallback } from 'fastify';
-import { FungibleTokenParams, FungibleTokenParamsType, FungibleTokenType } from './types';
+import {
+  FungibleTokenResponse,
+  FungibleTokenParams,
+  FungibleTokenParamsType,
+  FungibleTokenResponseType
+} from './types';
 
 export const FtRoutes: FastifyPluginCallback = (fastify, options, done) => {
-  fastify.get<{ Params: FungibleTokenParamsType, Reply: FungibleTokenType }>('/ft/:contract_id', { schema: { params: FungibleTokenParams } }, (request, reply) => {
-    request.validationError
+  fastify.get<{
+    Params: FungibleTokenParamsType,
+    Reply: FungibleTokenResponseType
+  }>('/ft/:contract_id', {
+    schema: {
+      params: FungibleTokenParams,
+      response: {
+        200: FungibleTokenResponse,
+      }
+    }
+  }, (request, reply) => {
     const contractId = request.params.contract_id;
     reply.send({
       name: 'NewYorkCityCoin',
