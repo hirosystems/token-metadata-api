@@ -3,42 +3,47 @@ import { Static, Type } from '@sinclair/typebox';
 /**
  * SIP-016 Token Metadata
  */
-export const TokenMetadataValue = Type.Union([
+export const MetadataValue = Type.Union([
   Type.Object({}),
   Type.String(),
   Type.Number(),
   Type.Integer(),
   Type.Boolean(),
   Type.Array(Type.Any()),
-], { $id: 'token-metadata-value' });
-export type TokenMetadataValueType = Static<typeof TokenMetadataValue>;
+], { $id: 'metadata-value' });
+export type MetadataValueType = Static<typeof MetadataValue>;
 
-export const TokenMetadata = Type.Object({
+export const MetadataAttribute = Type.Object({
+  trait_type: Type.String(),
+  value: Type.Ref(MetadataValue),
+  display_type: Type.Optional(Type.String())
+}, { $id: 'metadata-attribute' });
+export type MetadataAttributeType = Static<typeof MetadataAttribute>;
+
+export const MetadataProperty = Type.Object({
+  type: Type.Optional(Type.String()),
+  value: Type.Optional(Type.Ref(MetadataValue)),
+  description: Type.Optional(Type.String())
+}, { $id: 'metadata-property' });
+export type MetadataPropertyType = Static<typeof MetadataProperty>;
+
+export const MetadataLocalization = Type.Object({
+  uri: Type.String({ format: 'uri' }),
+  default: Type.String(),
+  locales: Type.Array(Type.String()),
+}, { $id: 'metadata-localization' });
+export type MetadataLocalizationType = Static<typeof MetadataLocalization>;
+
+export const Metadata = Type.Object({
   sip: Type.Integer(),
   name: Type.String(),
   description: Type.Optional(Type.String()),
   image: Type.Optional(Type.String({ format: 'uri' })),
-  attributes: Type.Optional(Type.Array(
-    Type.Object({
-      trait_type: Type.String(),
-      value: Type.Ref(TokenMetadataValue),
-      display_type: Type.Optional(Type.String())
-    })
-  )),
-  properties: Type.Optional(Type.Array(
-    Type.Object({
-      type: Type.Optional(Type.String()),
-      value: Type.Optional(Type.Ref(TokenMetadataValue)),
-      description: Type.Optional(Type.String())
-    })
-  )),
-  localization: Type.Optional(Type.Object({
-    uri: Type.String({ format: 'uri' }),
-    default: Type.String(),
-    locales: Type.Array(Type.String()),
-  })),
-}, { $id: 'token-metadata' });
-export type TokenMetadataType = Static<typeof TokenMetadata>;
+  attributes: Type.Optional(Type.Array(Type.Ref(MetadataAttribute))),
+  properties: Type.Optional(Type.Array(Type.Ref(MetadataProperty))),
+  localization: Type.Optional(Type.Ref(MetadataLocalization)),
+}, { $id: 'metadata' });
+export type MetadataType = Static<typeof Metadata>;
 
 /**
  * SIP-010 Fungible Token
@@ -49,7 +54,7 @@ export const FungibleTokenResponse = Type.Object({
   decimals: Type.Integer(),
   total_supply: Type.Integer(),
   token_uri: Type.String({ format: 'uri' }),
-  metadata: Type.Ref(TokenMetadata),
+  metadata: Type.Ref(Metadata),
 });
 export type FungibleTokenResponseType = Static<typeof FungibleTokenResponse>;
 
@@ -63,7 +68,7 @@ export type FungibleTokenParamsType = Static<typeof FungibleTokenParams>;
  */
 export const NonFungibleTokenResponse = Type.Object({
   token_uri: Type.String({ format: 'uri' }),
-  metadata: Type.Ref(TokenMetadata),
+  metadata: Type.Ref(Metadata),
 });
 export type NonFungibleTokenResponseType = Static<typeof NonFungibleTokenResponse>;
 

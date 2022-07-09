@@ -15,7 +15,6 @@ export const up = async (sql: Sql<any>) => {
 
       CONSTRAINT metadata_ft_id_fk FOREIGN KEY(ft_id) REFERENCES fts(id),
       CONSTRAINT metadata_nft_id_fk FOREIGN KEY(nft_id) REFERENCES nfts(id),
-
       CONSTRAINT metadata_token_id_check CHECK(num_nonnulls(ft_id, nft_id) = 1),
       CONSTRAINT metadata_locale_check CHECK(num_nulls(l10n_locale, l10n_uri, l10n_default) IN (0, 3))
     )`;
