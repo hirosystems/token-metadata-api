@@ -1,21 +1,23 @@
 import { Sql } from 'postgres';
 
 export const up = async (sql: Sql<any>) => {
+  await sql`CREATE TYPE sip_number AS ENUM ('sip-009', 'sip-010', 'sip-013')`;
   await sql`CREATE TABLE smart_contracts (
       id                  SERIAL PRIMARY KEY,
-      contract_id         TEXT NOT NULL,
-      sip                 INT NOT NULL,
-      contract_abi        TEXT NOT NULL,
+      name                TEXT NOT NULL,
+      sip                 sip_number NOT NULL,
+      abi                 TEXT NOT NULL,
       sender_address      TEXT NOT NULL,
       tx_id               TEXT NOT NULL,
       block_height        INT NOT NULL,
       created_at          TIMESTAMP NOT NULL,
       updated_at          TIMESTAMP,
 
-      CONSTRAINT smart_contracts_contract_id_unique UNIQUE(contract_id)
+      CONSTRAINT smart_contracts_name_unique UNIQUE(name)
     )`;
 };
 
 export const down = async (sql: Sql<any>) => {
   await sql`DROP TABLE smart_contracts`;
+  await sql`DROP TYPE sip_number`;
 };
