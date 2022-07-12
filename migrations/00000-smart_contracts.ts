@@ -5,7 +5,10 @@ export const up = async (sql: Sql<any>) => {
       id                  SERIAL PRIMARY KEY,
       contract_id         TEXT NOT NULL,
       sip                 INT NOT NULL,
+      contract_abi        TEXT NOT NULL,
       sender_address      TEXT NOT NULL,
+      tx_id               TEXT NOT NULL,
+      block_height        INT NOT NULL,
       created_at          TIMESTAMP NOT NULL,
       updated_at          TIMESTAMP,
 
