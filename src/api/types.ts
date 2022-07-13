@@ -1,5 +1,8 @@
 import { Static, Type } from '@sinclair/typebox';
 
+export const SmartContractID = Type.String({ $id: 'smart-contract-id' });
+export type SmartContractIDType = Static<typeof SmartContractID>;
+
 /**
  * SIP-016 Token Metadata
  */
@@ -73,7 +76,7 @@ export const NonFungibleTokenResponse = Type.Object({
 export type NonFungibleTokenResponseType = Static<typeof NonFungibleTokenResponse>;
 
 export const NonFungibleTokenParams = Type.Object({
-  contract_id: Type.String(),
+  contract_id: Type.Ref(SmartContractID),
   token_id: Type.Integer(),
 });
 export type NonFungibleTokenParamsType = Static<typeof NonFungibleTokenParams>;
