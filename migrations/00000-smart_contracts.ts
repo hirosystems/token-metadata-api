@@ -7,9 +7,9 @@ export const up = async (sql: Sql<any>) => {
       name                TEXT NOT NULL,
       sip                 sip_number NOT NULL,
       abi                 TEXT NOT NULL,
-      sender_address      TEXT NOT NULL,
       tx_id               TEXT NOT NULL,
       block_height        INT NOT NULL,
+      token_count         INT,
       created_at          TIMESTAMP NOT NULL,
       updated_at          TIMESTAMP,
 
