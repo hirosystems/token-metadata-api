@@ -1,7 +1,7 @@
 import { ClarityAbi, ClarityAbiFunction } from '@stacks/transactions';
 import { DbSipNumber } from '../../pg/types';
 
-const FT_FUNCTIONS: ClarityAbiFunction[] = [
+const FtTraitFunctions: ClarityAbiFunction[] = [
   {
     access: 'public',
     args: [
@@ -60,7 +60,7 @@ const FT_FUNCTIONS: ClarityAbiFunction[] = [
   },
 ];
 
-const NFT_FUNCTIONS: ClarityAbiFunction[] = [
+const NftTraitFunctions: ClarityAbiFunction[] = [
   {
     access: 'read_only',
     args: [],
@@ -128,7 +128,7 @@ const NFT_FUNCTIONS: ClarityAbiFunction[] = [
   },
 ];
 
-const SFT_FUNCTIONS: ClarityAbiFunction[] = [
+const SftTraitFunctions: ClarityAbiFunction[] = [
   {
     name: 'get-balance',
     access: 'read_only',
@@ -217,32 +217,22 @@ const SFT_FUNCTIONS: ClarityAbiFunction[] = [
  */
 export function getSmartContractSip(abi: ClarityAbi): DbSipNumber | false {
   // TODO: Will stacks.js support SFTs?
-  if (abiContains(abi, SFT_FUNCTIONS)) {
+  if (abiContains(abi, SftTraitFunctions)) {
     return DbSipNumber.sip013;
   }
-  if (abi.non_fungible_tokens.length > 0 && abiContains(abi, NFT_FUNCTIONS)) {
+  if (abi.non_fungible_tokens.length > 0 && abiContains(abi, NftTraitFunctions)) {
     return DbSipNumber.sip009;
   }
-  if (abi.fungible_tokens.length > 0 && abiContains(abi, FT_FUNCTIONS)) {
+  if (abi.fungible_tokens.length > 0 && abiContains(abi, FtTraitFunctions)) {
     return DbSipNumber.sip010;
   }
   return false;
 }
 
-/**
- * This method check if the contract is compliance with sip-09 and sip-10
- * Ref: https://github.com/stacksgov/sips/tree/main/sips
- */
 function abiContains(abi: ClarityAbi, standardFunction: ClarityAbiFunction[]): boolean {
   return standardFunction.every(abiFun => findFunction(abiFun, abi.functions));
 }
 
-/**
- * check if the fun  exist in the function list
- * @param fun - function to be found
- * @param functionList - list of functions
- * @returns - true if function is in the list false otherwise
- */
 function findFunction(fun: ClarityAbiFunction, functionList: ClarityAbiFunction[]): boolean {
   const found = functionList.find(standardFunction => {
     if (standardFunction.name !== fun.name || standardFunction.args.length !== fun.args.length)

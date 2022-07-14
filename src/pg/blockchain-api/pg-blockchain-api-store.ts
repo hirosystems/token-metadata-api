@@ -8,6 +8,9 @@ export interface BlockchainDbSmartContract {
   abi: any;
 }
 
+/**
+ * Connects and queries the Stacks Blockchain API postgres DB.
+ */
 export class PgBlockchainApiStore {
   private readonly sql: postgres.Sql<any>;
 

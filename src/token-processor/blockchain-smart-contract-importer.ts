@@ -5,6 +5,11 @@ import { DbSipNumber, DbSmartContract } from "../pg/types";
 import { SmartContractQueue } from './queue/smart-contract-queue';
 import { getSmartContractSip } from './util/sip-validation';
 
+/**
+ * Scans the `smart_contracts` table in the Stacks Blockchain API postgres DB for every smart
+ * contract that exists in the blockchain. It then takes all of them which declare tokens and
+ * enqueues them for processing.
+ */
 export class BlockchainSmartContractImporter {
   private readonly db: PgStore;
   private readonly apiDb: PgBlockchainApiStore;
@@ -24,12 +29,14 @@ export class BlockchainSmartContractImporter {
   }
 
   async importSmartContracts() {
+    // There could be thousands of contracts. We'll use a cursor to iterate.
     const cursor = await this.apiDb.getSmartContractsCursor({ afterBlockHeight: 1 });
     for await (const [row] of cursor) {
       const sip = getSmartContractSip(row.abi as ClarityAbi);
       if (!sip) {
         continue; // Not a token contract.
       }
+      // FIXME: Do these at the same time
       const smartContract = await this.insertSmartContract(row, sip);
       await this.enqueueSmartContract(smartContract);
       console.info(`Importing token contract (${sip}): ${row.contract_id}`);
@@ -39,7 +46,7 @@ export class BlockchainSmartContractImporter {
   private async insertSmartContract(blockchainContract: BlockchainDbSmartContract, sip: DbSipNumber) {
     return await this.db.insertSmartContract({
       values: {
-        name: blockchainContract.contract_id,
+        principal: blockchainContract.contract_id,
         sip: sip,
         abi: JSON.stringify(blockchainContract.abi),
         tx_id: blockchainContract.tx_id,

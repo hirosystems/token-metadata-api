@@ -13,9 +13,13 @@ export class SmartContractQueue extends Queue<DbSmartContractQueueEntry> {
   }
 
   add(item: DbSmartContractQueueEntry): void {
-    this.queue.add(() => {
-      const processor = new SmartContractProcessor({ db: this.db, queueEntry: item, tokenQueue: this.tokenQueue });
-      processor.process();
+    this.queue.add(async () => {
+      const processor = new SmartContractProcessor({
+        db: this.db,
+        queueEntry: item,
+        tokenQueue: this.tokenQueue
+      });
+      await processor.process();
     });
   }
 }

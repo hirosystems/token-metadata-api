@@ -1,10 +1,12 @@
 import { DbTokenQueueEntry } from "../../pg/types";
+import { TokenProcessor } from "../token-processor";
 import { Queue } from "./queue";
 
 export class TokenQueue extends Queue<DbTokenQueueEntry> {
   add(item: DbTokenQueueEntry): void {
-    this.queue.add(() => {
-      //
+    this.queue.add(async () => {
+      const processor = new TokenProcessor({ db: this.db, queueEntry: item });
+      await processor.process();
     });
   }
 }

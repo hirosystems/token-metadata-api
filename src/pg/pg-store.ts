@@ -1,6 +1,19 @@
 import * as postgres from 'postgres';
-import { DbSmartContract, DbSmartContractInsert, DbQueueEntryStatus, DbSmartContractQueueEntry, DbSmartContractQueueEntryInsert, DbTokenInsert, DbTokenQueueEntry, DbToken } from './types';
+import {
+  DbSmartContract,
+  DbSmartContractInsert,
+  DbQueueEntryStatus,
+  DbSmartContractQueueEntry,
+  DbSmartContractQueueEntryInsert,
+  DbTokenInsert,
+  DbTokenQueueEntry,
+  DbToken,
+  DbTokenType
+} from './types';
 
+/**
+ * Connects and queries the Token Metadata Service's local postgres DB.
+ */
 export class PgStore {
   private readonly sql: postgres.Sql<any>;
 
@@ -23,7 +36,9 @@ export class PgStore {
     return result[0];
   }
 
-  async insertSmartContractQueueEntry(args: { values: DbSmartContractQueueEntryInsert }): Promise<DbSmartContractQueueEntry> {
+  async insertSmartContractQueueEntry(args: {
+    values: DbSmartContractQueueEntryInsert
+  }): Promise<DbSmartContractQueueEntry> {
     const values = {
       ...args.values,
       created_at: this.sql`now()`,
@@ -40,9 +55,7 @@ export class PgStore {
 
   async getSmartContract(args: { id: number }): Promise<DbSmartContract | null> {
     const result = await this.sql<DbSmartContract[]>`
-      SELECT * FROM smart_contracts
-      WHERE id = ${args.id}
-      LIMIT 1
+      SELECT * FROM smart_contracts WHERE id = ${args.id}
     `;
     if (result.count === 0) {
       return null;
@@ -56,48 +69,62 @@ export class PgStore {
     `;
   }
 
-  async insertAndEnqueueToken(args: {
-    values: DbTokenInsert
-  }): Promise<{ token: DbToken, queueEntry: DbTokenQueueEntry }> {
-    return await this.sql.begin(async sql => {
-      const tokenResult = await sql<DbToken[]>`
-        INSERT INTO tokens ${sql(args.values)}
-        ON CONFLICT ON CONSTRAINT tokens_smart_contract_id_token_id_unique DO NOTHING
-        RETURNING *
-      `;
-      const queueValues = {
-        token_id: tokenResult[0].id,
-        created_at: this.sql`now()`,
-        updated_at: this.sql`now()`
-      };
-      const queueResult = await sql<DbTokenQueueEntry[]>`
-        INSERT INTO token_queue_entries ${sql(queueValues)}
-        ON CONFLICT ON CONSTRAINT token_queue_entries_token_id_unique DO
-          UPDATE SET updated_at = EXCLUDED.updated_at
-        RETURNING *
-      `;
-      return { token: tokenResult[0], queueEntry: queueResult[0] };
-    });
+  /**
+   * Returns a cursor that inserts new tokens and new token queue entries until `token_count` items
+   * are created. A cursor is preferred because `token_count` could be in the tens of thousands.
+   * @param args token args
+   * @returns `DbTokenQueueEntry` cursor
+   */
+  async getInsertAndEnqueueTokensCursor(args: {
+    smart_contract_id: number;
+    token_count: number;
+    type: DbTokenType;
+  }): Promise<AsyncIterable<DbTokenQueueEntry[]>> {
+    let tokenValues: DbTokenInsert[] = [];
+    for (let index = 1; index <= args.token_count; index++) {
+      tokenValues.push({
+        smart_contract_id: args.smart_contract_id,
+        token_number: index,
+        type: args.type,
+      });
+    }
+    return this.sql<DbTokenQueueEntry[]>`
+      WITH token_inserts AS (
+        INSERT INTO tokens ${this.sql(tokenValues)}
+        ON CONFLICT ON CONSTRAINT tokens_smart_contract_id_token_number_unique DO NOTHING
+        RETURNING id
+      )
+      INSERT INTO token_queue_entries (token_id, created_at, updated_at)
+        (SELECT id AS token_id, NOW() AS created_at, NOW() AS updated_at FROM token_inserts)
+      ON CONFLICT ON CONSTRAINT token_queue_entries_token_id_unique DO
+        UPDATE SET updated_at = EXCLUDED.updated_at
+      RETURNING *
+    `.cursor();
   }
 
-  // async insertTokenQueueEntry(args: { values: DbSmartContractQueueEntryInsert }): Promise<DbSmartContractQueueEntry> {
+  async getToken(args: { id: number }): Promise<DbToken | null> {
+    const result = await this.sql<DbToken[]>`
+      SELECT * FROM tokens WHERE id = ${args.id}
+    `;
+    if (result.count === 0) {
+      return null;
+    }
+    return result[0];
+  }
 
-  //   return result[0];
-  // }
-
-  async updateTokenQueueEntryStatus(args: { queueEntryId: number; status: DbQueueEntryStatus }): Promise<void> {
+  async updateTokenQueueEntryStatus(args: { id: number; status: DbQueueEntryStatus }): Promise<void> {
     await this.sql`
       UPDATE token_queue_entries
       SET status = ${args.status}
-      WHERE id = ${args.queueEntryId}
+      WHERE id = ${args.id}
     `;
   }
 
-  async increaseTokenQueueEntryRetryCount(args: { queueEntryId: number }): Promise<number> {
+  async increaseTokenQueueEntryRetryCount(args: { id: number }): Promise<number> {
     const result = await this.sql<{ retry_count: number }[]>`
       UPDATE token_queue_entries
       SET retry_count = retry_count + 1
-      WHERE id = ${args.queueEntryId}
+      WHERE id = ${args.id}
       RETURNING retry_count
     `;
     return result[0].retry_count;

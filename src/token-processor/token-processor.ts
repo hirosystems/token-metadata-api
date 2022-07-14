@@ -20,10 +20,12 @@ import {
 import { ReadOnlyContractCallResponse, StacksNodeRpcClient } from './stacks-node/stacks-node-rpc-client';
 import { PgStore } from '../pg/pg-store';
 import { request } from 'undici';
-import { DbSipNumber, DbQueueEntryStatus } from '../pg/types';
+import { DbSipNumber, DbQueueEntryStatus, DbTokenQueueEntry, DbTokenType } from '../pg/types';
 import { getSmartContractSip } from './util/sip-validation';
 import { ENV } from '..';
+import { RetryableTokenMetadataError } from './util/errors';
 
+// FIXME: Move somewhere else
 export enum TokenMetadataProcessingMode {
   /** If a recoverable processing error occurs, we'll try again until the max retry attempt is reached. See `.env` */
   default,
@@ -32,56 +34,36 @@ export enum TokenMetadataProcessingMode {
 }
 
 /**
- * This class downloads, parses and indexes metadata info for a Fungible or Non-Fungible token in the Stacks blockchain
- * by calling read-only functions in SIP-009 and SIP-010 compliant smart contracts.
+ * Downloads, parses and indexes metadata info for a single token in the Stacks blockchain by
+ * calling read-only functions its smart contracts owner. Processes FTs, NFTs and SFTs. Used by
+ * `TokenQueue`.
  */
-export class TokenContractHandler {
-  readonly contractAddress: string;
-  readonly contractName: string;
-  readonly contractId: string;
-  readonly txId: string;
-  readonly queueEntryId: number = 0; // FIXME: Makes no sense, needs to be per token
+export class TokenProcessor {
   private readonly db: PgStore;
-  private readonly randomPrivKey = makeRandomPrivKey();
-  private readonly chainId: ChainID;
-  private readonly address: string;
-  private readonly tokenKind: DbSipNumber;
-  private readonly nodeRpcClient: StacksNodeRpcClient;
+  private readonly queueEntry: DbTokenQueueEntry;
 
   constructor(args: {
-    contractId: string;
-    smartContractAbi: ClarityAbi;
-    datastore: PgStore;
-    chainId: ChainID;
-    txId: string;
+    db: PgStore,
+    queueEntry: DbTokenQueueEntry
   }) {
-    const sip = getSmartContractSip(args.smartContractAbi);
-    if (!sip) {
-      // FIXME: Specific error
-      throw new Error(
-        `TokenContractHandler passed an ABI that isn't compliant to any token standards`
-      );
-    }
-    this.tokenKind = sip;
-
-    [this.contractAddress, this.contractName] = args.contractId.split('.');
-    this.contractId = args.contractId;
-    this.db = args.datastore;
-    this.chainId = args.chainId;
-    this.txId = args.txId;
-    this.nodeRpcClient = new StacksNodeRpcClient();
-
-    this.address = getAddressFromPrivateKey(
-      this.randomPrivKey.data,
-      this.chainId === ChainID.Mainnet ? TransactionVersion.Mainnet : TransactionVersion.Testnet
-    );
+    this.db = args.db;
+    this.queueEntry = args.queueEntry;
   }
 
-  async start() {
-    console.info(
-      `[token-metadata] found ${this.tokenKind} compliant contract ${this.contractId} in tx ${this.txId}, begin retrieving metadata...`
-    );
+  async process() {
+    // console.info(
+    //   `[token-metadata] found ${this.tokenKind} compliant contract ${this.contractId} in tx ${this.txId}, begin retrieving metadata...`
+    // );
     const sw = stopwatch();
+    const token = await this.db.getToken({ id: this.queueEntry.token_id });
+    if (!token) {
+      throw Error(`TokenProcessor token not found with id ${this.queueEntry.token_id}`);
+    }
+    const contract = await this.db.getSmartContract({ id: token.smart_contract_id });
+    if (!contract) {
+      throw Error(`TokenProcessor contract not found with id ${token.smart_contract_id}`);
+    }
+
     // This try/catch block will catch any and all errors that are generated while processing metadata
     // (contract call errors, parse errors, timeouts, etc.). Fortunately, each of them were previously tagged
     // as retryable or not retryable so we'll make a decision here about what to do in each case.
@@ -89,37 +71,55 @@ export class TokenContractHandler {
     // picked up by the `TokensProcessorQueue` at a later time.
     let processingFinished = false;
     try {
-      if (this.tokenKind === DbSipNumber.sip010) {
-        await this.handleFtContract();
-      } else if (this.tokenKind === DbSipNumber.sip009) {
-        await this.handleNftContract();
+      const randomPrivKey = makeRandomPrivKey();
+      const senderAddress = getAddressFromPrivateKey(
+        randomPrivKey.data,
+        TransactionVersion.Mainnet
+      );
+      const client = new StacksNodeRpcClient({
+        contractPrincipal: contract.principal,
+        senderAddress: senderAddress
+      });
+      switch (token.type) {
+        case DbTokenType.ft:
+          await this.handleFt(client);
+          break;
+        case DbTokenType.nft:
+          await this.handleNft(client);
+          break;
+        case DbTokenType.sft:
+          // TODO: Here
+          break;
       }
       processingFinished = true;
     } catch (error) {
       if (error instanceof RetryableTokenMetadataError) {
-        const retries = await this.db.increaseTokenQueueEntryRetryCount({ queueEntryId: this.queueEntryId });
+        const retries = await this.db.increaseTokenQueueEntryRetryCount({
+          id: this.queueEntry.id
+        });
         if (
           getTokenMetadataProcessingMode() === TokenMetadataProcessingMode.strict ||
           retries <= ENV.METADATA_MAX_RETRIES
         ) {
           console.info(
-            `[token-metadata] a recoverable error happened while processing ${this.contractId}, trying again later: ${error}`
+            `TokenProcessor a recoverable error happened while processing token ${token.id}, trying again later: ${error}`
           );
         } else {
           console.warn(
-            `[token-metadata] max retries reached while processing ${this.contractId}, giving up: ${error}`
+            `TokenProcessor max retries reached while processing token ${token.id}, giving up: ${error}`
           );
           processingFinished = true;
         }
       } else {
-        // Something more serious happened, mark this contract as done.
+        // Something more serious happened, mark this token as done.
         processingFinished = true;
       }
     } finally {
       if (processingFinished) {
-        await this.db.updateTokenQueueEntryStatus({ queueEntryId: this.queueEntryId, status: DbQueueEntryStatus.ready });
+        // FIXME: Ready with error
+        await this.db.updateTokenQueueEntryStatus({ id: this.queueEntry.id, status: DbQueueEntryStatus.ready });
         console.info(
-          `[token-metadata] finished processing ${this.contractId} in ${sw.getElapsed()} ms`
+          `TokenProcessor finished processing token ${token.id} in ${sw.getElapsed()} ms`
         );
       }
     }
@@ -128,13 +128,13 @@ export class TokenContractHandler {
   /**
    * fetch Fungible contract metadata
    */
-  private async handleFtContract() {
-    const contractCallName = await this.readStringFromContract('get-name');
-    const contractCallUri = await this.readStringFromContract('get-token-uri');
-    const contractCallSymbol = await this.readStringFromContract('get-symbol');
+  private async handleFt(client: StacksNodeRpcClient) {
+    const contractCallName = await client.readStringFromContract('get-name');
+    const contractCallUri = await client.readStringFromContract('get-token-uri');
+    const contractCallSymbol = await client.readStringFromContract('get-symbol');
 
     let contractCallDecimals: number | undefined;
-    const decimalsResult = await this.readUIntFromContract('get-decimals');
+    const decimalsResult = await client.readUIntFromContract('get-decimals');
     if (decimalsResult) {
       contractCallDecimals = Number(decimalsResult.toString());
     }
@@ -175,7 +175,7 @@ export class TokenContractHandler {
   /**
    * fetch Non Fungible contract metadata
    */
-  private async handleNftContract() {
+  private async handleNft(client: StacksNodeRpcClient) {
     // TODO: This is incorrectly attempting to fetch the metadata for a specific
     // NFT and applying it to the entire NFT type/contract. A new SIP needs created
     // to define how generic metadata for an NFT type/contract should be retrieved.
