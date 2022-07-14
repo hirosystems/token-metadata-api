@@ -1,7 +1,5 @@
 import { Static, Type } from '@sinclair/typebox';
 
-export type FoundOrNot<T> = { found: true; result: T } | { found: false; result?: T };
-
 export enum DbSipNumber {
   /** Non-Fungible Tokens */
   sip009 = 'sip-009',
@@ -16,6 +14,12 @@ export enum DbQueueEntryStatus {
   processing = 'processing',
   retry = 'retry',
   ready = 'ready'
+}
+
+export enum DbTokenType {
+  ft = 'ft',
+  nft = 'nft',
+  sft = 'sft'
 }
 
 export type DbSmartContractInsert = {
@@ -33,9 +37,38 @@ export type DbSmartContract = DbSmartContractInsert & {
   updated_at?: string;
 }
 
-export type DbSmartContractQueueEntry = {
-  id: number;
+export type DbSmartContractQueueEntryInsert = {
   smart_contract_id: number;
+}
+
+export type DbSmartContractQueueEntry = DbSmartContractQueueEntryInsert & {
+  id: number;
+  status: DbQueueEntryStatus;
+  retry_count: number;
+  created_at: string;
+  updated_at?: string;
+}
+
+export type DbTokenInsert = {
+  smart_contract_id: number;
+  type: DbTokenType,
+  token_number: number;
+}
+
+export type DbToken = DbTokenInsert & {
+  id: number;
+  uri?: string;
+  name?: string;
+  decimals?: number;
+  total_supply?: number;
+}
+
+export type DbTokenQueueEntryInsert = {
+  token_id: number;
+}
+
+export type DbTokenQueueEntry = DbTokenQueueEntryInsert & {
+  id: number;
   status: DbQueueEntryStatus;
   retry_count: number;
   created_at: string;

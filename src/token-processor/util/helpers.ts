@@ -1,4 +1,5 @@
 import { ENV } from '../..';
+import { DbSipNumber, DbTokenType } from '../../pg/types';
 import { TokenMetadataProcessingMode } from '../token-processor';
 
 /**
@@ -104,6 +105,17 @@ export function parseDataUrl(
     return parsed;
   } catch (e) {
     return false;
+  }
+}
+
+export function dbSipNumberToDbTokenType(sip: DbSipNumber): DbTokenType {
+  switch (sip) {
+    case DbSipNumber.sip009:
+      return DbTokenType.nft;
+    case DbSipNumber.sip010:
+      return DbTokenType.ft;
+    case DbSipNumber.sip013:
+      return DbTokenType.sft;
   }
 }
 
