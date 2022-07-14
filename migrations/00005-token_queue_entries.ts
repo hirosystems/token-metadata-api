@@ -12,7 +12,8 @@ export const up = async (sql: Sql<any>) => {
       created_at          TIMESTAMP NOT NULL,
       updated_at          TIMESTAMP,
 
-      CONSTRAINT token_queue_entries_token_id_fk FOREIGN KEY(token_id) REFERENCES tokens(id)
+      CONSTRAINT token_queue_entries_token_id_fk FOREIGN KEY(token_id) REFERENCES tokens(id),
+      CONSTRAINT token_queue_entries_token_id_unique UNIQUE(token_id)
     )`;
 };
 

@@ -9,7 +9,8 @@ export const up = async (sql: Sql<any>) => {
       created_at          TIMESTAMP NOT NULL,
       updated_at          TIMESTAMP,
 
-      CONSTRAINT smart_contract_queue_entries_smart_contract_id_fk FOREIGN KEY(smart_contract_id) REFERENCES smart_contracts(id)
+      CONSTRAINT smart_contract_queue_entries_smart_contract_id_fk FOREIGN KEY(smart_contract_id) REFERENCES smart_contracts(id),
+      CONSTRAINT smart_contract_queue_entries_smart_contract_id_unique UNIQUE(smart_contract_id)
     )`;
 };
 

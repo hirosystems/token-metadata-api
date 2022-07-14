@@ -6,21 +6,21 @@ export const up = async (sql: Sql<any>) => {
       id                    SERIAL PRIMARY KEY,
       smart_contract_id     INT NOT NULL,
       type                  token_type NOT NULL,
-      token_uri             TEXT NOT NULL,
+      token_number          INT NOT NULL,
+      uri                   TEXT,
       name                  TEXT,
       symbol                TEXT,
       decimals              INT,
       total_supply          INT,
-      token_id              INT,
 
       CONSTRAINT tokens_smart_contract_id_fk FOREIGN KEY(smart_contract_id) REFERENCES smart_contracts(id),
 
-      CONSTRAINT tokens_smart_contract_id_token_id_unique UNIQUE(smart_contract_id, token_id),
+      CONSTRAINT tokens_smart_contract_id_token_id_unique UNIQUE(smart_contract_id, token_id)
 
-      CONSTRAINT tokens_valid_ft_check CHECK(type <> 'ft' OR (num_nulls(name, symbol, decimals, total_supply) = 0 AND token_id = NULL)),
-      CONSTRAINT tokens_valid_nft_check CHECK(type <> 'nft' OR (num_nonnulls(name, symbol, decimals, total_supply) = 0 AND token_id <> NULL)),
-      CONSTRAINT tokens_valid_sft_check CHECK(type <> 'sft' OR num_nulls(name, symbol, decimals, total_supply, token_id) = 0)
-    )`;
+      )`;
+      // CONSTRAINT tokens_valid_ft_check CHECK(type <> 'ft' OR (num_nulls(name, symbol, decimals, total_supply) = 0 AND token_id = NULL)),
+      // CONSTRAINT tokens_valid_nft_check CHECK(type <> 'nft' OR (num_nonnulls(name, symbol, decimals, total_supply) = 0 AND token_id <> NULL)),
+      // CONSTRAINT tokens_valid_sft_check CHECK(type <> 'sft' OR num_nulls(name, symbol, decimals, total_supply, token_id) = 0)
 };
 
 export const down = async (sql: Sql<any>) => {

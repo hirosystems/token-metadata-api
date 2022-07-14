@@ -1,3 +1,14 @@
+import { DbTokenQueueEntry } from "../../pg/types";
+import { Queue } from "./queue";
+
+export class TokenQueue extends Queue<DbTokenQueueEntry> {
+  add(item: DbTokenQueueEntry): void {
+    this.queue.add(() => {
+      //
+    });
+  }
+}
+
 // import { logError, logger } from '../helpers';
 // import { Evt } from 'evt';
 // import PQueue from 'p-queue';

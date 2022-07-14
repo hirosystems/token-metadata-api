@@ -13,7 +13,7 @@ export const ENV = getEnvVars();
 const pgStore = new PgStore();
 const pgBlockchainStore = new PgBlockchainApiStore();
 const importer = new BlockchainSmartContractImporter({
-  pgStore: pgStore,
+  db: pgStore,
   pgBlockchainStore: pgBlockchainStore,
   chainId: ChainID.Mainnet
 });
