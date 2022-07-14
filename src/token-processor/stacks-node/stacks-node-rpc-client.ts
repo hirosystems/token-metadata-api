@@ -26,12 +26,10 @@ export class StacksNodeRpcClient {
   readonly senderAddress: string;
 
   constructor(args: {
-    contractAddress: string;
-    contractName: string;
+    contractPrincipal: string;
     senderAddress: string;
   }) {
-    this.contractAddress = args.contractAddress;
-    this.contractName = args.contractName;
+    [this.contractAddress, this.contractName] = args.contractPrincipal.split('.');
     this.senderAddress = args.senderAddress;
   }
 

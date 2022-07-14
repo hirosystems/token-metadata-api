@@ -1,8 +1,14 @@
+import { getAddressFromPrivateKey, makeRandomPrivKey, TransactionVersion } from "@stacks/transactions";
 import { PgStore } from "../pg/pg-store";
 import { DbQueueEntryStatus, DbSipNumber, DbSmartContract, DbSmartContractQueueEntry } from "../pg/types";
 import { TokenQueue } from "./queue/token-queue";
+import { StacksNodeRpcClient } from "./stacks-node/stacks-node-rpc-client";
 import { dbSipNumberToDbTokenType } from "./util/helpers";
 
+/**
+ * Takes a smart contract and (depending on its SIP) enqueues all of its underlying tokens for
+ * metadata retrieval. Used by `SmartContractQueue`.
+ */
 export class SmartContractProcessor {
   private readonly db: PgStore;
   private readonly queueEntry: DbSmartContractQueueEntry;
@@ -28,13 +34,15 @@ export class SmartContractProcessor {
     }
     switch (contract.sip) {
       case DbSipNumber.sip009:
-        // get total tokens, push all
+        // NFT contracts expose their token count in `get-last-token-id`. We'll get that number
+        // through a contract call and then queue that same number of tokens for metadata retrieval.
+        const tokenCount = await this.getNftContractLastTokenId(contract);
+        await this.enqueueTokens(contract, Number(tokenCount));
         break;
 
       case DbSipNumber.sip010:
         // FT contracts only have 1 token to process. Do that immediately.
-        await this.db.updateSmartContractTokenCount({ id: contract.id, count: 1 });
-        await this.enqueueToken(contract, 1);
+        await this.enqueueTokens(contract, 1);
         break;
 
       case DbSipNumber.sip013:
@@ -43,14 +51,26 @@ export class SmartContractProcessor {
     }
   }
 
-  private async enqueueToken(contract: DbSmartContract, tokenNumber: number) {
-    const { token, queueEntry } = await this.db.insertAndEnqueueToken({
-      values: {
-        smart_contract_id: contract.id,
-        token_number: tokenNumber,
-        type: dbSipNumberToDbTokenType(contract.sip)
-      }
+  private async getNftContractLastTokenId(contract: DbSmartContract): Promise<bigint> {
+    const key = makeRandomPrivKey();
+    const senderAddress = getAddressFromPrivateKey(key.data, TransactionVersion.Mainnet);
+    const client = new StacksNodeRpcClient({
+      contractPrincipal: contract.principal,
+      senderAddress: senderAddress
     });
-    this.tokenQueue.add(queueEntry);
+    // FIXME: Catch retryable errors
+    return await client.readUIntFromContract('get-last-token-id') ?? 0n;
+  }
+
+  private async enqueueTokens(contract: DbSmartContract, tokenCount: number): Promise<void> {
+    await this.db.updateSmartContractTokenCount({ id: contract.id, count: tokenCount });
+    const cursor = await this.db.getInsertAndEnqueueTokensCursor({
+      smart_contract_id: contract.id,
+      token_count: tokenCount,
+      type: dbSipNumberToDbTokenType(contract.sip)
+    });
+    for await (const [queueEntry] of cursor) {
+      this.tokenQueue.add(queueEntry);
+    }
   }
 }

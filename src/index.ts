@@ -7,14 +7,20 @@ import { BlockchainSmartContractImporter } from './token-processor/blockchain-sm
 import { ChainID } from '@stacks/transactions';
 import { PgStore } from './pg/pg-store';
 import { PgBlockchainApiStore } from './pg/blockchain-api/pg-blockchain-api-store';
+import { SmartContractQueue } from './token-processor/queue/smart-contract-queue';
+import { TokenQueue } from './token-processor/queue/token-queue';
 
 export const ENV = getEnvVars();
 
 const pgStore = new PgStore();
 const pgBlockchainStore = new PgBlockchainApiStore();
+const tokenQueue = new TokenQueue({ db: pgStore });
+const smartContractQueue = new SmartContractQueue({ db: pgStore, tokenQueue: tokenQueue });
+
 const importer = new BlockchainSmartContractImporter({
   db: pgStore,
-  pgBlockchainStore: pgBlockchainStore,
+  apiDb: pgBlockchainStore,
+  smartContractQueue: smartContractQueue,
   chainId: ChainID.Mainnet
 });
 importer.importSmartContracts().catch(error => {

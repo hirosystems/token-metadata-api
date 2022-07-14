@@ -23,7 +23,7 @@ export enum DbTokenType {
 }
 
 export type DbSmartContractInsert = {
-  name: string;
+  principal: string;
   sip: DbSipNumber;
   abi: string;
   tx_id: string;

@@ -15,7 +15,7 @@ export const up = async (sql: Sql<any>) => {
 
       CONSTRAINT tokens_smart_contract_id_fk FOREIGN KEY(smart_contract_id) REFERENCES smart_contracts(id),
 
-      CONSTRAINT tokens_smart_contract_id_token_id_unique UNIQUE(smart_contract_id, token_id)
+      CONSTRAINT tokens_smart_contract_id_token_number_unique UNIQUE(smart_contract_id, token_number)
 
       )`;
       // CONSTRAINT tokens_valid_ft_check CHECK(type <> 'ft' OR (num_nulls(name, symbol, decimals, total_supply) = 0 AND token_id = NULL)),
