@@ -125,9 +125,6 @@ export class TokenProcessor {
     }
   }
 
-  /**
-   * fetch Fungible contract metadata
-   */
   private async handleFt(client: StacksNodeRpcClient) {
     const contractCallName = await client.readStringFromContract('get-name');
     const contractCallUri = await client.readStringFromContract('get-token-uri');
