@@ -36,29 +36,22 @@ export class BlockchainSmartContractImporter {
       if (!sip) {
         continue; // Not a token contract.
       }
-      // FIXME: Do these at the same time
-      const smartContract = await this.insertSmartContract(row, sip);
-      await this.enqueueSmartContract(smartContract);
+      await this.enqueueSmartContract(row, sip);
       console.info(`Importing token contract (${sip}): ${row.contract_id}`);
     }
   }
 
-  private async insertSmartContract(blockchainContract: BlockchainDbSmartContract, sip: DbSipNumber) {
-    return await this.db.insertSmartContract({
+  private async enqueueSmartContract(
+    blockchainContract: BlockchainDbSmartContract,
+    sip: DbSipNumber
+  ) {
+    const entry = await this.db.insertAndEnqueueSmartContract({
       values: {
         principal: blockchainContract.contract_id,
         sip: sip,
         abi: JSON.stringify(blockchainContract.abi),
         tx_id: blockchainContract.tx_id,
         block_height: blockchainContract.block_height
-      }
-    });
-  }
-
-  private async enqueueSmartContract(smartContract: DbSmartContract) {
-    const entry = await this.db.insertSmartContractQueueEntry({
-      values: {
-        smart_contract_id: smartContract.id
       }
     });
     this.smartContractQueue.add(entry);

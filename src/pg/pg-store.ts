@@ -21,23 +21,8 @@ export class PgStore {
     this.sql = postgres();
   }
 
-  async insertSmartContract(args: { values: DbSmartContractInsert }): Promise<DbSmartContract> {
-    const values = {
-      ...args.values,
-      created_at: this.sql`now()`,
-      updated_at: this.sql`now()`
-    };
-    const result = await this.sql<DbSmartContract[]>`
-      INSERT INTO smart_contracts ${this.sql(values)}
-      ON CONFLICT ON CONSTRAINT smart_contracts_name_unique DO
-        UPDATE SET updated_at = EXCLUDED.updated_at
-      RETURNING *
-    `;
-    return result[0];
-  }
-
-  async insertSmartContractQueueEntry(args: {
-    values: DbSmartContractQueueEntryInsert
+  async insertAndEnqueueSmartContract(args: {
+    values: DbSmartContractInsert
   }): Promise<DbSmartContractQueueEntry> {
     const values = {
       ...args.values,
@@ -45,7 +30,17 @@ export class PgStore {
       updated_at: this.sql`now()`
     };
     const result = await this.sql<DbSmartContractQueueEntry[]>`
-      INSERT INTO smart_contract_queue_entries ${this.sql(values)}
+      WITH smart_contract_inserts AS (
+        INSERT INTO smart_contracts ${this.sql(values)}
+        ON CONFLICT ON CONSTRAINT smart_contracts_name_unique DO
+          UPDATE SET updated_at = EXCLUDED.updated_at
+        RETURNING id
+      )
+      INSERT INTO smart_contract_queue_entries (smart_contract_id, created_at, updated_at)
+        (
+          SELECT id AS smart_contract_id, NOW() AS created_at, NOW() AS updated_at
+          FROM smart_contract_inserts
+        )
       ON CONFLICT ON CONSTRAINT smart_contract_queue_entries_smart_contract_id_unique DO
         UPDATE SET updated_at = EXCLUDED.updated_at
       RETURNING *
