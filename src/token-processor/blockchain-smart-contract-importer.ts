@@ -1,8 +1,8 @@
-import { ChainID, ClarityAbi } from '@stacks/transactions';
+import { ClarityAbi } from '@stacks/transactions';
 import { BlockchainDbSmartContract, PgBlockchainApiStore } from "../pg/blockchain-api/pg-blockchain-api-store";
 import { PgStore } from "../pg/pg-store";
-import { DbSipNumber, DbSmartContract } from "../pg/types";
-import { SmartContractQueue } from './queue/smart-contract-queue';
+import { DbSipNumber } from "../pg/types";
+import { JobQueue } from './queue/job-queue';
 import { getSmartContractSip } from './util/sip-validation';
 
 /**
@@ -13,19 +13,16 @@ import { getSmartContractSip } from './util/sip-validation';
 export class BlockchainSmartContractImporter {
   private readonly db: PgStore;
   private readonly apiDb: PgBlockchainApiStore;
-  private readonly smartContractQueue: SmartContractQueue;
-  private readonly chainId: ChainID;
+  private readonly jobQueue: JobQueue;
 
   constructor(args: {
     db: PgStore,
     apiDb: PgBlockchainApiStore,
-    smartContractQueue: SmartContractQueue,
-    chainId: ChainID
+    jobQueue: JobQueue
   }) {
     this.db = args.db;
     this.apiDb = args.apiDb;
-    this.smartContractQueue = args.smartContractQueue;
-    this.chainId = args.chainId;
+    this.jobQueue = args.jobQueue;
   }
 
   async importSmartContracts() {
@@ -45,7 +42,7 @@ export class BlockchainSmartContractImporter {
     blockchainContract: BlockchainDbSmartContract,
     sip: DbSipNumber
   ) {
-    const entry = await this.db.insertAndEnqueueSmartContract({
+    const job = await this.db.insertAndEnqueueSmartContract({
       values: {
         principal: blockchainContract.contract_id,
         sip: sip,
@@ -54,6 +51,6 @@ export class BlockchainSmartContractImporter {
         block_height: blockchainContract.block_height
       }
     });
-    this.smartContractQueue.add(entry);
+    this.jobQueue.add(job);
   }
 }

@@ -1,14 +1,7 @@
 import {
-  ChainID,
-  ClarityAbi,
-  ClarityType,
-  ClarityValue,
   getAddressFromPrivateKey,
-  hexToCV,
   makeRandomPrivKey,
   TransactionVersion,
-  uintCV,
-  UIntCV,
 } from '@stacks/transactions';
 import * as querystring from 'querystring';
 import {
@@ -17,13 +10,12 @@ import {
   parseDataUrl,
   stopwatch,
 } from './util/helpers';
-import { ReadOnlyContractCallResponse, StacksNodeRpcClient } from './stacks-node/stacks-node-rpc-client';
-import { PgStore } from '../pg/pg-store';
+import { StacksNodeRpcClient } from './stacks-node/stacks-node-rpc-client';
 import { request } from 'undici';
-import { DbSipNumber, DbQueueEntryStatus, DbTokenQueueEntry, DbTokenType, DbFtInsert, DbNftInsert } from '../pg/types';
-import { getSmartContractSip } from './util/sip-validation';
+import { DbJobStatus, DbTokenType, DbFtInsert, DbNftInsert } from '../pg/types';
 import { ENV } from '..';
 import { RetryableTokenMetadataError } from './util/errors';
+import { Job } from './queue/job';
 
 // FIXME: Move somewhere else
 export enum TokenMetadataProcessingMode {
@@ -38,25 +30,15 @@ export enum TokenMetadataProcessingMode {
  * calling read-only functions its smart contracts owner. Processes FTs, NFTs and SFTs. Used by
  * `TokenQueue`.
  */
-export class TokenProcessor {
-  private readonly db: PgStore;
-  private readonly queueEntry: DbTokenQueueEntry;
-  private readonly tokenId: number;
-
-  constructor(args: {
-    db: PgStore,
-    queueEntry: DbTokenQueueEntry
-  }) {
-    this.db = args.db;
-    this.queueEntry = args.queueEntry;
-    this.tokenId = args.queueEntry.token_id;
-  }
-
-  async process() {
+export class ProcessTokenJob extends Job {
+  async work() {
+    if (this.job.status !== DbJobStatus.waiting || !this.job.token_id) {
+      return;
+    }
     const sw = stopwatch();
-    const token = await this.db.getToken({ id: this.tokenId });
+    const token = await this.db.getToken({ id: this.job.token_id });
     if (!token) {
-      throw Error(`TokenProcessor token not found with id ${this.tokenId}`);
+      throw Error(`TokenProcessor token not found with id ${this.job.token_id}`);
     }
     const contract = await this.db.getSmartContract({ id: token.smart_contract_id });
     if (!contract) {
@@ -82,11 +64,11 @@ export class TokenProcessor {
       switch (token.type) {
         case DbTokenType.ft:
           console.info(`TokenProcessor processing FT ${contract.principal} (id=${token.id})`);
-          await this.handleFt(client);
+          await this.handleFt(client, this.job.token_id);
           break;
         case DbTokenType.nft:
           console.info(`TokenProcessor processing NFT ${contract.principal}#${token.token_number} (id=${token.id})`);
-          await this.handleNft(client);
+          await this.handleNft(client, this.job.token_id);
           break;
         case DbTokenType.sft:
           // TODO: Here
@@ -95,8 +77,8 @@ export class TokenProcessor {
       processingFinished = true;
     } catch (error) {
       if (error instanceof RetryableTokenMetadataError) {
-        const retries = await this.db.increaseTokenQueueEntryRetryCount({
-          id: this.queueEntry.id
+        const retries = await this.db.increaseJobRetryCount({
+          id: this.job.id
         });
         if (
           getTokenMetadataProcessingMode() === TokenMetadataProcessingMode.strict ||
@@ -118,7 +100,7 @@ export class TokenProcessor {
     } finally {
       if (processingFinished) {
         // FIXME: Ready with error
-        await this.db.updateTokenQueueEntryStatus({ id: this.queueEntry.id, status: DbQueueEntryStatus.ready });
+        await this.db.updateJobStatus({ id: this.job.id, status: DbJobStatus.done });
         console.info(
           `TokenProcessor finished processing token ${token.id} in ${sw.getElapsed()}ms`
         );
@@ -126,7 +108,7 @@ export class TokenProcessor {
     }
   }
 
-  private async handleFt(client: StacksNodeRpcClient) {
+  private async handleFt(client: StacksNodeRpcClient, tokenId: number) {
     const name = await client.readStringFromContract('get-name');
     const uri = await client.readStringFromContract('get-token-uri');
     const symbol = await client.readStringFromContract('get-symbol');
@@ -169,10 +151,10 @@ export class TokenProcessor {
       total_supply: fTotalSupply ?? 0,
       uri: uri ?? ''
     };
-    await this.db.updateToken({ id: this.tokenId, values: tokenValues });
+    await this.db.updateToken({ id: tokenId, values: tokenValues });
   }
 
-  private async handleNft(client: StacksNodeRpcClient) {
+  private async handleNft(client: StacksNodeRpcClient, tokenId: number) {
     const uri = await client.readStringFromContract('get-token-uri');
 
     // let metadata: NftTokenMetadata | undefined;
@@ -199,7 +181,7 @@ export class TokenProcessor {
     const tokenValues: DbNftInsert = {
       uri: uri ?? ''
     };
-    await this.db.updateToken({ id: this.tokenId, values: tokenValues });
+    await this.db.updateToken({ id: tokenId, values: tokenValues });
   }
 
   private getImageUrl(uri: string): string {

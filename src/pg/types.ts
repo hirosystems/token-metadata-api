@@ -7,11 +7,10 @@ export enum DbSipNumber {
   sip013 = 'sip-013'
 }
 
-export enum DbQueueEntryStatus {
-  new = 'new',
-  processing = 'processing',
-  retry = 'retry',
-  ready = 'ready'
+export enum DbJobStatus {
+  waiting = 'waiting',
+  done = 'done',
+  failed = 'failed'
 }
 
 export enum DbTokenType {
@@ -35,18 +34,6 @@ export type DbSmartContract = DbSmartContractInsert & {
   updated_at?: string;
 }
 
-export type DbSmartContractQueueEntryInsert = {
-  smart_contract_id: number;
-}
-
-export type DbSmartContractQueueEntry = DbSmartContractQueueEntryInsert & {
-  id: number;
-  status: DbQueueEntryStatus;
-  retry_count: number;
-  created_at: string;
-  updated_at?: string;
-}
-
 export type DbTokenInsert = {
   smart_contract_id: number;
   type: DbTokenType,
@@ -61,13 +48,14 @@ export type DbToken = DbTokenInsert & {
   total_supply?: number;
 }
 
-export type DbTokenQueueEntryInsert = {
-  token_id: number;
+export type DbJobInsert = {
+  token_id?: number;
+  smart_contract_id?: number;
 }
 
-export type DbTokenQueueEntry = DbTokenQueueEntryInsert & {
+export type DbJob = DbJobInsert & {
   id: number;
-  status: DbQueueEntryStatus;
+  status: DbJobStatus;
   retry_count: number;
   created_at: string;
   updated_at?: string;
