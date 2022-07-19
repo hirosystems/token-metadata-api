@@ -3,6 +3,7 @@ import { PgStore } from "../pg/pg-store";
 import { DbQueueEntryStatus, DbSipNumber, DbSmartContract, DbSmartContractQueueEntry } from "../pg/types";
 import { TokenQueue } from "./queue/token-queue";
 import { StacksNodeRpcClient } from "./stacks-node/stacks-node-rpc-client";
+import { RetryableTokenMetadataError } from "./util/errors";
 import { dbSipNumberToDbTokenType } from "./util/helpers";
 
 /**
@@ -58,12 +59,24 @@ export class SmartContractProcessor {
       contractPrincipal: contract.principal,
       senderAddress: senderAddress
     });
-    // FIXME: Catch retryable errors
-    return await client.readUIntFromContract('get-last-token-id') ?? 0n;
+    try {
+      return await client.readUIntFromContract('get-last-token-id') ?? 0n;
+    } catch (error) {
+      if (error instanceof RetryableTokenMetadataError) {
+        // FIXME: Catch retryable errors
+      }
+      throw error;
+    }
   }
 
   private async enqueueTokens(contract: DbSmartContract, tokenCount: number): Promise<void> {
     await this.db.updateSmartContractTokenCount({ id: contract.id, count: tokenCount });
+    if (tokenCount === 0) {
+      return;
+    }
+    console.info(
+      `SmartContractProcessor enqueueing ${tokenCount} tokens for ${contract.sip} ${contract.principal}`
+    );
     const cursor = await this.db.getInsertAndEnqueueTokensCursor({
       smart_contract_id: contract.id,
       token_count: tokenCount,

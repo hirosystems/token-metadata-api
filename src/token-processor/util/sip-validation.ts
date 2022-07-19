@@ -216,6 +216,9 @@ const SftTraitFunctions: ClarityAbiFunction[] = [
  * @returns SIP or false
  */
 export function getSmartContractSip(abi: ClarityAbi): DbSipNumber | false {
+  if (!abi) {
+    return false;
+  }
   // TODO: Will stacks.js support SFTs?
   if (abiContains(abi, SftTraitFunctions)) {
     return DbSipNumber.sip013;
