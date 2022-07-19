@@ -37,7 +37,7 @@ export class BlockchainSmartContractImporter {
         continue; // Not a token contract.
       }
       await this.enqueueSmartContract(row, sip);
-      console.info(`Importing token contract (${sip}): ${row.contract_id}`);
+      console.info(`BlockchainSmartContractImporter adding (${sip}): ${row.contract_id}`);
     }
   }
 

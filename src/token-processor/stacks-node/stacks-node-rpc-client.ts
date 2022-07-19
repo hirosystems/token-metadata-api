@@ -65,7 +65,7 @@ export class StacksNodeRpcClient {
     const client = new Client(`http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`);
     const result = await client.request(
       {
-        path: `v2/contracts/call-read/${this.contractAddress}/${this.contractName}/${functionName}`,
+        path: `/v2/contracts/call-read/${this.contractAddress}/${this.contractName}/${functionName}`,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

@@ -4,11 +4,13 @@ import {
   DbSmartContractInsert,
   DbQueueEntryStatus,
   DbSmartContractQueueEntry,
-  DbSmartContractQueueEntryInsert,
   DbTokenInsert,
   DbTokenQueueEntry,
   DbToken,
-  DbTokenType
+  DbTokenType,
+  DbFtInsert,
+  DbNftInsert,
+  DbSftInsert
 } from './types';
 
 /**
@@ -18,7 +20,7 @@ export class PgStore {
   private readonly sql: postgres.Sql<any>;
 
   constructor() {
-    this.sql = postgres();
+    this.sql = postgres({ max: 1 });
   }
 
   async insertAndEnqueueSmartContract(args: {
@@ -32,7 +34,7 @@ export class PgStore {
     const result = await this.sql<DbSmartContractQueueEntry[]>`
       WITH smart_contract_inserts AS (
         INSERT INTO smart_contracts ${this.sql(values)}
-        ON CONFLICT ON CONSTRAINT smart_contracts_name_unique DO
+        ON CONFLICT ON CONSTRAINT smart_contracts_principal_unique DO
           UPDATE SET updated_at = EXCLUDED.updated_at
         RETURNING id
       )
@@ -94,7 +96,7 @@ export class PgStore {
       ON CONFLICT ON CONSTRAINT token_queue_entries_token_id_unique DO
         UPDATE SET updated_at = EXCLUDED.updated_at
       RETURNING *
-    `.cursor();
+    `.cursor(100);
   }
 
   async getToken(args: { id: number }): Promise<DbToken | null> {
@@ -105,6 +107,15 @@ export class PgStore {
       return null;
     }
     return result[0];
+  }
+
+  async updateToken(args: {
+    id: number;
+    values: DbFtInsert | DbNftInsert | DbSftInsert
+  }): Promise<void> {
+    await this.sql`
+      UPDATE tokens SET ${this.sql(args.values)} WHERE id = ${args.id}
+    `;
   }
 
   async updateTokenQueueEntryStatus(args: { id: number; status: DbQueueEntryStatus }): Promise<void> {

@@ -1,5 +1,3 @@
-import { Static, Type } from '@sinclair/typebox';
-
 export enum DbSipNumber {
   /** Non-Fungible Tokens */
   sip009 = 'sip-009',
@@ -75,6 +73,22 @@ export type DbTokenQueueEntry = DbTokenQueueEntryInsert & {
   updated_at?: string;
 }
 
-export const DbFtInsert = Type.Object({
-  smart_contract_id: Type.Integer(),
-});
+export type DbFtInsert = {
+  name: string;
+  symbol: string;
+  decimals: number;
+  total_supply: number;
+  uri: string;
+}
+
+export type DbNftInsert = {
+  uri: string;
+}
+
+export type DbSftInsert = {
+  name: string;
+  symbol: string;
+  decimals: number;
+  total_supply: number;
+  uri: string;
+}

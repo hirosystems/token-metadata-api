@@ -20,7 +20,7 @@ import {
 import { ReadOnlyContractCallResponse, StacksNodeRpcClient } from './stacks-node/stacks-node-rpc-client';
 import { PgStore } from '../pg/pg-store';
 import { request } from 'undici';
-import { DbSipNumber, DbQueueEntryStatus, DbTokenQueueEntry, DbTokenType } from '../pg/types';
+import { DbSipNumber, DbQueueEntryStatus, DbTokenQueueEntry, DbTokenType, DbFtInsert, DbNftInsert } from '../pg/types';
 import { getSmartContractSip } from './util/sip-validation';
 import { ENV } from '..';
 import { RetryableTokenMetadataError } from './util/errors';
@@ -41,6 +41,7 @@ export enum TokenMetadataProcessingMode {
 export class TokenProcessor {
   private readonly db: PgStore;
   private readonly queueEntry: DbTokenQueueEntry;
+  private readonly tokenId: number;
 
   constructor(args: {
     db: PgStore,
@@ -48,16 +49,14 @@ export class TokenProcessor {
   }) {
     this.db = args.db;
     this.queueEntry = args.queueEntry;
+    this.tokenId = args.queueEntry.token_id;
   }
 
   async process() {
-    // console.info(
-    //   `[token-metadata] found ${this.tokenKind} compliant contract ${this.contractId} in tx ${this.txId}, begin retrieving metadata...`
-    // );
     const sw = stopwatch();
-    const token = await this.db.getToken({ id: this.queueEntry.token_id });
+    const token = await this.db.getToken({ id: this.tokenId });
     if (!token) {
-      throw Error(`TokenProcessor token not found with id ${this.queueEntry.token_id}`);
+      throw Error(`TokenProcessor token not found with id ${this.tokenId}`);
     }
     const contract = await this.db.getSmartContract({ id: token.smart_contract_id });
     if (!contract) {
@@ -82,9 +81,11 @@ export class TokenProcessor {
       });
       switch (token.type) {
         case DbTokenType.ft:
+          console.info(`TokenProcessor processing FT ${contract.principal} (id=${token.id})`);
           await this.handleFt(client);
           break;
         case DbTokenType.nft:
+          console.info(`TokenProcessor processing NFT ${contract.principal}#${token.token_number} (id=${token.id})`);
           await this.handleNft(client);
           break;
         case DbTokenType.sft:
@@ -119,21 +120,27 @@ export class TokenProcessor {
         // FIXME: Ready with error
         await this.db.updateTokenQueueEntryStatus({ id: this.queueEntry.id, status: DbQueueEntryStatus.ready });
         console.info(
-          `TokenProcessor finished processing token ${token.id} in ${sw.getElapsed()} ms`
+          `TokenProcessor finished processing token ${token.id} in ${sw.getElapsed()}ms`
         );
       }
     }
   }
 
   private async handleFt(client: StacksNodeRpcClient) {
-    const contractCallName = await client.readStringFromContract('get-name');
-    const contractCallUri = await client.readStringFromContract('get-token-uri');
-    const contractCallSymbol = await client.readStringFromContract('get-symbol');
+    const name = await client.readStringFromContract('get-name');
+    const uri = await client.readStringFromContract('get-token-uri');
+    const symbol = await client.readStringFromContract('get-symbol');
 
-    let contractCallDecimals: number | undefined;
-    const decimalsResult = await client.readUIntFromContract('get-decimals');
-    if (decimalsResult) {
-      contractCallDecimals = Number(decimalsResult.toString());
+    let fDecimals: number | undefined;
+    const decimals = await client.readUIntFromContract('get-decimals');
+    if (decimals) {
+      fDecimals = Number(decimals.toString());
+    }
+
+    let fTotalSupply: number | undefined;
+    const totalSupply = await client.readUIntFromContract('get-total-supply');
+    if (totalSupply) {
+      fTotalSupply = Number(totalSupply.toString());
     }
 
     // let metadata: FtTokenMetadata | undefined;
@@ -154,33 +161,19 @@ export class TokenProcessor {
     //   imgUrl = await this.processImageUrl(normalizedUrl);
     // }
 
-    // const fungibleTokenMetadata: DbFungibleTokenMetadata = {
-    //   token_uri: contractCallUri ?? '',
-    //   name: contractCallName ?? metadata?.name ?? '', // prefer the on-chain name
-    //   description: metadata?.description ?? '',
-    //   image_uri: imgUrl ?? '',
-    //   image_canonical_uri: metadata?.imageUri ?? '',
-    //   symbol: contractCallSymbol ?? '',
-    //   decimals: contractCallDecimals ?? 0,
-    //   contract_id: this.contractId,
-    //   tx_id: this.txId,
-    //   sender_address: this.contractAddress,
-    // };
-    // await this.db.updateFtMetadata(fungibleTokenMetadata, this.dbQueueId);
+    // FIXME: Should we write NULLs?
+    const tokenValues: DbFtInsert = {
+      name: name ?? '',
+      symbol: symbol ?? '',
+      decimals: fDecimals ?? 0,
+      total_supply: fTotalSupply ?? 0,
+      uri: uri ?? ''
+    };
+    await this.db.updateToken({ id: this.tokenId, values: tokenValues });
   }
 
-  /**
-   * fetch Non Fungible contract metadata
-   */
   private async handleNft(client: StacksNodeRpcClient) {
-    // TODO: This is incorrectly attempting to fetch the metadata for a specific
-    // NFT and applying it to the entire NFT type/contract. A new SIP needs created
-    // to define how generic metadata for an NFT type/contract should be retrieved.
-    // In the meantime, this will often fail or result in weird data, but at least
-    // the NFT type enumeration endpoints will have data like the contract ID and txid.
-
-    // TODO: this should instead use the SIP-012 draft https://github.com/stacksgov/sips/pull/18
-    // function `(get-nft-meta () (response (optional {name: (string-uft8 30), image: (string-ascii 255)}) uint))`
+    const uri = await client.readStringFromContract('get-token-uri');
 
     // let metadata: NftTokenMetadata | undefined;
     // const contractCallUri = await this.readStringFromContract('get-token-uri', [uintCV(0)]);
@@ -202,17 +195,11 @@ export class TokenProcessor {
     //   imgUrl = await this.processImageUrl(normalizedUrl);
     // }
 
-    // const nonFungibleTokenMetadata: DbNonFungibleTokenMetadata = {
-    //   token_uri: contractCallUri ?? '',
-    //   name: metadata?.name ?? '',
-    //   description: metadata?.description ?? '',
-    //   image_uri: imgUrl ?? '',
-    //   image_canonical_uri: metadata?.imageUri ?? '',
-    //   contract_id: `${this.contractId}`,
-    //   tx_id: this.txId,
-    //   sender_address: this.contractAddress,
-    // };
-    // await this.db.updateNFtMetadata(nonFungibleTokenMetadata, this.dbQueueId);
+    // FIXME: Should we write NULLs?
+    const tokenValues: DbNftInsert = {
+      uri: uri ?? ''
+    };
+    await this.db.updateToken({ id: this.tokenId, values: tokenValues });
   }
 
   private getImageUrl(uri: string): string {
@@ -232,9 +219,6 @@ export class TokenProcessor {
     return fetchableUrl.toString();
   }
 
-  /**
-   * Fetch metadata from uri
-   */
   private async getMetadataFromUri<Type>(token_uri: string): Promise<Type> {
     // Support JSON embedded in a Data URL
     if (new URL(token_uri).protocol === 'data:') {
