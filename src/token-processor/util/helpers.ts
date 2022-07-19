@@ -1,6 +1,6 @@
 import { ENV } from '../..';
 import { DbSipNumber, DbTokenType } from '../../pg/types';
-import { TokenMetadataProcessingMode } from '../token-processor';
+import { TokenMetadataProcessingMode } from '../process-token-job';
 
 /**
  * Determines the token metadata processing mode based on .env values.

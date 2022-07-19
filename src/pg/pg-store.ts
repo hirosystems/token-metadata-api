@@ -2,10 +2,9 @@ import * as postgres from 'postgres';
 import {
   DbSmartContract,
   DbSmartContractInsert,
-  DbQueueEntryStatus,
-  DbSmartContractQueueEntry,
+  DbJobStatus,
   DbTokenInsert,
-  DbTokenQueueEntry,
+  DbJob,
   DbToken,
   DbTokenType,
   DbFtInsert,
@@ -20,31 +19,31 @@ export class PgStore {
   private readonly sql: postgres.Sql<any>;
 
   constructor() {
-    this.sql = postgres({ max: 1 });
+    this.sql = postgres();
   }
 
   async insertAndEnqueueSmartContract(args: {
     values: DbSmartContractInsert
-  }): Promise<DbSmartContractQueueEntry> {
+  }): Promise<DbJob> {
     const values = {
       ...args.values,
       created_at: this.sql`now()`,
       updated_at: this.sql`now()`
     };
-    const result = await this.sql<DbSmartContractQueueEntry[]>`
+    const result = await this.sql<DbJob[]>`
       WITH smart_contract_inserts AS (
         INSERT INTO smart_contracts ${this.sql(values)}
         ON CONFLICT ON CONSTRAINT smart_contracts_principal_unique DO
           UPDATE SET updated_at = EXCLUDED.updated_at
         RETURNING id
       )
-      INSERT INTO smart_contract_queue_entries (smart_contract_id, created_at, updated_at)
+      INSERT INTO jobs (smart_contract_id, created_at, updated_at)
         (
           SELECT id AS smart_contract_id, NOW() AS created_at, NOW() AS updated_at
           FROM smart_contract_inserts
         )
-      ON CONFLICT ON CONSTRAINT smart_contract_queue_entries_smart_contract_id_unique DO
-        UPDATE SET updated_at = EXCLUDED.updated_at
+      ON CONFLICT ON CONSTRAINT jobs_token_id_smart_contract_id_unique DO
+        UPDATE SET updated_at = EXCLUDED.updated_at, status = 'waiting'
       RETURNING *
     `;
     return result[0];
@@ -76,7 +75,7 @@ export class PgStore {
     smart_contract_id: number;
     token_count: number;
     type: DbTokenType;
-  }): Promise<AsyncIterable<DbTokenQueueEntry[]>> {
+  }): Promise<AsyncIterable<DbJob[]>> {
     let tokenValues: DbTokenInsert[] = [];
     for (let index = 1; index <= args.token_count; index++) {
       tokenValues.push({
@@ -85,16 +84,16 @@ export class PgStore {
         type: args.type,
       });
     }
-    return this.sql<DbTokenQueueEntry[]>`
+    return this.sql<DbJob[]>`
       WITH token_inserts AS (
         INSERT INTO tokens ${this.sql(tokenValues)}
         ON CONFLICT ON CONSTRAINT tokens_smart_contract_id_token_number_unique DO NOTHING
         RETURNING id
       )
-      INSERT INTO token_queue_entries (token_id, created_at, updated_at)
+      INSERT INTO jobs (token_id, created_at, updated_at)
         (SELECT id AS token_id, NOW() AS created_at, NOW() AS updated_at FROM token_inserts)
-      ON CONFLICT ON CONSTRAINT token_queue_entries_token_id_unique DO
-        UPDATE SET updated_at = EXCLUDED.updated_at
+      ON CONFLICT ON CONSTRAINT jobs_token_id_smart_contract_id_unique DO
+        UPDATE SET updated_at = EXCLUDED.updated_at, status = 'waiting'
       RETURNING *
     `.cursor(100);
   }
@@ -118,17 +117,17 @@ export class PgStore {
     `;
   }
 
-  async updateTokenQueueEntryStatus(args: { id: number; status: DbQueueEntryStatus }): Promise<void> {
+  async updateJobStatus(args: { id: number; status: DbJobStatus }): Promise<void> {
     await this.sql`
-      UPDATE token_queue_entries
+      UPDATE jobs
       SET status = ${args.status}
       WHERE id = ${args.id}
     `;
   }
 
-  async increaseTokenQueueEntryRetryCount(args: { id: number }): Promise<number> {
+  async increaseJobRetryCount(args: { id: number }): Promise<number> {
     const result = await this.sql<{ retry_count: number }[]>`
-      UPDATE token_queue_entries
+      UPDATE jobs
       SET retry_count = retry_count + 1
       WHERE id = ${args.id}
       RETURNING retry_count

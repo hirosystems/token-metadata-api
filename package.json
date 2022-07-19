@@ -7,7 +7,9 @@
     "build": "rimraf ./dist && tsc --project tsconfig.build.json",
     "start": "node dist/index.js",
     "start-ts": "ts-node ./src/index.ts",
-    "migrate": "ley -r ts-node/register"
+    "migrate": "ley -r ts-node/register",
+    "db-down": "ley -r ts-node/register down --all",
+    "db-reset": "ley -r ts-node/register down --all && ley -r ts-node/register up"
   },
   "author": "",
   "license": "ISC",

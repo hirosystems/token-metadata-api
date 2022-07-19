@@ -1,35 +1,20 @@
 import { getAddressFromPrivateKey, makeRandomPrivKey, TransactionVersion } from "@stacks/transactions";
-import { PgStore } from "../pg/pg-store";
-import { DbQueueEntryStatus, DbSipNumber, DbSmartContract, DbSmartContractQueueEntry } from "../pg/types";
-import { TokenQueue } from "./queue/token-queue";
+import { DbJobStatus, DbSipNumber, DbSmartContract } from "../pg/types";
+import { Job } from "./queue/job";
 import { StacksNodeRpcClient } from "./stacks-node/stacks-node-rpc-client";
 import { RetryableTokenMetadataError } from "./util/errors";
 import { dbSipNumberToDbTokenType } from "./util/helpers";
 
 /**
  * Takes a smart contract and (depending on its SIP) enqueues all of its underlying tokens for
- * metadata retrieval. Used by `SmartContractQueue`.
+ * metadata retrieval.
  */
-export class SmartContractProcessor {
-  private readonly db: PgStore;
-  private readonly queueEntry: DbSmartContractQueueEntry;
-  private readonly tokenQueue: TokenQueue;
-
-  constructor(args: {
-    db: PgStore;
-    queueEntry: DbSmartContractQueueEntry;
-    tokenQueue: TokenQueue
-  }) {
-    this.db = args.db;
-    this.queueEntry = args.queueEntry;
-    this.tokenQueue = args.tokenQueue;
-  }
-
-  async process() {
-    if (this.queueEntry.status === DbQueueEntryStatus.ready) {
+export class ProcessSmartContractJob extends Job {
+  async work() {
+    if (this.job.status !== DbJobStatus.waiting || !this.job.smart_contract_id) {
       return;
     }
-    const contract = await this.db.getSmartContract({ id: this.queueEntry.smart_contract_id });
+    const contract = await this.db.getSmartContract({ id: this.job.smart_contract_id });
     if (!contract) {
       return;
     }
@@ -82,8 +67,8 @@ export class SmartContractProcessor {
       token_count: tokenCount,
       type: dbSipNumberToDbTokenType(contract.sip)
     });
-    for await (const [queueEntry] of cursor) {
-      this.tokenQueue.add(queueEntry);
+    for await (const [job] of cursor) {
+      this.queue.add(job);
     }
   }
 }
