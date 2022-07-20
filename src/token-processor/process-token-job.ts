@@ -2,17 +2,17 @@ import {
   getAddressFromPrivateKey,
   makeRandomPrivKey,
   TransactionVersion,
+  uintCV,
 } from '@stacks/transactions';
-import * as querystring from 'querystring';
 import {
   getFetchableUrl,
+  getMetadataFromUri,
   getTokenMetadataProcessingMode,
   parseDataUrl,
   stopwatch,
 } from './util/helpers';
 import { StacksNodeRpcClient } from './stacks-node/stacks-node-rpc-client';
-import { request } from 'undici';
-import { DbJobStatus, DbTokenType, DbFtInsert, DbNftInsert, DbToken, DbSmartContract } from '../pg/types';
+import { DbJobStatus, DbTokenType, DbToken, DbSmartContract, DbMetadataInsert, DbMetadataAttributeInsert, DbProcessedTokenUpdateBundle, DbMetadataLocaleInsertBundle } from '../pg/types';
 import { ENV } from '..';
 import { RetryableTokenMetadataError } from './util/errors';
 import { Job } from './queue/job';
@@ -65,10 +65,10 @@ export class ProcessTokenJob extends Job {
       console.info(`ProcessTokenJob processing ${this.tokenDescription(token, contract)}`);
       switch (token.type) {
         case DbTokenType.ft:
-          await this.handleFt(client, this.job.token_id);
+          await this.handleFt(client, token);
           break;
         case DbTokenType.nft:
-          await this.handleNft(client, this.job.token_id);
+          await this.handleNft(client, token);
           break;
         case DbTokenType.sft:
           // TODO: Here
@@ -87,6 +87,7 @@ export class ProcessTokenJob extends Job {
           console.info(
             `ProcessTokenJob a recoverable error happened while processing ${this.tokenDescription(token, contract)}, trying again later: ${error}`
           );
+          await this.db.updateJobStatus({ id: this.job.id, status: DbJobStatus.waiting });
         } else {
           console.warn(
             `ProcessTokenJob max retries reached while processing ${this.tokenDescription(token, contract)}, giving up: ${error}`
@@ -124,7 +125,7 @@ export class ProcessTokenJob extends Job {
     }
   }
 
-  private async handleFt(client: StacksNodeRpcClient, tokenId: number) {
+  private async handleFt(client: StacksNodeRpcClient, token: DbToken) {
     const name = await client.readStringFromContract('get-name');
     const uri = await client.readStringFromContract('get-token-uri');
     const symbol = await client.readStringFromContract('get-symbol');
@@ -141,63 +142,44 @@ export class ProcessTokenJob extends Job {
       fTotalSupply = Number(totalSupply.toString());
     }
 
-    // let metadata: FtTokenMetadata | undefined;
-    // if (contractCallUri) {
-    //   try {
-    //     metadata = await this.getMetadataFromUri(contractCallUri);
-    //   } catch (error) {
-    //     // An unavailable external service failed to provide reasonable data (images, etc.).
-    //     // We will ignore these and fill out the remaining SIP-compliant metadata.
-    //     console.warn(
-    //       `[token-metadata] ft metadata fetch error while processing ${this.contractId}: ${error}`
-    //     );
-    //   }
-    // }
-    // let imgUrl: string | undefined;
-    // if (metadata?.imageUri) {
-    //   const normalizedUrl = this.getImageUrl(metadata.imageUri);
-    //   imgUrl = await this.processImageUrl(normalizedUrl);
-    // }
+    let metadataLocales: DbMetadataLocaleInsertBundle[] | undefined;
+    if (uri) {
+      // TODO: Should we catch here and retry?
+      const metadataJson = await getMetadataFromUri(uri);
+      metadataLocales = this.parseMetadataForInsertion(metadataJson, token);
+    }
 
-    // FIXME: Should we write NULLs?
-    const tokenValues: DbFtInsert = {
-      name: name ?? '',
-      symbol: symbol ?? '',
-      decimals: fDecimals ?? 0,
-      total_supply: fTotalSupply ?? 0,
-      uri: uri ?? ''
+    const tokenValues: DbProcessedTokenUpdateBundle = {
+      token: {
+        name: name ?? null,
+        symbol: symbol ?? null,
+        decimals: fDecimals ?? null,
+        total_supply: fTotalSupply ?? null,
+        uri: uri ?? null
+      },
+      metadataLocales: metadataLocales
     };
-    await this.db.updateToken({ id: tokenId, values: tokenValues });
+    await this.db.updateProcessedTokenWithMetadata({ id: token.id, values: tokenValues });
   }
 
-  private async handleNft(client: StacksNodeRpcClient, tokenId: number) {
-    const uri = await client.readStringFromContract('get-token-uri');
+  private async handleNft(client: StacksNodeRpcClient, token: DbToken) {
+    const uri = await client.readStringFromContract('get-token-uri', [uintCV(token.token_number)]);
+    const idUri = uri ? uri.replace('{id}', token.token_number.toString()) : undefined;
 
-    // let metadata: NftTokenMetadata | undefined;
-    // const contractCallUri = await this.readStringFromContract('get-token-uri', [uintCV(0)]);
-    // if (contractCallUri) {
-    //   try {
-    //     metadata = await this.getMetadataFromUri<NftTokenMetadata>(contractCallUri);
-    //     metadata = this.patchTokenMetadataImageUri(metadata);
-    //   } catch (error) {
-    //     // An unavailable external service failed to provide reasonable data (images, etc.).
-    //     // We will ignore these and fill out the remaining SIP-compliant metadata.
-    //     console.warn(
-    //       `[token-metadata] nft metadata fetch error while processing ${this.contractId}: ${error}`
-    //     );
-    //   }
-    // }
-    // let imgUrl: string | undefined;
-    // if (metadata?.imageUri) {
-    //   const normalizedUrl = this.getImageUrl(metadata.imageUri);
-    //   imgUrl = await this.processImageUrl(normalizedUrl);
-    // }
+    let metadataLocales: DbMetadataLocaleInsertBundle[] | undefined;
+    if (idUri) {
+      // TODO: Should we catch here and retry?
+      const metadataJson = await getMetadataFromUri(idUri);
+      metadataLocales = this.parseMetadataForInsertion(metadataJson, token);
+    }
 
-    // FIXME: Should we write NULLs?
-    const tokenValues: DbNftInsert = {
-      uri: uri ?? ''
+    const tokenValues: DbProcessedTokenUpdateBundle = {
+      token: {
+        uri: idUri ?? null
+      },
+      metadataLocales: metadataLocales
     };
-    await this.db.updateToken({ id: tokenId, values: tokenValues });
+    await this.db.updateProcessedTokenWithMetadata({ id: token.id, values: tokenValues });
   }
 
   private getImageUrl(uri: string): string {
@@ -217,64 +199,52 @@ export class ProcessTokenJob extends Job {
     return fetchableUrl.toString();
   }
 
-  private async getMetadataFromUri<Type>(token_uri: string): Promise<Type> {
-    // Support JSON embedded in a Data URL
-    if (new URL(token_uri).protocol === 'data:') {
-      const dataUrl = parseDataUrl(token_uri);
-      if (!dataUrl) {
-        throw new Error(`Data URL could not be parsed: ${token_uri}`);
-      }
-      let content: string;
-      // If media type is omitted it should default to percent-encoded `text/plain;charset=US-ASCII`
-      // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs#syntax
-      // If media type is specified but without base64 then encoding is ambiguous, so check for
-      // percent-encoding or assume a literal string compatible with utf8. Because we're expecting
-      // a JSON object we can reliable check for a leading `%` char, otherwise assume unescaped JSON.
-      if (dataUrl.base64) {
-        content = Buffer.from(dataUrl.data, 'base64').toString('utf8');
-      } else if (dataUrl.data.startsWith('%')) {
-        content = querystring.unescape(dataUrl.data);
-      } else {
-        content = dataUrl.data;
-      }
-      try {
-        return JSON.parse(content) as Type;
-      } catch (error) {
-        throw new Error(`Data URL could not be parsed as JSON: ${token_uri}`);
-      }
-    }
-    const httpUrl = getFetchableUrl(token_uri);
-
-    let fetchImmediateRetryCount = 0;
-    let result: Type | undefined;
-    // We'll try to fetch metadata and give it `METADATA_MAX_IMMEDIATE_URI_RETRIES` attempts
-    // for the external service to return a reasonable response, otherwise we'll consider the
-    // metadata as dead.
-    do {
-      try {
-        const networkResult = await request(httpUrl.toString(), {
-          method: 'GET',
-          bodyTimeout: ENV.METADATA_FETCH_TIMEOUT_MS
-        });
-        result = await networkResult.body.json();
-        // result = await performFetch(httpUrl.toString(), {
-        //   timeoutMs: getTokenMetadataFetchTimeoutMs(),
-        //   maxResponseBytes: METADATA_MAX_PAYLOAD_BYTE_SIZE,
-        // });
-        break;
-      } catch (error) {
-        fetchImmediateRetryCount++;
-        if (
-          // (error instanceof FetchError && error.type === 'max-size') ||
-          fetchImmediateRetryCount >= ENV.METADATA_MAX_IMMEDIATE_URI_RETRIES
-        ) {
-          throw error;
+  private parseMetadataForInsertion(metadata: any, token: DbToken): DbMetadataLocaleInsertBundle[] {
+    // TODO: Localization
+    const sip = metadata.sip ?? 16;
+    // if (!sip) {
+    //   return undefined;
+    // }
+    const metadataInsert: DbMetadataInsert = {
+      sip: sip,
+      token_id: token.id,
+      name: metadata.name ?? null,
+      description: metadata.description ?? null,
+      image: metadata.image ?? null, // TODO: CDN
+      l10n_default: true, // TODO: Locales
+      l10n_locale: null,
+      l10n_uri: null,
+    };
+    const attributes: DbMetadataAttributeInsert[] = [];
+    if (metadata.attributes) {
+      for (const { trait_type, value, display_type } of metadata.attributes) {
+        if (trait_type && value) {
+          attributes.push({
+            trait_type: trait_type,
+            value: JSON.stringify(value),
+            display_type: display_type ?? null,
+          });
         }
       }
-    } while (fetchImmediateRetryCount < ENV.METADATA_MAX_IMMEDIATE_URI_RETRIES);
-    if (result) {
-      return result;
     }
-    throw new Error(`Unable to fetch metadata from ${token_uri}`);
+    // TODO: Properties
+    // const properties: DbMetadataPropertyInsert[] = [];
+    // if (metadata.properties) {
+    //   for (const { trait_type, value, display_type } of metadata.properties) {
+    //     if (trait_type && value) {
+    //       attributes.push({
+    //         trait_type: trait_type,
+    //         value: value,
+    //         display_type: display_type,
+    //       });
+    //     }
+    //   }
+    // }
+
+    return [{
+      metadata: metadataInsert,
+      attributes: attributes,
+      properties: [],
+    }];
   }
 }

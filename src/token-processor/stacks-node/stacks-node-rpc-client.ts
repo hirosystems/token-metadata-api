@@ -90,7 +90,7 @@ export class StacksNodeRpcClient {
           `Runtime error while calling read-only function ${functionName}`
         );
       }
-      throw new Error(`Error calling read-only function ${functionName}`);
+      throw new Error(`Read-only error ${functionName}: ${result.cause}`);
     }
     return hexToCV(result.result);
   }

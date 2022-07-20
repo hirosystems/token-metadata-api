@@ -1,6 +1,8 @@
 import { ENV } from '../..';
 import { DbSipNumber, DbTokenType } from '../../pg/types';
 import { TokenMetadataProcessingMode } from '../process-token-job';
+import * as querystring from 'querystring';
+import { request } from 'undici';
 
 /**
  * Determines the token metadata processing mode based on .env values.
@@ -106,6 +108,68 @@ export function parseDataUrl(
   } catch (e) {
     return false;
   }
+}
+
+export async function getMetadataFromUri(token_uri: string): Promise<any> {
+  // Support JSON embedded in a Data URL
+  if (new URL(token_uri).protocol === 'data:') {
+    const dataUrl = parseDataUrl(token_uri);
+    if (!dataUrl) {
+      throw new Error(`Data URL could not be parsed: ${token_uri}`);
+    }
+    let content: string;
+    // If media type is omitted it should default to percent-encoded `text/plain;charset=US-ASCII`
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs#syntax
+    // If media type is specified but without base64 then encoding is ambiguous, so check for
+    // percent-encoding or assume a literal string compatible with utf8. Because we're expecting
+    // a JSON object we can reliable check for a leading `%` char, otherwise assume unescaped JSON.
+    if (dataUrl.base64) {
+      content = Buffer.from(dataUrl.data, 'base64').toString('utf8');
+    } else if (dataUrl.data.startsWith('%')) {
+      content = querystring.unescape(dataUrl.data);
+    } else {
+      content = dataUrl.data;
+    }
+    try {
+      return JSON.parse(content);
+    } catch (error) {
+      throw new Error(`Data URL could not be parsed as JSON: ${token_uri}`);
+    }
+  }
+  const httpUrl = getFetchableUrl(token_uri);
+
+  let fetchImmediateRetryCount = 0;
+  let result: JSON | undefined;
+  // We'll try to fetch metadata and give it `METADATA_MAX_IMMEDIATE_URI_RETRIES` attempts
+  // for the external service to return a reasonable response, otherwise we'll consider the
+  // metadata as dead.
+  do {
+    try {
+      const networkResult = await request(httpUrl.toString(), {
+        method: 'GET',
+        bodyTimeout: ENV.METADATA_FETCH_TIMEOUT_MS
+      });
+      result = await networkResult.body.json();
+      // FIXME: this
+      // result = await performFetch(httpUrl.toString(), {
+      //   timeoutMs: getTokenMetadataFetchTimeoutMs(),
+      //   maxResponseBytes: METADATA_MAX_PAYLOAD_BYTE_SIZE,
+      // });
+      break;
+    } catch (error) {
+      fetchImmediateRetryCount++;
+      if (
+        // (error instanceof FetchError && error.type === 'max-size') ||
+        fetchImmediateRetryCount >= ENV.METADATA_MAX_IMMEDIATE_URI_RETRIES
+      ) {
+        throw error;
+      }
+    }
+  } while (fetchImmediateRetryCount < ENV.METADATA_MAX_IMMEDIATE_URI_RETRIES);
+  if (result) {
+    return result;
+  }
+  throw new Error(`Unable to fetch metadata from ${httpUrl.toString()}`);
 }
 
 export function dbSipNumberToDbTokenType(sip: DbSipNumber): DbTokenType {
