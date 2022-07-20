@@ -9,6 +9,7 @@ export enum DbSipNumber {
 
 export enum DbJobStatus {
   waiting = 'waiting',
+  queued = 'queued',
   done = 'done',
   failed = 'failed'
 }

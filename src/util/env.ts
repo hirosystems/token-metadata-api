@@ -28,7 +28,9 @@ interface Env {
    * limit it throws and the metadata is not processed.
    */
   METADATA_MAX_PAYLOAD_BYTE_SIZE: number;
-  METADATA_QUEUE_CONCURRENCY_LIMIT: number;
+
+  JOB_QUEUE_CONCURRENCY_LIMIT: number;
+  JOB_QUEUE_SIZE_LIMIT: number;
 }
 
 export function getEnvVars(): Env {
@@ -101,9 +103,13 @@ export function getEnvVars(): Env {
         type: 'number',
         default: 1_000_000 // 1 MB
       },
-      METADATA_QUEUE_CONCURRENCY_LIMIT: {
+      JOB_QUEUE_CONCURRENCY_LIMIT: {
         type: 'number',
         default: 5
+      },
+      JOB_QUEUE_SIZE_LIMIT: {
+        type: 'number',
+        default: 200,
       }
     }
   }

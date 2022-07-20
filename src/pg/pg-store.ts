@@ -95,7 +95,7 @@ export class PgStore {
       ON CONFLICT ON CONSTRAINT jobs_token_id_smart_contract_id_unique DO
         UPDATE SET updated_at = EXCLUDED.updated_at, status = 'waiting'
       RETURNING *
-    `.cursor(100);
+    `.cursor();
   }
 
   async getToken(args: { id: number }): Promise<DbToken | null> {
@@ -133,5 +133,14 @@ export class PgStore {
       RETURNING retry_count
     `;
     return result[0].retry_count;
+  }
+
+  async getWaitingJobBatch(args: { limit: number }): Promise<DbJob[]> {
+    return this.sql<DbJob[]>`
+      SELECT * FROM jobs
+      WHERE status = 'waiting'
+      ORDER BY updated_at ASC
+      LIMIT ${args.limit}
+    `;
   }
 }

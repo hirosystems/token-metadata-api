@@ -2,7 +2,7 @@ import { Sql } from 'postgres';
 
 export const up = async (sql: Sql<any>) => {
   await sql`
-    CREATE TYPE job_status AS ENUM ('waiting', 'done', 'failed')
+    CREATE TYPE job_status AS ENUM ('waiting', 'queued', 'done', 'failed')
   `;
   await sql`CREATE TABLE jobs (
       id                  SERIAL PRIMARY KEY,

@@ -19,10 +19,14 @@ const importer = new BlockchainSmartContractImporter({
   apiDb: pgBlockchainStore,
   jobQueue: jobQueue,
 });
-importer.importSmartContracts().catch(error => {
-  console.error(error);
-  process.exit(1);
-});
+importer.importSmartContracts()
+  .then(() => {
+    jobQueue.start();
+  })
+  .catch(error => {
+    console.error(error);
+    process.exit(1);
+  });
 
 // const fastify = Fastify({
 //   trustProxy: true,
