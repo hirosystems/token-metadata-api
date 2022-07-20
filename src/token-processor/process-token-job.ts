@@ -12,7 +12,7 @@ import {
 } from './util/helpers';
 import { StacksNodeRpcClient } from './stacks-node/stacks-node-rpc-client';
 import { request } from 'undici';
-import { DbJobStatus, DbTokenType, DbFtInsert, DbNftInsert } from '../pg/types';
+import { DbJobStatus, DbTokenType, DbFtInsert, DbNftInsert, DbToken, DbSmartContract } from '../pg/types';
 import { ENV } from '..';
 import { RetryableTokenMetadataError } from './util/errors';
 import { Job } from './queue/job';
@@ -38,11 +38,11 @@ export class ProcessTokenJob extends Job {
     const sw = stopwatch();
     const token = await this.db.getToken({ id: this.job.token_id });
     if (!token) {
-      throw Error(`TokenProcessor token not found with id ${this.job.token_id}`);
+      throw Error(`ProcessTokenJob token not found with id ${this.job.token_id}`);
     }
     const contract = await this.db.getSmartContract({ id: token.smart_contract_id });
     if (!contract) {
-      throw Error(`TokenProcessor contract not found with id ${token.smart_contract_id}`);
+      throw Error(`ProcessTokenJob contract not found with id ${token.smart_contract_id}`);
     }
 
     // This try/catch block will catch any and all errors that are generated while processing metadata
@@ -51,6 +51,7 @@ export class ProcessTokenJob extends Job {
     // If we choose to retry, this queue entry will simply not be marked as `processed = true` so it can be
     // picked up by the `TokensProcessorQueue` at a later time.
     let processingFinished = false;
+    let finishedWithError = false;
     try {
       const randomPrivKey = makeRandomPrivKey();
       const senderAddress = getAddressFromPrivateKey(
@@ -61,13 +62,12 @@ export class ProcessTokenJob extends Job {
         contractPrincipal: contract.principal,
         senderAddress: senderAddress
       });
+      console.info(`ProcessTokenJob processing ${this.tokenDescription(token, contract)}`);
       switch (token.type) {
         case DbTokenType.ft:
-          console.info(`TokenProcessor processing FT ${contract.principal} (id=${token.id})`);
           await this.handleFt(client, this.job.token_id);
           break;
         case DbTokenType.nft:
-          console.info(`TokenProcessor processing NFT ${contract.principal}#${token.token_number} (id=${token.id})`);
           await this.handleNft(client, this.job.token_id);
           break;
         case DbTokenType.sft:
@@ -85,26 +85,42 @@ export class ProcessTokenJob extends Job {
           retries <= ENV.METADATA_MAX_RETRIES
         ) {
           console.info(
-            `TokenProcessor a recoverable error happened while processing token ${token.id}, trying again later: ${error}`
+            `ProcessTokenJob a recoverable error happened while processing ${this.tokenDescription(token, contract)}, trying again later: ${error}`
           );
         } else {
           console.warn(
-            `TokenProcessor max retries reached while processing token ${token.id}, giving up: ${error}`
+            `ProcessTokenJob max retries reached while processing ${this.tokenDescription(token, contract)}, giving up: ${error}`
           );
           processingFinished = true;
+          finishedWithError = true;
         }
       } else {
-        // Something more serious happened, mark this token as done.
+        // Something more serious happened, mark this token as failed.
+        console.error(`ProcessTokenJob error processing ${this.tokenDescription(token, contract)}: ${error}`);
         processingFinished = true;
+        finishedWithError = true;
       }
     } finally {
       if (processingFinished) {
-        // FIXME: Ready with error
-        await this.db.updateJobStatus({ id: this.job.id, status: DbJobStatus.done });
+        await this.db.updateJobStatus({
+          id: this.job.id,
+          status: finishedWithError ? DbJobStatus.failed : DbJobStatus.done
+        });
         console.info(
-          `TokenProcessor finished processing token ${token.id} in ${sw.getElapsed()}ms`
+          `ProcessTokenJob finished processing ${this.tokenDescription(token, contract)} in ${sw.getElapsed()}ms`
         );
       }
+    }
+  }
+
+  private tokenDescription(token: DbToken, contract: DbSmartContract): string {
+    switch (token.type) {
+      case DbTokenType.ft:
+        return `FT ${contract.principal} (id=${token.id})`;
+      case DbTokenType.nft:
+        return `NFT ${contract.principal}#${token.token_number} (id=${token.id})`;
+      case DbTokenType.sft:
+        return `SFT ${contract.principal}#${token.token_number} (id=${token.id})`;
     }
   }
 

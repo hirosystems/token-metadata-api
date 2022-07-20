@@ -28,13 +28,15 @@ export class BlockchainSmartContractImporter {
   async importSmartContracts() {
     // There could be thousands of contracts. We'll use a cursor to iterate.
     const cursor = await this.apiDb.getSmartContractsCursor({ afterBlockHeight: 1 });
-    for await (const [row] of cursor) {
-      const sip = getSmartContractSip(row.abi as ClarityAbi);
-      if (!sip) {
-        continue; // Not a token contract.
+    for await (const rows of cursor) {
+      for (const row of rows) {
+        const sip = getSmartContractSip(row.abi as ClarityAbi);
+        if (!sip) {
+          continue; // Not a token contract.
+        }
+        await this.enqueueSmartContract(row, sip);
+        console.info(`BlockchainSmartContractImporter adding (${sip}): ${row.contract_id}`);
       }
-      await this.enqueueSmartContract(row, sip);
-      console.info(`BlockchainSmartContractImporter adding (${sip}): ${row.contract_id}`);
     }
   }
 
@@ -51,6 +53,6 @@ export class BlockchainSmartContractImporter {
         block_height: blockchainContract.block_height
       }
     });
-    this.jobQueue.add(job);
+    // this.jobQueue.add(job);
   }
 }
