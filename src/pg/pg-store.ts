@@ -9,7 +9,8 @@ import {
   DbTokenType,
   DbFtInsert,
   DbNftInsert,
-  DbSftInsert
+  DbSftInsert,
+  DbProcessedTokenUpdateBundle
 } from './types';
 
 /**
@@ -108,13 +109,28 @@ export class PgStore {
     return result[0];
   }
 
-  async updateToken(args: {
+  async updateProcessedTokenWithMetadata(args: {
     id: number;
-    values: DbFtInsert | DbNftInsert | DbSftInsert
+    values: DbProcessedTokenUpdateBundle
   }): Promise<void> {
-    await this.sql`
-      UPDATE tokens SET ${this.sql(args.values)} WHERE id = ${args.id}
-    `;
+    await this.sql.begin(async sql => {
+      await sql`
+        UPDATE tokens SET ${sql(args.values.token)} WHERE id = ${args.id}
+      `;
+      for (const locale of args.values.metadataLocales ?? []) {
+        const metadataInsert = await sql<{ id: number }[]>`
+          INSERT INTO metadata ${sql(locale.metadata)} RETURNING id
+        `;
+        const metadataId = metadataInsert[0].id;
+        if (locale.attributes && locale.attributes.length > 0) {
+          const values = locale.attributes.map(attr => ({
+            ...attr,
+            metadata_id: metadataId
+          }));
+          await sql`INSERT INTO metadata_attributes ${sql(values)}`;
+        }
+      }
+    });
   }
 
   async updateJobStatus(args: { id: number; status: DbJobStatus }): Promise<void> {

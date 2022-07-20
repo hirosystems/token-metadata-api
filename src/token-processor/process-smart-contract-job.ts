@@ -46,6 +46,7 @@ export class ProcessSmartContractJob extends Job {
       await this.db.updateJobStatus({ id: this.job.id, status: DbJobStatus.failed });
       console.error(`ProcessSmartContractJob processing for ${contract.principal} (id=${contract.id}) failed: ${error}`);
     }
+    await this.db.updateJobStatus({ id: this.job.id, status: DbJobStatus.done });
   }
 
   private async getNftContractLastTokenId(contract: DbSmartContract): Promise<bigint | undefined> {

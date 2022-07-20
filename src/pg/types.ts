@@ -63,21 +63,77 @@ export type DbJob = DbJobInsert & {
 }
 
 export type DbFtInsert = {
-  name: string;
-  symbol: string;
-  decimals: number;
-  total_supply: number;
-  uri: string;
+  name: string | null;
+  symbol: string | null;
+  decimals: number | null;
+  total_supply: number | null;
+  uri: string | null;
 }
 
 export type DbNftInsert = {
-  uri: string;
+  uri: string | null;
 }
 
 export type DbSftInsert = {
-  name: string;
-  symbol: string;
-  decimals: number;
-  total_supply: number;
-  uri: string;
+  name: string | null;
+  symbol: string | null;
+  decimals: number | null;
+  total_supply: number | null;
+  uri: string | null;
 }
+
+export type DbMetadataInsert = {
+  sip: number;
+  token_id: number;
+  l10n_locale: string | null;
+  l10n_uri: string | null;
+  l10n_default: boolean | null;
+  name: string | null;
+  description: string | null;
+  image: string | null;
+}
+
+export type DbMetadata = DbMetadataInsert & {
+  id: number;
+}
+
+export type DbMetadataAttributeInsert = {
+  // We don't require `metadata_id` because that is determined by the insertion query.
+  trait_type: string;
+  value: string;
+  display_type: string | null;
+}
+
+export type DbMetadataAttribute = DbMetadataAttributeInsert & {
+  id: number;
+  metadata_id: number;
+}
+
+export type DbMetadataPropertyInsert = {
+  // We don't require `metadata_id` because that is determined by the insertion query.
+  type?: string;
+  description?: string;
+  value?: string;
+}
+
+export type DbMetadataProperty = DbMetadataPropertyInsert & {
+  id: number;
+  metadata_id: number;
+}
+
+export type DbMetadataLocaleInsertBundle = {
+  metadata: DbMetadataInsert;
+  attributes?: DbMetadataAttributeInsert[];
+  properties?: DbMetadataPropertyInsert[];
+}
+
+export type DbProcessedTokenUpdateBundle = {
+  token: DbFtInsert | DbNftInsert | DbSftInsert,
+  metadataLocales?: DbMetadataLocaleInsertBundle[]
+}
+
+// export type DbMetadataBundle = {
+//   metadata: DbMetadata;
+//   attributes: DbMetadataAttribute[];
+//   properties: DbMetadataProperty[];
+// }
