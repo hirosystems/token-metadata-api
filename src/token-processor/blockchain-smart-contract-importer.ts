@@ -21,8 +21,10 @@ export class BlockchainSmartContractImporter {
   }
 
   async importSmartContracts() {
+    // Pick up where we left off.
+    const blockHeight = await this.db.getSmartContractsMaxBlockHeight() ?? 1;
     // There could be thousands of contracts. We'll use a cursor to iterate.
-    const cursor = await this.apiDb.getSmartContractsCursor({ afterBlockHeight: 1 });
+    const cursor = await this.apiDb.getSmartContractsCursor({ afterBlockHeight: blockHeight });
     for await (const rows of cursor) {
       for (const row of rows) {
         const sip = getSmartContractSip(row.abi as ClarityAbi);
