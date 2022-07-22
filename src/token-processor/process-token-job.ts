@@ -33,7 +33,7 @@ import { TokenMetadataProcessingMode } from './queue/job-queue';
  */
 export class ProcessTokenJob extends Job {
   async work() {
-    if (this.job.status !== DbJobStatus.waiting || !this.job.token_id) {
+    if (this.job.status !== DbJobStatus.pending || !this.job.token_id) {
       return;
     }
     const sw = stopwatch();
@@ -88,7 +88,7 @@ export class ProcessTokenJob extends Job {
           console.info(
             `ProcessTokenJob a recoverable error happened while processing ${this.tokenDescription(token, contract)}, trying again later: ${error}`
           );
-          await this.db.updateJobStatus({ id: this.job.id, status: DbJobStatus.waiting });
+          await this.db.updateJobStatus({ id: this.job.id, status: DbJobStatus.pending });
         } else {
           console.warn(
             `ProcessTokenJob max retries reached while processing ${this.tokenDescription(token, contract)}, giving up: ${error}`

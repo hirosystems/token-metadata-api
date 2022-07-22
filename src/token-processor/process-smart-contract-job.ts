@@ -11,7 +11,7 @@ import { dbSipNumberToDbTokenType } from "./util/helpers";
  */
 export class ProcessSmartContractJob extends Job {
   async work() {
-    if (this.job.status !== DbJobStatus.waiting || !this.job.smart_contract_id) {
+    if (this.job.status !== DbJobStatus.pending || !this.job.smart_contract_id) {
       return;
     }
     const contract = await this.db.getSmartContract({ id: this.job.smart_contract_id });

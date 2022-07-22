@@ -7,11 +7,7 @@ import {
   DbJob,
   DbToken,
   DbTokenType,
-  DbFtInsert,
-  DbNftInsert,
-  DbSftInsert,
   DbProcessedTokenUpdateBundle,
-  DbMetadataLocaleBundle,
   DbTokenMetadataLocaleBundle,
   DbMetadata,
   DbMetadataAttribute,
@@ -63,6 +59,21 @@ export class PgStore {
       return undefined;
     }
     return result[0];
+  }
+
+  /**
+   * Retrieves the latest block height of imported contracts. Useful for when we want to only import
+   * missing contracts from the Stacks chain.
+   * @returns Max block height
+   */
+  async getSmartContractsMaxBlockHeight(): Promise<number | undefined> {
+    const result = await this.sql<{ max: number }[]>`
+      SELECT MAX(block_height) FROM smart_contracts;
+    `;
+    if (result.count === 0) {
+      return undefined;
+    }
+    return result[0].max;
   }
 
   async updateSmartContractTokenCount(args: { id: number; count: number }): Promise<void> {
@@ -211,10 +222,10 @@ export class PgStore {
    * @param limit number of jobs to retrieve
    * @returns `DbJob[]`
    */
-  async getWaitingJobBatch(args: { limit: number }): Promise<DbJob[]> {
+  async getPendingJobBatch(args: { limit: number }): Promise<DbJob[]> {
     return this.sql<DbJob[]>`
       SELECT * FROM jobs
-      WHERE status = 'waiting'
+      WHERE status = 'pending'
       ORDER BY updated_at ASC
       LIMIT ${args.limit}
     `;

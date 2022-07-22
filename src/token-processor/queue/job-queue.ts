@@ -64,7 +64,7 @@ export class JobQueue {
 
   private async replenishEmptyQueue() {
     this.queue.pause();
-    const jobs = await this.db.getWaitingJobBatch({ limit: ENV.JOB_QUEUE_SIZE_LIMIT });
+    const jobs = await this.db.getPendingJobBatch({ limit: ENV.JOB_QUEUE_SIZE_LIMIT });
     if (jobs.length === 0) {
       console.info(`JobQueue has no more work to do`);
       // FIXME: When to restart?

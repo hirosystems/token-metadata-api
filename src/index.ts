@@ -10,11 +10,11 @@ export const ENV = getEnvVars();
 const pgStore = new PgStore();
 const pgBlockchainStore = new PgBlockchainApiStore();
 const jobQueue = new JobQueue({ db: pgStore });
-
 const importer = new BlockchainSmartContractImporter({
   db: pgStore,
   apiDb: pgBlockchainStore,
 });
+
 importer.importSmartContracts()
   .then(() => {
     jobQueue.start();

@@ -38,7 +38,6 @@ export class PgBlockchainApiStore {
         AND block_height >= ${afterBlockHeight}
         AND abi <> '"null"'
       ORDER BY contract_id, block_height DESC, microblock_sequence DESC
-      LIMIT 100
     `.cursor();
   }
 }
