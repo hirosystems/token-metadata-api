@@ -3,6 +3,7 @@
   "configurations": [
     {
       "type": "node",
+      "runtimeVersion": "18",
       "request": "launch",
       "name": "Run",
       "runtimeArgs": [

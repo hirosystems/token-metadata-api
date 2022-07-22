@@ -1,6 +1,9 @@
 import envSchema from "env-schema";
 
 interface Env {
+  API_HOST: string;
+  API_PORT: number;
+
   PGHOST: string;
   PGPORT: number;
   PGUSER: string;
@@ -37,12 +40,21 @@ export function getEnvVars(): Env {
   const schema = {
     type: 'object',
     required: [
-      'PGHOST', 'PGPORT', 'PGUSER', 'PGPASSWORD', 'PGDATABASE',
+      'API_HOST', 'API_PORT', 'PGHOST', 'PGPORT', 'PGUSER', 'PGPASSWORD', 'PGDATABASE',
       'BLOCKCHAIN_API_PGHOST', 'BLOCKCHAIN_API_PGPORT', 'BLOCKCHAIN_API_PGUSER',
       'BLOCKCHAIN_API_PGPASSWORD', 'BLOCKCHAIN_API_PGDATABASE', 'STACKS_NODE_RPC_HOST',
       'STACKS_NODE_RPC_PORT'
     ],
     properties: {
+      API_HOST: {
+        type: 'string',
+      },
+      API_PORT: {
+        type: 'number',
+        default: 3000,
+        minimum: 0,
+        maximum: 65535,
+      },
       PGHOST: {
         type: 'string',
       },

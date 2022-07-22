@@ -5,25 +5,26 @@ import {
   uintCV,
 } from '@stacks/transactions';
 import {
-  getFetchableUrl,
   getMetadataFromUri,
   getTokenMetadataProcessingMode,
-  parseDataUrl,
   stopwatch,
 } from './util/helpers';
 import { StacksNodeRpcClient } from './stacks-node/stacks-node-rpc-client';
-import { DbJobStatus, DbTokenType, DbToken, DbSmartContract, DbMetadataInsert, DbMetadataAttributeInsert, DbProcessedTokenUpdateBundle, DbMetadataLocaleInsertBundle } from '../pg/types';
+import {
+  DbJobStatus,
+  DbTokenType,
+  DbToken,
+  DbSmartContract,
+  DbMetadataInsert,
+  DbMetadataAttributeInsert,
+  DbProcessedTokenUpdateBundle,
+  DbMetadataLocaleInsertBundle,
+  DbMetadataPropertyInsert
+} from '../pg/types';
 import { ENV } from '..';
 import { RetryableTokenMetadataError } from './util/errors';
 import { Job } from './queue/job';
-
-// FIXME: Move somewhere else
-export enum TokenMetadataProcessingMode {
-  /** If a recoverable processing error occurs, we'll try again until the max retry attempt is reached. See `.env` */
-  default,
-  /** If a recoverable processing error occurs, we'll try again indefinitely. */
-  strict,
-}
+import { TokenMetadataProcessingMode } from './queue/job-queue';
 
 /**
  * Downloads, parses and indexes metadata info for a single token in the Stacks blockchain by
@@ -182,29 +183,9 @@ export class ProcessTokenJob extends Job {
     await this.db.updateProcessedTokenWithMetadata({ id: token.id, values: tokenValues });
   }
 
-  private getImageUrl(uri: string): string {
-    // Support images embedded in a Data URL
-    if (new URL(uri).protocol === 'data:') {
-      // const dataUrl = ParseDataUrl(uri);
-      const dataUrl = parseDataUrl(uri);
-      if (!dataUrl) {
-        throw new Error(`Data URL could not be parsed: ${uri}`);
-      }
-      if (!dataUrl.mediaType?.startsWith('image/')) {
-        throw new Error(`Token image is a Data URL with a non-image media type: ${uri}`);
-      }
-      return uri;
-    }
-    const fetchableUrl = getFetchableUrl(uri);
-    return fetchableUrl.toString();
-  }
-
   private parseMetadataForInsertion(metadata: any, token: DbToken): DbMetadataLocaleInsertBundle[] {
     // TODO: Localization
     const sip = metadata.sip ?? 16;
-    // if (!sip) {
-    //   return undefined;
-    // }
     const metadataInsert: DbMetadataInsert = {
       sip: sip,
       token_id: token.id,
@@ -227,24 +208,22 @@ export class ProcessTokenJob extends Job {
         }
       }
     }
-    // TODO: Properties
-    // const properties: DbMetadataPropertyInsert[] = [];
-    // if (metadata.properties) {
-    //   for (const { trait_type, value, display_type } of metadata.properties) {
-    //     if (trait_type && value) {
-    //       attributes.push({
-    //         trait_type: trait_type,
-    //         value: value,
-    //         display_type: display_type,
-    //       });
-    //     }
-    //   }
-    // }
+    const properties: DbMetadataPropertyInsert[] = [];
+    if (metadata.properties) {
+      for (const [key, value] of Object.entries(metadata.properties)) {
+        if (key && value) {
+          properties.push({
+            name: key,
+            value: JSON.stringify(value)
+          });
+        }
+      }
+    }
 
     return [{
       metadata: metadataInsert,
       attributes: attributes,
-      properties: [],
+      properties: properties,
     }];
   }
 }

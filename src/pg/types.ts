@@ -28,8 +28,13 @@ export type DbSmartContractInsert = {
   block_height: number;
 }
 
-export type DbSmartContract = DbSmartContractInsert & {
+export type DbSmartContract = {
   id: number;
+  principal: string;
+  sip: DbSipNumber;
+  abi: string;
+  tx_id: string;
+  block_height: number;
   token_count?: number;
   created_at: string;
   updated_at?: string;
@@ -41,12 +46,16 @@ export type DbTokenInsert = {
   token_number: number;
 }
 
-export type DbToken = DbTokenInsert & {
+export type DbToken = {
   id: number;
+  smart_contract_id: number;
+  type: DbTokenType,
+  token_number: number;
   uri?: string;
   name?: string;
   decimals?: number;
   total_supply?: number;
+  symbol?: string;
 }
 
 export type DbJobInsert = {
@@ -54,8 +63,10 @@ export type DbJobInsert = {
   smart_contract_id?: number;
 }
 
-export type DbJob = DbJobInsert & {
+export type DbJob = {
   id: number;
+  token_id?: number;
+  smart_contract_id?: number;
   status: DbJobStatus;
   retry_count: number;
   created_at: string;
@@ -93,8 +104,16 @@ export type DbMetadataInsert = {
   image: string | null;
 }
 
-export type DbMetadata = DbMetadataInsert & {
+export type DbMetadata = {
   id: number;
+  sip: number;
+  token_id: number;
+  l10n_locale?: string;
+  l10n_uri?: string;
+  l10n_default?: boolean;
+  name?: string;
+  description?: string;
+  image?: string;
 }
 
 export type DbMetadataAttributeInsert = {
@@ -104,21 +123,25 @@ export type DbMetadataAttributeInsert = {
   display_type: string | null;
 }
 
-export type DbMetadataAttribute = DbMetadataAttributeInsert & {
+export type DbMetadataAttribute = {
   id: number;
   metadata_id: number;
+  trait_type: string;
+  value: string;
+  display_type?: string;
 }
 
 export type DbMetadataPropertyInsert = {
   // We don't require `metadata_id` because that is determined by the insertion query.
-  type?: string;
-  description?: string;
-  value?: string;
+  name: string;
+  value: string;
 }
 
-export type DbMetadataProperty = DbMetadataPropertyInsert & {
+export type DbMetadataProperty = {
   id: number;
   metadata_id: number;
+  name: string;
+  value: string;
 }
 
 export type DbMetadataLocaleInsertBundle = {
@@ -132,8 +155,13 @@ export type DbProcessedTokenUpdateBundle = {
   metadataLocales?: DbMetadataLocaleInsertBundle[]
 }
 
-// export type DbMetadataBundle = {
-//   metadata: DbMetadata;
-//   attributes: DbMetadataAttribute[];
-//   properties: DbMetadataProperty[];
-// }
+export type DbMetadataLocaleBundle = {
+  metadata: DbMetadata;
+  attributes: DbMetadataAttribute[];
+  properties: DbMetadataProperty[];
+}
+
+export type DbTokenMetadataLocaleBundle = {
+  token: DbToken,
+  metadataLocale?: DbMetadataLocaleBundle
+}
