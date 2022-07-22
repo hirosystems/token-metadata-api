@@ -5,6 +5,20 @@ import { DbJob, DbJobStatus } from '../../pg/types';
 import { ProcessSmartContractJob } from '../process-smart-contract-job';
 import { ProcessTokenJob } from '../process-token-job';
 
+export enum TokenMetadataProcessingMode {
+  /**
+   * If a recoverable processing error occurs, we'll try again until the max retry attempt is
+   * reached. See `.env`
+   **/
+  default,
+  /** If a recoverable processing error occurs, we'll try again indefinitely. */
+  strict,
+}
+
+/**
+ * Contains a priority queue that organizes all necessary work for contract ingestion and token
+ * metadata processing.
+ */
 export class JobQueue {
   private readonly queue: PQueue;
   private readonly db: PgStore;
@@ -43,17 +57,23 @@ export class JobQueue {
   }
 
   close() {
+    this.queue.removeListener('idle');
     this.queue.pause();
     this.queue.clear();
   }
 
   private async replenishEmptyQueue() {
     this.queue.pause();
-    console.info(`JobQueue replenishing empty queue`);
     const jobs = await this.db.getWaitingJobBatch({ limit: ENV.JOB_QUEUE_SIZE_LIMIT });
-    for (const job of jobs) {
-      this.add(job);
+    if (jobs.length === 0) {
+      console.info(`JobQueue has no more work to do`);
+      // FIXME: When to restart?
+    } else {
+      console.info(`JobQueue replenishing empty queue`);
+      for (const job of jobs) {
+        this.add(job);
+      }
+      this.queue.start();
     }
-    this.queue.start();
   }
 }

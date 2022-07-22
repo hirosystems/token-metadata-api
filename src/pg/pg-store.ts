@@ -10,7 +10,12 @@ import {
   DbFtInsert,
   DbNftInsert,
   DbSftInsert,
-  DbProcessedTokenUpdateBundle
+  DbProcessedTokenUpdateBundle,
+  DbMetadataLocaleBundle,
+  DbTokenMetadataLocaleBundle,
+  DbMetadata,
+  DbMetadataAttribute,
+  DbMetadataProperty
 } from './types';
 
 /**
@@ -44,18 +49,18 @@ export class PgStore {
           FROM smart_contract_inserts
         )
       ON CONFLICT ON CONSTRAINT jobs_token_id_smart_contract_id_unique DO
-        UPDATE SET updated_at = EXCLUDED.updated_at, status = 'waiting'
+        UPDATE SET updated_at = EXCLUDED.updated_at
       RETURNING *
     `;
     return result[0];
   }
 
-  async getSmartContract(args: { id: number }): Promise<DbSmartContract | null> {
+  async getSmartContract(args: { id: number }): Promise<DbSmartContract | undefined> {
     const result = await this.sql<DbSmartContract[]>`
       SELECT * FROM smart_contracts WHERE id = ${args.id}
     `;
     if (result.count === 0) {
-      return null;
+      return undefined;
     }
     return result[0];
   }
@@ -69,7 +74,9 @@ export class PgStore {
   /**
    * Returns a cursor that inserts new tokens and new token queue entries until `token_count` items
    * are created. A cursor is preferred because `token_count` could be in the tens of thousands.
-   * @param args token args
+   * @param smart_contract_id smart contract id
+   * @param token_count how many tokens to insert
+   * @param type token type (ft, nft, sft)
    * @returns `DbTokenQueueEntry` cursor
    */
   async getInsertAndEnqueueTokensCursor(args: {
@@ -94,21 +101,62 @@ export class PgStore {
       INSERT INTO jobs (token_id, created_at, updated_at)
         (SELECT id AS token_id, NOW() AS created_at, NOW() AS updated_at FROM token_inserts)
       ON CONFLICT ON CONSTRAINT jobs_token_id_smart_contract_id_unique DO
-        UPDATE SET updated_at = EXCLUDED.updated_at, status = 'waiting'
+        UPDATE SET updated_at = EXCLUDED.updated_at
       RETURNING *
     `.cursor();
   }
 
-  async getToken(args: { id: number }): Promise<DbToken | null> {
+  async getToken(args: { id: number }): Promise<DbToken | undefined> {
     const result = await this.sql<DbToken[]>`
       SELECT * FROM tokens WHERE id = ${args.id}
     `;
     if (result.count === 0) {
-      return null;
+      return undefined;
     }
     return result[0];
   }
 
+  async getFtMetadataBundle(args: {
+    contractPrincipal: string
+  }): Promise<DbTokenMetadataLocaleBundle | undefined> {
+    return await this.sql.begin(async sql => {
+      const tokenId = await sql<{ id: number }[]>`
+        SELECT id FROM tokens
+        INNER JOIN smart_contracts ON tokens.smart_contract_id = smart_contracts.id
+        WHERE smart_contracts.principal = ${args.contractPrincipal}
+      `;
+      if (tokenId.count === 0) {
+        return undefined;
+      }
+      return await this.getTokenMetadataBundle(sql, tokenId[0].id);
+    });
+  }
+
+  async getNftMetadataBundle(args: {
+    contractPrincipal: string,
+    tokenNumber: number;
+  }): Promise<DbTokenMetadataLocaleBundle | undefined> {
+    return await this.sql.begin(async sql => {
+      const tokenId = await sql<{ id: number }[]>`
+        SELECT tokens.id
+        FROM tokens
+        INNER JOIN smart_contracts ON tokens.smart_contract_id = smart_contracts.id
+        WHERE smart_contracts.principal = ${args.contractPrincipal}
+          AND tokens.token_number = ${args.tokenNumber}
+      `;
+      if (tokenId.count === 0) {
+        return undefined;
+      }
+      return await this.getTokenMetadataBundle(sql, tokenId[0].id);
+    });
+  }
+
+  /**
+   * Writes a full bundle of token info and metadata (including attributes and properties) into the
+   * db.
+   * @param id token id
+   * @param values update bundle values 
+   */
   async updateProcessedTokenWithMetadata(args: {
     id: number;
     values: DbProcessedTokenUpdateBundle
@@ -123,11 +171,18 @@ export class PgStore {
         `;
         const metadataId = metadataInsert[0].id;
         if (locale.attributes && locale.attributes.length > 0) {
-          const values = locale.attributes.map(attr => ({
-            ...attr,
+          const values = locale.attributes.map(attribute => ({
+            ...attribute,
             metadata_id: metadataId
           }));
           await sql`INSERT INTO metadata_attributes ${sql(values)}`;
+        }
+        if (locale.properties && locale.properties.length > 0) {
+          const values = locale.properties.map(property => ({
+            ...property,
+            metadata_id: metadataId
+          }));
+          await sql`INSERT INTO metadata_properties ${sql(values)}`;
         }
       }
     });
@@ -151,6 +206,11 @@ export class PgStore {
     return result[0].retry_count;
   }
 
+  /**
+   * Retrieves a number of queued jobs so they can be processed immediately.
+   * @param limit number of jobs to retrieve
+   * @returns `DbJob[]`
+   */
   async getWaitingJobBatch(args: { limit: number }): Promise<DbJob[]> {
     return this.sql<DbJob[]>`
       SELECT * FROM jobs
@@ -158,5 +218,39 @@ export class PgStore {
       ORDER BY updated_at ASC
       LIMIT ${args.limit}
     `;
+  }
+
+  private async getTokenMetadataBundle(
+    sql: postgres.TransactionSql<any>,
+    tokenId: number
+  ): Promise<DbTokenMetadataLocaleBundle | undefined> {
+    const token = await sql<DbToken[]>`
+      SELECT * FROM tokens WHERE id = ${tokenId}
+    `;
+    if (token.count === 0) {
+      return undefined;
+    }
+    // TODO: Locale management
+    const metadata = await sql<DbMetadata[]>`
+      SELECT * FROM metadata WHERE token_id = ${token[0].id}
+    `;
+    let attributes: DbMetadataAttribute[] = [];
+    let properties: DbMetadataProperty[] = [];
+    if (metadata.count > 0) {
+      attributes = await sql<DbMetadataAttribute[]>`
+        SELECT * FROM metadata_attributes WHERE metadata_id = ${metadata[0].id}
+      `;
+      properties = await sql<DbMetadataProperty[]>`
+        SELECT * FROM metadata_properties WHERE metadata_id = ${metadata[0].id}
+      `;
+    }
+    return {
+      token: token[0],
+      metadataLocale: {
+        metadata: metadata[0],
+        attributes: attributes,
+        properties: properties,
+      }
+    };
   }
 }

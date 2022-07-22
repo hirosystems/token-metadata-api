@@ -1,8 +1,8 @@
 import { ENV } from '../..';
 import { DbSipNumber, DbTokenType } from '../../pg/types';
-import { TokenMetadataProcessingMode } from '../process-token-job';
 import * as querystring from 'querystring';
 import { request } from 'undici';
+import { TokenMetadataProcessingMode } from '../queue/job-queue';
 
 /**
  * Determines the token metadata processing mode based on .env values.
@@ -181,6 +181,23 @@ export function dbSipNumberToDbTokenType(sip: DbSipNumber): DbTokenType {
     case DbSipNumber.sip013:
       return DbTokenType.sft;
   }
+}
+
+export function getImageUrl(uri: string): string {
+  // Support images embedded in a Data URL
+  if (new URL(uri).protocol === 'data:') {
+    // const dataUrl = ParseDataUrl(uri);
+    const dataUrl = parseDataUrl(uri);
+    if (!dataUrl) {
+      throw new Error(`Data URL could not be parsed: ${uri}`);
+    }
+    if (!dataUrl.mediaType?.startsWith('image/')) {
+      throw new Error(`Token image is a Data URL with a non-image media type: ${uri}`);
+    }
+    return uri;
+  }
+  const fetchableUrl = getFetchableUrl(uri);
+  return fetchableUrl.toString();
 }
 
 // export async function performFetch<Type>(

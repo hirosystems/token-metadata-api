@@ -1,8 +1,6 @@
 import { ClarityAbi } from '@stacks/transactions';
-import { BlockchainDbSmartContract, PgBlockchainApiStore } from "../pg/blockchain-api/pg-blockchain-api-store";
+import { PgBlockchainApiStore } from "../pg/blockchain-api/pg-blockchain-api-store";
 import { PgStore } from "../pg/pg-store";
-import { DbSipNumber } from "../pg/types";
-import { JobQueue } from './queue/job-queue';
 import { getSmartContractSip } from './util/sip-validation';
 
 /**
@@ -13,16 +11,13 @@ import { getSmartContractSip } from './util/sip-validation';
 export class BlockchainSmartContractImporter {
   private readonly db: PgStore;
   private readonly apiDb: PgBlockchainApiStore;
-  private readonly jobQueue: JobQueue;
 
   constructor(args: {
     db: PgStore,
-    apiDb: PgBlockchainApiStore,
-    jobQueue: JobQueue
+    apiDb: PgBlockchainApiStore
   }) {
     this.db = args.db;
     this.apiDb = args.apiDb;
-    this.jobQueue = args.jobQueue;
   }
 
   async importSmartContracts() {
@@ -34,25 +29,17 @@ export class BlockchainSmartContractImporter {
         if (!sip) {
           continue; // Not a token contract.
         }
-        await this.enqueueSmartContract(row, sip);
-        console.info(`BlockchainSmartContractImporter adding (${sip}): ${row.contract_id}`);
+        await this.db.insertAndEnqueueSmartContract({
+          values: {
+            principal: row.contract_id,
+            sip: sip,
+            abi: JSON.stringify(row.abi),
+            tx_id: row.tx_id,
+            block_height: row.block_height
+          }
+        });
+        console.info(`BlockchainSmartContractImporter detected (${sip}): ${row.contract_id}`);
       }
     }
-  }
-
-  private async enqueueSmartContract(
-    blockchainContract: BlockchainDbSmartContract,
-    sip: DbSipNumber
-  ) {
-    const job = await this.db.insertAndEnqueueSmartContract({
-      values: {
-        principal: blockchainContract.contract_id,
-        sip: sip,
-        abi: JSON.stringify(blockchainContract.abi),
-        tx_id: blockchainContract.tx_id,
-        block_height: blockchainContract.block_height
-      }
-    });
-    // this.jobQueue.add(job);
   }
 }
