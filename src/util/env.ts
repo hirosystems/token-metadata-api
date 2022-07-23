@@ -131,3 +131,5 @@ export function getEnvVars(): Env {
   });
   return config;
 }
+
+export const ENV = getEnvVars();

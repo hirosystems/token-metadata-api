@@ -5,8 +5,6 @@ import { PgBlockchainApiStore } from './pg/blockchain-api/pg-blockchain-api-stor
 import { JobQueue } from './token-processor/queue/job-queue';
 import { startApiServer } from './api/init';
 
-export const ENV = getEnvVars();
-
 const pgStore = new PgStore();
 const pgBlockchainStore = new PgBlockchainApiStore();
 const jobQueue = new JobQueue({ db: pgStore });

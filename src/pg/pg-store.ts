@@ -1,4 +1,5 @@
 import * as postgres from 'postgres';
+import { ENV } from '../util/env';
 import {
   DbSmartContract,
   DbSmartContractInsert,
@@ -21,7 +22,13 @@ export class PgStore {
   private readonly sql: postgres.Sql<any>;
 
   constructor() {
-    this.sql = postgres();
+    this.sql = postgres({
+      host: ENV.PGHOST,
+      port: ENV.PGPORT,
+      user: ENV.PGUSER,
+      password: ENV.PGPASSWORD,
+      database: ENV.PGDATABASE
+    });
   }
 
   async insertAndEnqueueSmartContract(args: {
