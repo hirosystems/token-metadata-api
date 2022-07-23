@@ -2,8 +2,8 @@ import Fastify from 'fastify';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { FtRoutes } from './routes/ft';
 import { NftRoutes } from './routes/nft';
-import { ENV } from '..';
 import { PgStore } from '../pg/pg-store';
+import { ENV } from '../util/env';
 
 const fastify = Fastify({
   trustProxy: true,

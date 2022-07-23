@@ -1,7 +1,7 @@
 import PQueue from 'p-queue';
-import { ENV } from '../..';
 import { PgStore } from '../../pg/pg-store';
 import { DbJob, DbJobStatus } from '../../pg/types';
+import { ENV } from '../../util/env';
 import { ProcessSmartContractJob } from '../process-smart-contract-job';
 import { ProcessTokenJob } from '../process-token-job';
 
@@ -44,9 +44,9 @@ export class JobQueue {
       .then(() => {
         this.queue.add(async () => {
           if (job.token_id) {
-            await (new ProcessTokenJob({ db: this.db, queue: this, job: job })).work();
+            await (new ProcessTokenJob({ db: this.db, job: job })).work();
           } else if (job.smart_contract_id) {
-            await (new ProcessSmartContractJob({ db: this.db, queue: this, job: job })).work();
+            await (new ProcessSmartContractJob({ db: this.db, job: job })).work();
           }
         });
       });

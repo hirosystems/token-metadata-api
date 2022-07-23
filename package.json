@@ -7,6 +7,7 @@
     "build": "rimraf ./dist && tsc --project tsconfig.build.json",
     "start": "node dist/index.js",
     "start-ts": "ts-node ./src/index.ts",
+    "test": "jest",
     "migrate": "ley -r ts-node/register",
     "db-down": "ley -r ts-node/register down --all",
     "db-reset": "ley -r ts-node/register down --all && ley -r ts-node/register up"
@@ -14,11 +15,15 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@types/jest": "^28.1.4",
-    "jest": "^28.1.2",
+    "@babel/core": "^7.18.9",
+    "@babel/preset-env": "^7.18.9",
+    "@babel/preset-typescript": "^7.18.6",
+    "@types/jest": "^28.1.6",
+    "babel-jest": "^28.1.3",
+    "jest": "^28.1.3",
     "ley": "^0.7.1",
     "rimraf": "^3.0.2",
-    "ts-jest": "^28.0.5",
+    "ts-jest": "^28.0.7",
     "ts-node": "^10.8.2",
     "typescript": "^4.7.4"
   },

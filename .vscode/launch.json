@@ -22,9 +22,10 @@
     },
     {
       "type": "node",
+      "runtimeVersion": "18",
       "request": "launch",
       "name": "Jest",
-      "program": "${workspaceFolder}/node_modules/.bin/jest",
+      "program": "${workspaceFolder}/node_modules/jest/bin/jest",
       "args": [
         "--testTimeout=3600000",
         "--runInBand",
@@ -32,6 +33,9 @@
       ],
       "outputCapture": "std",
       "console": "integratedTerminal",
+      "env": {
+        "NODE_OPTIONS": "--experimental-vm-modules"
+      },
     },
   ]
 }
