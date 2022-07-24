@@ -19,7 +19,7 @@ import {
  * Connects and queries the Token Metadata Service's local postgres DB.
  */
 export class PgStore {
-  private readonly sql: postgres.Sql<any>;
+  readonly sql: postgres.Sql<any>;
 
   constructor() {
     this.sql = postgres({
@@ -29,6 +29,10 @@ export class PgStore {
       password: ENV.PGPASSWORD,
       database: ENV.PGDATABASE
     });
+  }
+
+  async close() {
+    await this.sql.end();
   }
 
   async insertAndEnqueueSmartContract(args: {
@@ -173,7 +177,7 @@ export class PgStore {
    * Writes a full bundle of token info and metadata (including attributes and properties) into the
    * db.
    * @param id token id
-   * @param values update bundle values 
+   * @param values update bundle values
    */
   async updateProcessedTokenWithMetadata(args: {
     id: number;
