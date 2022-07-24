@@ -1,4 +1,4 @@
-import { Client } from 'undici';
+import { Client, getGlobalDispatcher, request } from 'undici';
 import { ClarityType, ClarityValue, cvToHex, hexToCV, UIntCV } from '@stacks/transactions';
 import { RetryableTokenMetadataError } from '../util/errors';
 import { ENV } from '../../util/env';
@@ -18,12 +18,13 @@ export type ReadOnlyContractCallResponse =
   | ReadOnlyContractCallFailResponse;
 
 /**
- * 
+ *
  */
 export class StacksNodeRpcClient {
-  readonly contractAddress: string;
-  readonly contractName: string;
-  readonly senderAddress: string;
+  private readonly contractAddress: string;
+  private readonly contractName: string;
+  private readonly senderAddress: string;
+  private readonly basePath: string;
 
   constructor(args: {
     contractPrincipal: string;
@@ -31,6 +32,7 @@ export class StacksNodeRpcClient {
   }) {
     [this.contractAddress, this.contractName] = args.contractPrincipal.split('.');
     this.senderAddress = args.senderAddress;
+    this.basePath = `http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`;
   }
 
   async readStringFromContract(
@@ -62,10 +64,9 @@ export class StacksNodeRpcClient {
       sender: this.senderAddress,
       arguments: functionArgs.map(arg => cvToHex(arg)),
     };
-    const client = new Client(`http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`);
-    const result = await client.request(
+    const result = await request(
+      `${this.basePath}/v2/contracts/call-read/${this.contractAddress}/${this.contractName}/${functionName}`,
       {
-        path: `/v2/contracts/call-read/${this.contractAddress}/${this.contractName}/${functionName}`,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

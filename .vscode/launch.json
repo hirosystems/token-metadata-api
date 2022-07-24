@@ -30,12 +30,10 @@
         "--testTimeout=3600000",
         "--runInBand",
         "--no-cache",
+        "--detectOpenHandles"
       ],
       "outputCapture": "std",
       "console": "integratedTerminal",
-      "env": {
-        "NODE_OPTIONS": "--experimental-vm-modules"
-      },
     },
   ]
 }
