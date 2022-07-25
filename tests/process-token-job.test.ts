@@ -100,36 +100,109 @@ describe('ProcessTokenJob', () => {
     });
   });
 
-  // test('enqueues all tokens per NFT contract', async () => {
-  //   const agent = new MockAgent();
-  //   agent.disableNetConnect();
-  //   agent.get(`http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`)
-  //     .intercept({
-  //       path: '/v2/contracts/call-read/ABCD/test-nft/get-last-token-id',
-  //       method: 'POST',
-  //     })
-  //     .reply(200, {
-  //       okay: true,
-  //       result: cvToHex(uintCV(5))
-  //     });
-  //   setGlobalDispatcher(agent);
+  describe('NFT', () => {
+    let tokenJob: DbJob;
 
-  //   const values: DbSmartContractInsert = {
-  //     principal: 'ABCD.test-nft',
-  //     sip: DbSipNumber.sip009,
-  //     abi: '"some"',
-  //     tx_id: '0x123456',
-  //     block_height: 1
-  //   };
-  //   const job = await db.insertAndEnqueueSmartContract({ values });
-  //   const processor = new ProcessSmartContractJob({ db, job });
-  //   await processor.work();
+    beforeEach(async () => {
+      const values: DbSmartContractInsert = {
+        principal: 'ABCD.test-nft',
+        sip: DbSipNumber.sip009,
+        abi: '"some"',
+        tx_id: '0x123456',
+        block_height: 1
+      };
+      await db.insertAndEnqueueSmartContract({ values });
+      const cursor = await db.getInsertAndEnqueueTokensCursor({
+        smart_contract_id: 1,
+        token_count: 1,
+        type: DbTokenType.nft
+      });
+      for await (const [job] of cursor) {
+        tokenJob = job
+      }
+    });
 
-  //   const tokens = await db.sql<DbToken[]>`SELECT * FROM tokens`;
-  //   expect(tokens.count).toBe(5);
-  //   expect(tokens[0].type).toBe(DbTokenType.nft);
-  //   expect(tokens[0].smart_contract_id).toBe(1);
-  // });
+    test('parses metadata with arbitrary types', async () => {
+      const metadata = {
+        name: "Mutant Monkeys #1",
+        image: "https://byzantion.mypinata.cloud/ipfs/QmWAYP9LJD15mgrnapfpJhBArG6T3J4XKTM77tzqggvP7w",
+        attributes: [
+          {
+            trait_type: "Background",
+            value: "MM1 Purple"
+          },
+          {
+            trait_type: "Fur",
+            value: 5050,
+            display_type: "Number"
+          },
+          {
+            trait_type: "Clothes",
+            value: ["hello", "world"]
+          },
+        ],
+        properties: {
+          external_url: "https://bitcoinmonkeys.io/",
+          description: "Mutant Monkeys is a collection of 5,000 NFT's that were created by transforming a Bitcoin Monkeys Labs vial of Serum into a Mutant Monkey.",
+          colection_name: "Mutant Monkeys",
+          collection_image: "https://byzantion.mypinata.cloud/ipfs/QmcsJmDdzutRYWg8e6E4Vqrs2Yon79BHfb14U3WnitwZSQ",
+          collection_size: 5000,
+          artist: "Bitcoin Monkeys",
+          prop: { a: 1, b: 2 }
+        }
+      };
+      const agent = new MockAgent();
+      agent.disableNetConnect();
+      agent.get(`http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`)
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-nft/get-token-uri',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(stringUtf8CV('http://m.io/token.json')),
+        });
+      agent.get(`http://m.io`)
+        .intercept({
+          path: '/token.json',
+          method: 'GET'
+        })
+        .reply(200, metadata);
+      setGlobalDispatcher(agent);
+
+      await (new ProcessTokenJob({ db, job: tokenJob })).work();
+
+      const bundle = await db.getNftMetadataBundle({ contractPrincipal: 'ABCD.test-nft', tokenNumber: 1 });
+      expect(bundle).not.toBeUndefined();
+      expect(bundle?.token.uri).toBe('http://m.io/token.json');
+      expect(bundle?.metadataLocale?.metadata.name).toBe('Mutant Monkeys #1');
+      expect(bundle?.metadataLocale?.metadata.image).toBe('https://byzantion.mypinata.cloud/ipfs/QmWAYP9LJD15mgrnapfpJhBArG6T3J4XKTM77tzqggvP7w');
+      expect(bundle?.metadataLocale?.metadata.description).toBeNull();
+
+      const attr0 = bundle!.metadataLocale!.attributes[0];
+      expect(attr0.trait_type).toBe('Background');
+      expect(JSON.parse(attr0.value)).toBe('MM1 Purple');
+      expect(attr0.display_type).toBeNull();
+
+      const attr1 = bundle!.metadataLocale!.attributes[1];
+      expect(attr1.trait_type).toBe('Fur');
+      expect(JSON.parse(attr1.value)).toBe(5050);
+      expect(attr1.display_type).toBe('Number');
+
+      const attr2 = bundle!.metadataLocale!.attributes[2];
+      expect(attr2.trait_type).toBe('Clothes');
+      expect(JSON.parse(attr2.value)).toStrictEqual(['hello', 'world']);
+      expect(attr2.display_type).toBeNull();
+
+      const properties = bundle!.metadataLocale!.properties;
+      expect(properties[0].name).toBe('external_url');
+      expect(JSON.parse(properties[0].value)).toBe('https://bitcoinmonkeys.io/');
+      expect(properties[4].name).toBe('collection_size');
+      expect(JSON.parse(properties[4].value)).toBe(5000);
+      expect(properties[6].name).toBe('prop');
+      expect(JSON.parse(properties[6].value)).toStrictEqual({ a:1, b:2 });
+    });
+  });
 
   afterEach(async () => {
     await db.close();
