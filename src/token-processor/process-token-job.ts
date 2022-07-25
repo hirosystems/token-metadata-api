@@ -5,7 +5,6 @@ import {
   uintCV,
 } from '@stacks/transactions';
 import {
-  getMetadataFromUri,
   getTokenMetadataProcessingMode,
   stopwatch,
 } from './util/helpers';
@@ -15,16 +14,14 @@ import {
   DbTokenType,
   DbToken,
   DbSmartContract,
-  DbMetadataInsert,
-  DbMetadataAttributeInsert,
   DbProcessedTokenUpdateBundle,
   DbMetadataLocaleInsertBundle,
-  DbMetadataPropertyInsert
 } from '../pg/types';
 import { RetryableTokenMetadataError } from './util/errors';
 import { Job } from './queue/job';
 import { TokenMetadataProcessingMode } from './queue/job-queue';
 import { ENV } from '../util/env';
+import { fetchAllMetadataLocalesFromBaseUri, getTokenSpecificUri } from './util/metadata-parsers';
 
 /**
  * Downloads, parses and indexes metadata info for a single token in the Stacks blockchain by
@@ -145,9 +142,7 @@ export class ProcessTokenJob extends Job {
 
     let metadataLocales: DbMetadataLocaleInsertBundle[] | undefined;
     if (uri) {
-      // TODO: Should we catch here and retry?
-      const metadataJson = await getMetadataFromUri(uri);
-      metadataLocales = this.parseMetadataForInsertion(metadataJson, token);
+      metadataLocales = await fetchAllMetadataLocalesFromBaseUri(uri, token);
     }
 
     const tokenValues: DbProcessedTokenUpdateBundle = {
@@ -156,7 +151,7 @@ export class ProcessTokenJob extends Job {
         symbol: symbol ?? null,
         decimals: fDecimals ?? null,
         total_supply: fTotalSupply ?? null,
-        uri: uri ?? null
+        uri: uri ? getTokenSpecificUri(uri, token.token_number) : null
       },
       metadataLocales: metadataLocales
     };
@@ -165,65 +160,17 @@ export class ProcessTokenJob extends Job {
 
   private async handleNft(client: StacksNodeRpcClient, token: DbToken) {
     const uri = await client.readStringFromContract('get-token-uri', [uintCV(token.token_number)]);
-    const idUri = uri ? uri.replace('{id}', token.token_number.toString()) : undefined;
-
     let metadataLocales: DbMetadataLocaleInsertBundle[] | undefined;
-    if (idUri) {
-      // TODO: Should we catch here and retry?
-      const metadataJson = await getMetadataFromUri(idUri);
-      metadataLocales = this.parseMetadataForInsertion(metadataJson, token);
+    if (uri) {
+      metadataLocales = await fetchAllMetadataLocalesFromBaseUri(uri, token);
     }
 
     const tokenValues: DbProcessedTokenUpdateBundle = {
       token: {
-        uri: idUri ?? null
+        uri: uri ? getTokenSpecificUri(uri, token.token_number) : null
       },
       metadataLocales: metadataLocales
     };
     await this.db.updateProcessedTokenWithMetadata({ id: token.id, values: tokenValues });
-  }
-
-  private parseMetadataForInsertion(metadata: any, token: DbToken): DbMetadataLocaleInsertBundle[] {
-    // TODO: Localization
-    const sip = metadata.sip ?? 16;
-    const metadataInsert: DbMetadataInsert = {
-      sip: sip,
-      token_id: token.id,
-      name: metadata.name ?? null,
-      description: metadata.description ?? null,
-      image: metadata.image ?? null, // TODO: CDN
-      l10n_default: true, // TODO: Locales
-      l10n_locale: null,
-      l10n_uri: null,
-    };
-    const attributes: DbMetadataAttributeInsert[] = [];
-    if (metadata.attributes) {
-      for (const { trait_type, value, display_type } of metadata.attributes) {
-        if (trait_type && value) {
-          attributes.push({
-            trait_type: trait_type,
-            value: JSON.stringify(value),
-            display_type: display_type ?? null,
-          });
-        }
-      }
-    }
-    const properties: DbMetadataPropertyInsert[] = [];
-    if (metadata.properties) {
-      for (const [key, value] of Object.entries(metadata.properties)) {
-        if (key && value) {
-          properties.push({
-            name: key,
-            value: JSON.stringify(value)
-          });
-        }
-      }
-    }
-
-    return [{
-      metadata: metadataInsert,
-      attributes: attributes,
-      properties: properties,
-    }];
   }
 }

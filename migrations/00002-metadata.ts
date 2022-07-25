@@ -15,9 +15,11 @@ export const up = async (sql: Sql<any>) => {
     CONSTRAINT metadata_token_id_fk FOREIGN KEY(token_id) REFERENCES tokens(id)
   )`;
   await sql`CREATE INDEX metadata_token_id_index ON metadata (token_id)`;
+  await sql`CREATE INDEX metadata_l10n_locale_index ON metadata (l10n_locale)`;
 };
 
 export const down = async (sql: Sql<any>) => {
-  await sql`DROP INDEX metadata_token_id_index`;
-  await sql`DROP TABLE metadata`;
+  await sql`DROP INDEX IF EXISTS metadata_token_id_index`;
+  await sql`DROP INDEX IF EXISTS metadata_l10n_locale_index`;
+  await sql`DROP TABLE IF EXISTS metadata`;
 };

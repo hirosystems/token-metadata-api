@@ -139,7 +139,8 @@ export class PgStore {
   }
 
   async getFtMetadataBundle(args: {
-    contractPrincipal: string
+    contractPrincipal: string,
+    locale?: string,
   }): Promise<DbTokenMetadataLocaleBundle | undefined> {
     return await this.sql.begin(async sql => {
       const tokenId = await sql<{ id: number }[]>`
@@ -150,13 +151,14 @@ export class PgStore {
       if (tokenId.count === 0) {
         return undefined;
       }
-      return await this.getTokenMetadataBundle(sql, tokenId[0].id);
+      return await this.getTokenMetadataBundle(sql, tokenId[0].id, args.locale);
     });
   }
 
   async getNftMetadataBundle(args: {
     contractPrincipal: string,
-    tokenNumber: number;
+    tokenNumber: number,
+    locale?: string,
   }): Promise<DbTokenMetadataLocaleBundle | undefined> {
     return await this.sql.begin(async sql => {
       const tokenId = await sql<{ id: number }[]>`
@@ -169,7 +171,7 @@ export class PgStore {
       if (tokenId.count === 0) {
         return undefined;
       }
-      return await this.getTokenMetadataBundle(sql, tokenId[0].id);
+      return await this.getTokenMetadataBundle(sql, tokenId[0].id, args.locale);
     });
   }
 
@@ -244,7 +246,8 @@ export class PgStore {
 
   private async getTokenMetadataBundle(
     sql: postgres.TransactionSql<any>,
-    tokenId: number
+    tokenId: number,
+    locale?: string,
   ): Promise<DbTokenMetadataLocaleBundle | undefined> {
     const token = await sql<DbToken[]>`
       SELECT * FROM tokens WHERE id = ${tokenId}
@@ -252,9 +255,10 @@ export class PgStore {
     if (token.count === 0) {
       return undefined;
     }
-    // TODO: Locale management
     const metadata = await sql<DbMetadata[]>`
-      SELECT * FROM metadata WHERE token_id = ${token[0].id}
+      SELECT * FROM metadata
+      WHERE token_id = ${token[0].id}
+      AND ${locale ? sql`l10n_locale = ${locale}` : sql`l10n_default = TRUE`}
     `;
     let attributes: DbMetadataAttribute[] = [];
     let properties: DbMetadataProperty[] = [];

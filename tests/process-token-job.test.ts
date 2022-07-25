@@ -160,11 +160,11 @@ describe('ProcessTokenJob', () => {
         })
         .reply(200, {
           okay: true,
-          result: cvToHex(stringUtf8CV('http://m.io/token.json')),
+          result: cvToHex(stringUtf8CV('http://m.io/{id}.json')),
         });
       agent.get(`http://m.io`)
         .intercept({
-          path: '/token.json',
+          path: '/1.json',
           method: 'GET'
         })
         .reply(200, metadata);
@@ -174,7 +174,7 @@ describe('ProcessTokenJob', () => {
 
       const bundle = await db.getNftMetadataBundle({ contractPrincipal: 'ABCD.test-nft', tokenNumber: 1 });
       expect(bundle).not.toBeUndefined();
-      expect(bundle?.token.uri).toBe('http://m.io/token.json');
+      expect(bundle?.token.uri).toBe('http://m.io/1.json');
       expect(bundle?.metadataLocale?.metadata.name).toBe('Mutant Monkeys #1');
       expect(bundle?.metadataLocale?.metadata.image).toBe('https://byzantion.mypinata.cloud/ipfs/QmWAYP9LJD15mgrnapfpJhBArG6T3J4XKTM77tzqggvP7w');
       expect(bundle?.metadataLocale?.metadata.description).toBeNull();
@@ -201,6 +201,116 @@ describe('ProcessTokenJob', () => {
       expect(JSON.parse(properties[4].value)).toBe(5000);
       expect(properties[6].name).toBe('prop');
       expect(JSON.parse(properties[6].value)).toStrictEqual({ a:1, b:2 });
+    });
+
+    test('parses metadata with localizations', async () => {
+      const metadata = {
+        name: "Mutant Monkeys #1",
+        image: "https://byzantion.mypinata.cloud/ipfs/QmWAYP9LJD15mgrnapfpJhBArG6T3J4XKTM77tzqggvP7w",
+        attributes: [
+          {
+            trait_type: "Background",
+            value: "MM1 Purple"
+          },
+          {
+            trait_type: "Fur",
+            value: 5050,
+            display_type: "Number"
+          },
+          {
+            trait_type: "Clothes",
+            value: ["hello", "world"]
+          },
+        ],
+        properties: {
+          external_url: "https://bitcoinmonkeys.io/",
+          description: "Mutant Monkeys is a collection of 5,000 NFT's that were created by transforming a Bitcoin Monkeys Labs vial of Serum into a Mutant Monkey.",
+          colection_name: "Mutant Monkeys",
+          artist: "Bitcoin Monkeys",
+        },
+        localization: {
+          uri: "http://m-locale.io/{id}-{locale}.json",
+          default: "en",
+          locales: ["en", "es-MX"]
+        }
+      };
+      const metadataSpanish = {
+        name: "Changos Mutantes #1",
+        attributes: [
+          {
+            trait_type: "Fondo",
+            value: "MM1 Morado"
+          },
+        ],
+        properties: {
+          description: "Changos Mutantes es una colección de 5,000 NFT's",
+          colection_name: "Changos Mutantes",
+        },
+      };
+      const agent = new MockAgent();
+      agent.disableNetConnect();
+      agent.get(`http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`)
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-nft/get-token-uri',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(stringUtf8CV('http://m.io/{id}.json')),
+        });
+      agent.get(`http://m.io`)
+        .intercept({
+          path: '/1.json',
+          method: 'GET'
+        })
+        .reply(200, metadata);
+      agent.get(`http://m-locale.io`)
+        .intercept({
+          path: '/1-es-MX.json',
+          method: 'GET'
+        })
+        .reply(200, metadataSpanish);
+      setGlobalDispatcher(agent);
+
+      await (new ProcessTokenJob({ db, job: tokenJob })).work();
+
+      const bundle = await db.getNftMetadataBundle({
+        contractPrincipal: 'ABCD.test-nft',
+        tokenNumber: 1
+      });
+      expect(bundle).not.toBeUndefined();
+      expect(bundle?.token.uri).toBe('http://m.io/1.json');
+      expect(bundle?.metadataLocale?.metadata.l10n_locale).toBe('en');
+      expect(bundle?.metadataLocale?.metadata.l10n_default).toBe(true);
+      expect(bundle?.metadataLocale?.metadata.l10n_uri).toBe('http://m.io/1.json');
+
+      // Make sure localization overrides work correctly
+      const mexicanBundle = await db.getNftMetadataBundle({
+        contractPrincipal: 'ABCD.test-nft',
+        tokenNumber: 1,
+        locale: 'es-MX'
+      });
+      expect(mexicanBundle).not.toBeUndefined();
+      expect(mexicanBundle?.token.uri).toBe('http://m.io/1.json');
+      expect(mexicanBundle?.metadataLocale?.metadata.l10n_locale).toBe('es-MX');
+      expect(mexicanBundle?.metadataLocale?.metadata.l10n_default).toBe(false);
+      expect(mexicanBundle?.metadataLocale?.metadata.l10n_uri).toBe('http://m-locale.io/1-es-MX.json');
+      expect(mexicanBundle?.metadataLocale?.metadata.name).toBe('Changos Mutantes #1');
+      expect(mexicanBundle?.metadataLocale?.metadata.image).toBe('https://byzantion.mypinata.cloud/ipfs/QmWAYP9LJD15mgrnapfpJhBArG6T3J4XKTM77tzqggvP7w');
+      expect(mexicanBundle?.metadataLocale?.metadata.description).toBeNull();
+      const attributes = mexicanBundle!.metadataLocale!.attributes;
+      expect(attributes.length).toBe(1);
+      expect(attributes[0].trait_type).toBe('Fondo');
+      expect(JSON.parse(attributes[0].value)).toBe('MM1 Morado');
+      const properties = mexicanBundle!.metadataLocale!.properties;
+      expect(properties[0].name).toBe('external_url');
+      expect(JSON.parse(properties[0].value)).toBe('https://bitcoinmonkeys.io/');
+      expect(properties[1].name).toBe('description');
+      expect(JSON.parse(properties[1].value)).toBe('Changos Mutantes es una colección de 5,000 NFT\'s');
+      expect(properties[2].name).toBe('colection_name');
+      expect(JSON.parse(properties[2].value)).toBe('Changos Mutantes');
+      expect(properties[3].name).toBe('artist');
+      expect(JSON.parse(properties[3].value)).toBe('Bitcoin Monkeys');
     });
   });
 
