@@ -21,7 +21,7 @@ export const up = async (sql: Sql<any>) => {
 };
 
 export const down = async (sql: Sql<any>) => {
-  await sql`DROP INDEX jobs_pending_index`;
-  await sql`DROP TABLE jobs`;
-  await sql`DROP TYPE job_status`;
+  await sql`DROP INDEX IF EXISTS jobs_pending_index`;
+  await sql`DROP TABLE IF EXISTS jobs`;
+  await sql`DROP TYPE IF EXISTS job_status`;
 };

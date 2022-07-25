@@ -15,6 +15,6 @@ export const up = async (sql: Sql<any>) => {
 };
 
 export const down = async (sql: Sql<any>) => {
-  await sql`DROP INDEX metadata_properties_metadata_id_index`;
-  await sql`DROP TABLE metadata_properties`;
+  await sql`DROP INDEX IF EXISTS metadata_properties_metadata_id_index`;
+  await sql`DROP TABLE IF EXISTS metadata_properties`;
 };

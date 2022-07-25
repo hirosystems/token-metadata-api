@@ -20,8 +20,8 @@ export const up = async (sql: Sql<any>) => {
 };
 
 export const down = async (sql: Sql<any>) => {
-  await sql`DROP INDEX smart_contracts_block_height_index`;
-  await sql`DROP INDEX smart_contracts_principal_index`;
-  await sql`DROP TABLE smart_contracts`;
-  await sql`DROP TYPE sip_number`;
+  await sql`DROP INDEX IF EXISTS smart_contracts_block_height_index`;
+  await sql`DROP INDEX IF EXISTS smart_contracts_principal_index`;
+  await sql`DROP TABLE IF EXISTS smart_contracts`;
+  await sql`DROP TYPE IF EXISTS sip_number`;
 };

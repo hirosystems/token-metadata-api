@@ -1,6 +1,4 @@
 import { DbSipNumber, DbTokenType } from '../../pg/types';
-import * as querystring from 'querystring';
-import { request } from 'undici';
 import { TokenMetadataProcessingMode } from '../queue/job-queue';
 import { ENV } from '../../util/env';
 
@@ -48,130 +46,6 @@ export function stopwatch(): Stopwatch {
   return result;
 }
 
-const PUBLIC_IPFS = 'https://ipfs.io';
-
-/**
- * Helper method for creating http/s url for supported protocols.
- * URLs with `http` or `https` protocols are returned as-is.
- * URLs with `ipfs` or `ipns` protocols are returned with as an `https` url
- * using a public IPFS gateway.
- */
-export function getFetchableUrl(uri: string): URL {
-  const parsedUri = new URL(uri);
-  if (parsedUri.protocol === 'http:' || parsedUri.protocol === 'https:') return parsedUri;
-  if (parsedUri.protocol === 'ipfs:')
-    return new URL(`${PUBLIC_IPFS}/${parsedUri.host}${parsedUri.pathname}`);
-
-  if (parsedUri.protocol === 'ipns:')
-    return new URL(`${PUBLIC_IPFS}/${parsedUri.host}${parsedUri.pathname}`);
-
-  throw new Error(`Unsupported uri protocol: ${uri}`);
-}
-
-export function parseDataUrl(
-  s: string
-):
-  | { mediaType?: string; contentType?: string; charset?: string; base64: boolean; data: string }
-  | false {
-  try {
-    const url = new URL(s);
-    if (url.protocol !== 'data:') {
-      return false;
-    }
-    const validDataUrlRegex = /^data:([a-z]+\/[a-z0-9-+.]+(;[a-z0-9-.!#$%*+.{}|~`]+=[a-z0-9-.!#$%*+.{}()|~`]+)*)?(;base64)?,(.*)$/i;
-    const parts = validDataUrlRegex.exec(s.trim());
-    if (parts === null) {
-      return false;
-    }
-    const parsed: {
-      mediaType?: string;
-      contentType?: string;
-      charset?: string;
-      base64: boolean;
-      data: string;
-    } = {
-      base64: false,
-      data: '',
-    };
-    if (parts[1]) {
-      parsed.mediaType = parts[1].toLowerCase();
-      const mediaTypeParts = parts[1].split(';').map(x => x.toLowerCase());
-      parsed.contentType = mediaTypeParts[0];
-      mediaTypeParts.slice(1).forEach(attribute => {
-        const p = attribute.split('=');
-        Object.assign(parsed, { [p[0]]: p[1] });
-      });
-    }
-    parsed.base64 = !!parts[parts.length - 2];
-    parsed.data = parts[parts.length - 1] || '';
-    return parsed;
-  } catch (e) {
-    return false;
-  }
-}
-
-export async function getMetadataFromUri(token_uri: string): Promise<any> {
-  // Support JSON embedded in a Data URL
-  if (new URL(token_uri).protocol === 'data:') {
-    const dataUrl = parseDataUrl(token_uri);
-    if (!dataUrl) {
-      throw new Error(`Data URL could not be parsed: ${token_uri}`);
-    }
-    let content: string;
-    // If media type is omitted it should default to percent-encoded `text/plain;charset=US-ASCII`
-    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs#syntax
-    // If media type is specified but without base64 then encoding is ambiguous, so check for
-    // percent-encoding or assume a literal string compatible with utf8. Because we're expecting
-    // a JSON object we can reliable check for a leading `%` char, otherwise assume unescaped JSON.
-    if (dataUrl.base64) {
-      content = Buffer.from(dataUrl.data, 'base64').toString('utf8');
-    } else if (dataUrl.data.startsWith('%')) {
-      content = querystring.unescape(dataUrl.data);
-    } else {
-      content = dataUrl.data;
-    }
-    try {
-      return JSON.parse(content);
-    } catch (error) {
-      throw new Error(`Data URL could not be parsed as JSON: ${token_uri}`);
-    }
-  }
-  const httpUrl = getFetchableUrl(token_uri);
-
-  let fetchImmediateRetryCount = 0;
-  let result: JSON | undefined;
-  // We'll try to fetch metadata and give it `METADATA_MAX_IMMEDIATE_URI_RETRIES` attempts
-  // for the external service to return a reasonable response, otherwise we'll consider the
-  // metadata as dead.
-  do {
-    try {
-      const networkResult = await request(httpUrl.toString(), {
-        method: 'GET',
-        bodyTimeout: ENV.METADATA_FETCH_TIMEOUT_MS
-      });
-      result = await networkResult.body.json();
-      // FIXME: this
-      // result = await performFetch(httpUrl.toString(), {
-      //   timeoutMs: getTokenMetadataFetchTimeoutMs(),
-      //   maxResponseBytes: METADATA_MAX_PAYLOAD_BYTE_SIZE,
-      // });
-      break;
-    } catch (error) {
-      fetchImmediateRetryCount++;
-      if (
-        // (error instanceof FetchError && error.type === 'max-size') ||
-        fetchImmediateRetryCount >= ENV.METADATA_MAX_IMMEDIATE_URI_RETRIES
-      ) {
-        throw error;
-      }
-    }
-  } while (fetchImmediateRetryCount < ENV.METADATA_MAX_IMMEDIATE_URI_RETRIES);
-  if (result) {
-    return result;
-  }
-  throw new Error(`Unable to fetch metadata from ${httpUrl.toString()}`);
-}
-
 export function dbSipNumberToDbTokenType(sip: DbSipNumber): DbTokenType {
   switch (sip) {
     case DbSipNumber.sip009:
@@ -181,23 +55,6 @@ export function dbSipNumberToDbTokenType(sip: DbSipNumber): DbTokenType {
     case DbSipNumber.sip013:
       return DbTokenType.sft;
   }
-}
-
-export function getImageUrl(uri: string): string {
-  // Support images embedded in a Data URL
-  if (new URL(uri).protocol === 'data:') {
-    // const dataUrl = ParseDataUrl(uri);
-    const dataUrl = parseDataUrl(uri);
-    if (!dataUrl) {
-      throw new Error(`Data URL could not be parsed: ${uri}`);
-    }
-    if (!dataUrl.mediaType?.startsWith('image/')) {
-      throw new Error(`Token image is a Data URL with a non-image media type: ${uri}`);
-    }
-    return uri;
-  }
-  const fetchableUrl = getFetchableUrl(uri);
-  return fetchableUrl.toString();
 }
 
 // export async function performFetch<Type>(
