@@ -3,18 +3,15 @@ import { MockAgent, setGlobalDispatcher } from 'undici';
 import { PgStore } from '../src/pg/pg-store';
 import { DbSipNumber, DbSmartContractInsert, DbToken, DbTokenType } from '../src/pg/types';
 import { ProcessSmartContractJob } from '../src/token-processor/process-smart-contract-job';
-import { JobQueue } from '../src/token-processor/queue/job-queue';
 import { ENV } from '../src/util/env';
 import { cycleMigrations } from './helpers';
 
 describe('ProcessSmartContractJob', () => {
   let db: PgStore;
-  let queue: JobQueue;
 
   beforeEach(async () => {
     ENV.PGDATABASE = 'postgres';
     db = new PgStore();
-    queue = new JobQueue({ db: db });
     await cycleMigrations();
   });
 
