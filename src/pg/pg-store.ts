@@ -1,4 +1,5 @@
 import * as postgres from 'postgres';
+import { TokenMetadataUpdateNotification } from '../token-processor/util/sip-validation';
 import { ENV } from '../util/env';
 import {
   DbSmartContract,
@@ -12,7 +13,7 @@ import {
   DbTokenMetadataLocaleBundle,
   DbMetadata,
   DbMetadataAttribute,
-  DbMetadataProperty
+  DbMetadataProperty,
 } from './types';
 
 /**
@@ -114,18 +115,7 @@ export class PgStore {
         type: args.type,
       });
     }
-    return this.sql<DbJob[]>`
-      WITH token_inserts AS (
-        INSERT INTO tokens ${this.sql(tokenValues)}
-        ON CONFLICT ON CONSTRAINT tokens_smart_contract_id_token_number_unique DO NOTHING
-        RETURNING id
-      )
-      INSERT INTO jobs (token_id, created_at, updated_at)
-        (SELECT id AS token_id, NOW() AS created_at, NOW() AS updated_at FROM token_inserts)
-      ON CONFLICT ON CONSTRAINT jobs_token_id_smart_contract_id_unique DO
-        UPDATE SET updated_at = EXCLUDED.updated_at
-      RETURNING *
-    `.cursor();
+    return this.getInsertAndEnqueueTokensCursorInternal(tokenValues, this.sql);
   }
 
   async getToken(args: { id: number }): Promise<DbToken | undefined> {
@@ -244,6 +234,72 @@ export class PgStore {
     `;
   }
 
+  /**
+   * Enqueues the tokens specified by a SIP-019 notification for metadata refresh. Depending on the
+   * token type and notification parameters, this will refresh specific tokens or complete
+   * contracts. See SIP-019 for more info.
+   * @param notification SIP-019 notification
+   */
+  async enqueueTokenMetadataUpdateNotification(args: {
+    notification: TokenMetadataUpdateNotification
+  }): Promise<void> {
+    await this.sql.begin(async sql => {
+      // First, make sure we have the specified contract.
+      const contractResult = await sql<{ id: number }[]>`
+        SELECT id FROM smart_contracts WHERE principal = ${args.notification.contract_id}
+      `;
+      if (contractResult.count === 0) {
+        throw new Error(`Contract not found with principal: ${args.notification.contract_id}`);
+      }
+      const contractId = contractResult[0].id;
+
+      if (args.notification.token_class === 'nft') {
+        if (!args.notification.token_ids) {
+          // If this is an NFT update and no token ids were specified, simply re-queue the complete
+          // contract to refresh all tokens.
+          await sql`
+            UPDATE jobs
+            SET status = 'pending', updated_at = NOW()
+            WHERE smart_contract_id = ${contractId}
+          `;
+        } else {
+          // Enqueue each specified token id otherwise.
+          const insertValues: DbTokenInsert[] = args.notification.token_ids.map(i => ({
+            smart_contract_id: contractId,
+            token_number: i,
+            type: DbTokenType.nft,
+          }));
+          await this.getInsertAndEnqueueTokensCursorInternal(insertValues, sql);
+        }
+      } else if (args.notification.token_class === 'ft') {
+        // Enqueue the only token for FTs.
+        await this.getInsertAndEnqueueTokensCursorInternal([{
+          smart_contract_id: contractId,
+          token_number: 1,
+          type: DbTokenType.ft
+        }], sql);
+      }
+    });
+  }
+
+  private async getInsertAndEnqueueTokensCursorInternal(
+    tokenValues: DbTokenInsert[],
+    sql: postgres.Sql<any>
+  ): Promise<AsyncIterable<DbJob[]>> {
+    return sql<DbJob[]>`
+      WITH token_inserts AS (
+        INSERT INTO tokens ${this.sql(tokenValues)}
+        ON CONFLICT ON CONSTRAINT tokens_smart_contract_id_token_number_unique DO NOTHING
+        RETURNING id
+      )
+      INSERT INTO jobs (token_id, created_at, updated_at)
+        (SELECT id AS token_id, NOW() AS created_at, NOW() AS updated_at FROM token_inserts)
+      ON CONFLICT ON CONSTRAINT jobs_token_id_smart_contract_id_unique DO
+        UPDATE SET updated_at = EXCLUDED.updated_at, status = 'pending'
+      RETURNING *
+    `.cursor();
+  }
+
   private async getTokenMetadataBundle(
     sql: postgres.TransactionSql<any>,
     tokenId: number,
@@ -255,6 +311,7 @@ export class PgStore {
     if (token.count === 0) {
       return undefined;
     }
+    // TODO: What if locale is not found?
     const metadata = await sql<DbMetadata[]>`
       SELECT * FROM metadata
       WHERE token_id = ${token[0].id}

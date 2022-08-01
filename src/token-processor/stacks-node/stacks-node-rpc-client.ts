@@ -18,7 +18,8 @@ export type ReadOnlyContractCallResponse =
   | ReadOnlyContractCallFailResponse;
 
 /**
- *
+ * Performs read-only contract calls against a configured Stacks node. Performs type checking and
+ * returns data as decoded Clarity values.
  */
 export class StacksNodeRpcClient {
   private readonly contractAddress: string;
