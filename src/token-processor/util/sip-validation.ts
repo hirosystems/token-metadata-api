@@ -1,4 +1,5 @@
-import { ClarityAbi, ClarityAbiFunction } from '@stacks/transactions';
+import { BufferCV, ClarityAbi, ClarityAbiFunction, ClarityType, hexToCV, ListCV, OptionalCV, TupleCV, UIntCV } from '@stacks/transactions';
+import { BlockchainDbContractLog } from '../../pg/blockchain-api/pg-blockchain-api-store';
 import { DbSipNumber } from '../../pg/types';
 
 const FtTraitFunctions: ClarityAbiFunction[] = [
@@ -248,4 +249,60 @@ function findFunction(fun: ClarityAbiFunction, functionList: ClarityAbiFunction[
     return true;
   });
   return found !== undefined;
+}
+
+export type TokenMetadataUpdateNotification = {
+  token_class: string;
+  contract_id: string;
+  token_ids?: number[];
+}
+
+/**
+ * Takes in a contract log entry and returns a metadata update notification object if valid.
+ * @param log Contract log entry
+ */
+export function getContractLogMetadataUpdateNotification(
+  log: BlockchainDbContractLog
+  ): TokenMetadataUpdateNotification | false {
+  try {
+    // Validate that we have the correct SIP-019 payload structure.
+    const value = hexToCV(log.value) as TupleCV;
+    const notification = (value.data.notification as BufferCV).buffer.toString('utf8');
+    if (notification !== 'token-metadata-update') {
+      return false;
+    }
+    const payload = value.data.payload as TupleCV;
+    const contractId = (payload.data['contract-id'] as BufferCV).buffer.toString('utf8');
+    const tokenClass = (payload.data['token-class'] as BufferCV).buffer.toString('utf8');
+    if (!['ft', 'nft'].includes(tokenClass)) {
+      return false;
+    }
+
+    // From SIP-019:
+    // Either the contract_identifier field of the contract event must be equal to the
+    // payload.contract-id (i.e., the event was produced by the contract that owns the metadata) or
+    // the transaction's tx-sender principal should match the principal contained in the
+    // notification's payload.contract-id (i.e., the STX address that sent the transaction which
+    // emits the notification should match the owner of the token contract being updated).
+    if (contractId !== log.contract_identifier && log.sender_address !== contractId.split('.')[0]) {
+      return false;
+    }
+
+    // Only NFT notifications provide token ids.
+    let tokenIds: number[] | undefined;
+    if (tokenClass === 'nft') {
+      const tokenIdList = payload.data['token-ids'];
+      if (tokenIdList.type === ClarityType.List) {
+        tokenIds = tokenIdList.list.map(i => Number((i as UIntCV).value));
+      }
+    }
+
+    return {
+      token_class: tokenClass,
+      contract_id: contractId,
+      token_ids: tokenIds,
+    };
+  } catch (error) {
+    return false;
+  }
 }
