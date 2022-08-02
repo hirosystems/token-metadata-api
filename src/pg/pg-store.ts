@@ -39,25 +39,16 @@ export class PgStore {
   async insertAndEnqueueSmartContract(args: {
     values: DbSmartContractInsert
   }): Promise<DbJob> {
-    const values = {
-      ...args.values,
-      created_at: this.sql`now()`,
-      updated_at: this.sql`now()`
-    };
     const result = await this.sql<DbJob[]>`
       WITH smart_contract_inserts AS (
-        INSERT INTO smart_contracts ${this.sql(values)}
-        ON CONFLICT ON CONSTRAINT smart_contracts_principal_unique DO
-          UPDATE SET updated_at = EXCLUDED.updated_at
+        INSERT INTO smart_contracts ${this.sql(args.values)}
+        ON CONFLICT ON CONSTRAINT smart_contracts_principal_unique DO UPDATE SET updated_at = NOW()
         RETURNING id
       )
-      INSERT INTO jobs (smart_contract_id, created_at, updated_at)
-        (
-          SELECT id AS smart_contract_id, NOW() AS created_at, NOW() AS updated_at
-          FROM smart_contract_inserts
-        )
+      INSERT INTO jobs (smart_contract_id)
+        (SELECT id AS smart_contract_id FROM smart_contract_inserts)
       ON CONFLICT ON CONSTRAINT jobs_token_id_smart_contract_id_unique DO
-        UPDATE SET updated_at = EXCLUDED.updated_at
+        UPDATE SET updated_at = NOW(), status = 'pending'
       RETURNING *
     `;
     return result[0];
@@ -176,9 +167,10 @@ export class PgStore {
     values: DbProcessedTokenUpdateBundle
   }): Promise<void> {
     await this.sql.begin(async sql => {
-      await sql`
-        UPDATE tokens SET ${sql(args.values.token)} WHERE id = ${args.id}
-      `;
+      // Update token and clear old metadata (this will cascade into all properties and attributes)
+      await sql`UPDATE tokens SET ${sql(args.values.token)} WHERE id = ${args.id}`;
+      await sql`DELETE FROM metadata WHERE token_id = ${args.id}`;
+      // Write new metadata
       for (const locale of args.values.metadataLocales ?? []) {
         const metadataInsert = await sql<{ id: number }[]>`
           INSERT INTO metadata ${sql(locale.metadata)} RETURNING id
@@ -289,13 +281,19 @@ export class PgStore {
     return sql<DbJob[]>`
       WITH token_inserts AS (
         INSERT INTO tokens ${this.sql(tokenValues)}
-        ON CONFLICT ON CONSTRAINT tokens_smart_contract_id_token_number_unique DO NOTHING
+        ON CONFLICT ON CONSTRAINT tokens_smart_contract_id_token_number_unique DO
+          UPDATE SET
+            uri = EXCLUDED.uri,
+            name = EXCLUDED.name,
+            symbol = EXCLUDED.symbol,
+            decimals = EXCLUDED.decimals,
+            total_supply = EXCLUDED.total_supply,
+            updated_at = NOW()
         RETURNING id
       )
-      INSERT INTO jobs (token_id, created_at, updated_at)
-        (SELECT id AS token_id, NOW() AS created_at, NOW() AS updated_at FROM token_inserts)
+      INSERT INTO jobs (token_id) (SELECT id AS token_id FROM token_inserts)
       ON CONFLICT ON CONSTRAINT jobs_token_id_smart_contract_id_unique DO
-        UPDATE SET updated_at = EXCLUDED.updated_at, status = 'pending'
+        UPDATE SET updated_at = NOW(), status = 'pending'
       RETURNING *
     `.cursor();
   }

@@ -12,7 +12,8 @@ export const up = async (sql: Sql<any>) => {
     description         TEXT,
     image               TEXT,
 
-    CONSTRAINT metadata_token_id_fk FOREIGN KEY(token_id) REFERENCES tokens(id)
+    CONSTRAINT metadata_token_id_fk FOREIGN KEY(token_id) REFERENCES tokens(id) ON DELETE CASCADE,
+    CONSTRAINT metadata_token_id_l10n_locale_unique UNIQUE(token_id, l10n_locale)
   )`;
   await sql`CREATE INDEX metadata_token_id_index ON metadata (token_id)`;
   await sql`CREATE INDEX metadata_l10n_locale_index ON metadata (l10n_locale)`;
