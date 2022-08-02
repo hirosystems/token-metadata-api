@@ -5,13 +5,10 @@ import { JobQueue } from './token-processor/queue/job-queue';
 import { startApiServer } from './api/init';
 import { BlockchainSmartContractMonitor } from './token-processor/blockchain-api/blockchain-smart-contract-monitor';
 
-const pgStore = new PgStore();
-const pgBlockchainStore = new PgBlockchainApiStore();
-const jobQueue = new JobQueue({ db: pgStore });
-const contractImporter = new BlockchainImporter({
-  db: pgStore,
-  apiDb: pgBlockchainStore,
-});
+const db = new PgStore();
+const apiDb = new PgBlockchainApiStore();
+const jobQueue = new JobQueue({ db });
+const contractImporter = new BlockchainImporter({ db, apiDb });
 // const contractMonitor = new BlockchainSmartContractMonitor({
 //   db: pgStore,
 //   apiDb: pgBlockchainStore
@@ -26,6 +23,6 @@ async function initApp() {
 
   // Start the queue and API endpoints.
   jobQueue.start();
-  startApiServer({ db: pgStore });
+  startApiServer({ db });
 }
 initApp();

@@ -35,36 +35,3 @@ export const Metadata = Type.Object({
   localization: Type.Optional(MetadataLocalization),
 });
 export type MetadataType = Static<typeof Metadata>;
-
-/**
- * SIP-010 Fungible Token
- */
-export const FungibleTokenResponse = Type.Object({
-  name: Type.Optional(Type.String()),
-  symbol: Type.Optional(Type.String()),
-  decimals: Type.Optional(Type.Integer()),
-  total_supply: Type.Optional(Type.Integer()),
-  token_uri: Type.Optional(Type.String({ format: 'uri' })),
-  metadata: Type.Optional(Metadata),
-});
-export type FungibleTokenResponseType = Static<typeof FungibleTokenResponse>;
-
-export const FungibleTokenParams = Type.Object({
-  principal: SmartContractPrincipal,
-});
-export type FungibleTokenParamsType = Static<typeof FungibleTokenParams>;
-
-/**
- * SIP-009 Non-Fungible Token
- */
-export const NonFungibleTokenResponse = Type.Object({
-  token_uri: Type.Optional(Type.String({ format: 'uri' })),
-  metadata: Type.Optional(Metadata),
-});
-export type NonFungibleTokenResponseType = Static<typeof NonFungibleTokenResponse>;
-
-export const NonFungibleTokenParams = Type.Object({
-  principal: SmartContractPrincipal,
-  token_id: Type.Integer(),
-});
-export type NonFungibleTokenParamsType = Static<typeof NonFungibleTokenParams>;

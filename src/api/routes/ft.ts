@@ -1,36 +1,44 @@
+import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
+import { Type } from '@sinclair/typebox';
 import { FastifyPluginCallback } from 'fastify';
-import {
-  FungibleTokenResponse,
-  FungibleTokenParams,
-  FungibleTokenParamsType,
-  FungibleTokenResponseType
-} from '../types';
+import { Server } from 'http';
+import { SmartContractPrincipal, Metadata } from '../types';
 import { parseMetadataLocaleBundle } from '../util/helpers';
 
-export const FtRoutes: FastifyPluginCallback = (fastify, options, done) => {
-  fastify.get<{
-    Params: FungibleTokenParamsType,
-    Reply: FungibleTokenResponseType
-  }>('/ft/:principal', {
+export const FtRoutes: FastifyPluginCallback<
+  Record<never, never>,
+  Server,
+  TypeBoxTypeProvider
+> = (fastify, options, done) => {
+  fastify.get('/ft/:principal', {
     schema: {
-      params: FungibleTokenParams,
+      tags: ['Tokens'],
+      params: Type.Object({
+        principal: SmartContractPrincipal,
+      }),
       response: {
-        200: FungibleTokenResponse,
+        200: Type.Object({
+          name: Type.Optional(Type.String()),
+          symbol: Type.Optional(Type.String()),
+          decimals: Type.Optional(Type.Integer()),
+          total_supply: Type.Optional(Type.Integer()),
+          token_uri: Type.Optional(Type.String({ format: 'uri' })),
+          metadata: Type.Optional(Metadata),
+        }),
       }
     }
   }, async (request, reply) => {
     const metadataBundle = await fastify.db.getFtMetadataBundle({
       contractPrincipal: request.params.principal
     });
-    const response: FungibleTokenResponseType = {
+    reply.send({
       name: metadataBundle?.token?.name ?? undefined,
       symbol: metadataBundle?.token?.symbol ?? undefined,
       decimals: metadataBundle?.token?.decimals ?? undefined,
       total_supply: metadataBundle?.token?.total_supply ?? undefined,
       token_uri: metadataBundle?.token?.uri ?? undefined,
       metadata: parseMetadataLocaleBundle(metadataBundle?.metadataLocale)
-    };
-    reply.send(response);
+    });
   });
   done();
 }
