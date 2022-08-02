@@ -125,7 +125,7 @@ export class PgStore {
   }): Promise<DbTokenMetadataLocaleBundle | undefined> {
     return await this.sql.begin(async sql => {
       const tokenId = await sql<{ id: number }[]>`
-        SELECT id FROM tokens
+        SELECT tokens.id FROM tokens
         INNER JOIN smart_contracts ON tokens.smart_contract_id = smart_contracts.id
         WHERE smart_contracts.principal = ${args.contractPrincipal}
       `;
@@ -274,6 +274,29 @@ export class PgStore {
     });
   }
 
+  /**
+   * Returns a token ETag based on its last updated date.
+   * @param contractPrincipal smart contract principal
+   * @param tokenNumber token number
+   * @returns ETag
+   */
+  async getTokenEtag(args: {
+    contractPrincipal: string;
+    tokenNumber: number;
+  }): Promise<string | undefined> {
+    const result = await this.sql<{ etag: string }[]>`
+      SELECT date_part('epoch', t.updated_at)::text AS etag
+      FROM tokens AS t
+      INNER JOIN smart_contracts AS s ON s.id = t.smart_contract_id
+      WHERE s.principal = ${args.contractPrincipal}
+      AND t.token_number = ${args.tokenNumber}
+    `;
+    if (result.count === 0) {
+      return undefined;
+    }
+    return result[0].etag;
+  }
+
   private async getInsertAndEnqueueTokensCursorInternal(
     tokenValues: DbTokenInsert[],
     sql: postgres.Sql<any>
@@ -303,16 +326,21 @@ export class PgStore {
     tokenId: number,
     locale?: string,
   ): Promise<DbTokenMetadataLocaleBundle | undefined> {
-    const token = await sql<DbToken[]>`
+    const tokenRes = await sql<DbToken[]>`
       SELECT * FROM tokens WHERE id = ${tokenId}
     `;
-    if (token.count === 0) {
+    if (tokenRes.count === 0) {
+      return undefined;
+    }
+    const token = tokenRes[0];
+    if (!token.updated_at) {
+      // No updated date means this token hasn't been processed once.
       return undefined;
     }
     // TODO: What if locale is not found?
     const metadata = await sql<DbMetadata[]>`
       SELECT * FROM metadata
-      WHERE token_id = ${token[0].id}
+      WHERE token_id = ${token.id}
       AND ${locale ? sql`l10n_locale = ${locale}` : sql`l10n_default = TRUE`}
     `;
     let attributes: DbMetadataAttribute[] = [];
@@ -326,7 +354,7 @@ export class PgStore {
       `;
     }
     return {
-      token: token[0],
+      token: token,
       metadataLocale: {
         metadata: metadata[0],
         attributes: attributes,

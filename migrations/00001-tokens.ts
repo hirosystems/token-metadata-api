@@ -13,7 +13,7 @@ export const up = async (sql: Sql<any>) => {
     decimals              INT,
     total_supply          INT,
     created_at            TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at            TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at            TIMESTAMP,
 
     CONSTRAINT tokens_smart_contract_id_fk FOREIGN KEY(smart_contract_id) REFERENCES smart_contracts(id),
     CONSTRAINT tokens_smart_contract_id_token_number_unique UNIQUE(smart_contract_id, token_number)

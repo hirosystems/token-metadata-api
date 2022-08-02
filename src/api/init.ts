@@ -6,6 +6,7 @@ import { PgStore } from '../pg/pg-store';
 import { ENV } from '../util/env';
 import FastifyCors from '@fastify/cors';
 import FastifySwagger from '@fastify/swagger';
+import { StatusRoutes } from './routes/status';
 
 const fastify = Fastify({
   trustProxy: true,
@@ -34,6 +35,7 @@ export function startApiServer(args: { db: PgStore }) {
 
   fastify.register(FtRoutes);
   fastify.register(NftRoutes);
+  fastify.register(StatusRoutes);
 
   fastify.listen({ host: ENV.API_HOST, port: ENV.API_PORT }, (err, address) => {
     if (err) {

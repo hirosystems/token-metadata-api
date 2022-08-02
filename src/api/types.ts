@@ -35,3 +35,8 @@ export const Metadata = Type.Object({
   localization: Type.Optional(MetadataLocalization),
 });
 export type MetadataType = Static<typeof Metadata>;
+
+export const TokenNotFoundResponse = Type.Object({
+  error: Type.Literal('Token not found')
+});
+export type TokenNotFoundResponseType = Static<typeof TokenNotFoundResponse>;

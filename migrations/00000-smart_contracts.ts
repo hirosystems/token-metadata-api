@@ -11,7 +11,7 @@ export const up = async (sql: Sql<any>) => {
     block_height        INT NOT NULL,
     token_count         INT,
     created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMP,
 
     CONSTRAINT smart_contracts_principal_unique UNIQUE(principal)
   )`;
