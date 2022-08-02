@@ -56,6 +56,8 @@ export type DbToken = {
   decimals?: number;
   total_supply?: number;
   symbol?: string;
+  created_at: string;
+  updated_at?: string;
 }
 
 export type DbJobInsert = {

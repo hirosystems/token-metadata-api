@@ -11,7 +11,7 @@ export const up = async (sql: Sql<any>) => {
     status              job_status DEFAULT 'pending',
     retry_count         INT DEFAULT 0,
     created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMP,
 
     CONSTRAINT jobs_token_id_fk FOREIGN KEY(token_id) REFERENCES tokens(id),
     CONSTRAINT jobs_smart_contract_id_fk FOREIGN KEY(smart_contract_id) REFERENCES smart_contracts(id),

@@ -2,7 +2,8 @@ import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { FastifyPluginCallback } from 'fastify';
 import { Server } from 'http';
-import { SmartContractPrincipal, Metadata } from '../types';
+import { SmartContractPrincipal, Metadata, TokenNotFoundResponse } from '../types';
+import { handleTokenCache } from '../util/cache';
 import { parseMetadataLocaleBundle } from '../util/helpers';
 
 export const FtRoutes: FastifyPluginCallback<
@@ -10,6 +11,7 @@ export const FtRoutes: FastifyPluginCallback<
   Server,
   TypeBoxTypeProvider
 > = (fastify, options, done) => {
+  fastify.addHook('preHandler', handleTokenCache);
   fastify.get('/ft/:principal', {
     schema: {
       tags: ['Tokens'],
@@ -25,12 +27,17 @@ export const FtRoutes: FastifyPluginCallback<
           token_uri: Type.Optional(Type.String({ format: 'uri' })),
           metadata: Type.Optional(Metadata),
         }),
+        404: TokenNotFoundResponse
       }
     }
   }, async (request, reply) => {
     const metadataBundle = await fastify.db.getFtMetadataBundle({
       contractPrincipal: request.params.principal
     });
+    if (!metadataBundle) {
+      reply.code(404).send({ error: 'Token not found' });
+      return;
+    }
     reply.send({
       name: metadataBundle?.token?.name ?? undefined,
       symbol: metadataBundle?.token?.symbol ?? undefined,
