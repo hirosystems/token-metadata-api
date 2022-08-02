@@ -3,7 +3,6 @@
   "configurations": [
     {
       "type": "node",
-      "runtimeVersion": "18",
       "request": "launch",
       "name": "Run",
       "runtimeArgs": [
@@ -22,7 +21,6 @@
     },
     {
       "type": "node",
-      "runtimeVersion": "18",
       "request": "launch",
       "name": "Jest",
       "program": "${workspaceFolder}/node_modules/jest/bin/jest",

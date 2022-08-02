@@ -7,7 +7,7 @@ export const up = async (sql: Sql<any>) => {
     name                TEXT NOT NULL,
     value               TEXT NOT NULL,
 
-    CONSTRAINT metadata_properties_metadata_id_fk FOREIGN KEY(metadata_id) REFERENCES metadata(id)
+    CONSTRAINT metadata_properties_metadata_id_fk FOREIGN KEY(metadata_id) REFERENCES metadata(id) ON DELETE CASCADE
   )`;
   await sql`
     CREATE INDEX metadata_properties_metadata_id_index ON metadata_properties (metadata_id)

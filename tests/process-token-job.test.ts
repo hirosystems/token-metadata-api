@@ -1,7 +1,7 @@
 import { cvToHex, noneCV, stringUtf8CV, uintCV } from '@stacks/transactions';
 import { MockAgent, setGlobalDispatcher } from 'undici';
 import { PgStore } from '../src/pg/pg-store';
-import { DbJob, DbSipNumber, DbSmartContractInsert, DbTokenType } from '../src/pg/types';
+import { DbJob, DbJobStatus, DbSipNumber, DbSmartContractInsert, DbTokenType } from '../src/pg/types';
 import { ProcessTokenJob } from '../src/token-processor/process-token-job';
 import { ENV } from '../src/util/env';
 import { cycleMigrations } from './helpers';
@@ -311,6 +311,112 @@ describe('ProcessTokenJob', () => {
       expect(JSON.parse(properties[2].value)).toBe('Changos Mutantes');
       expect(properties[3].name).toBe('artist');
       expect(JSON.parse(properties[3].value)).toBe('Bitcoin Monkeys');
+    });
+
+    test('metadata refresh replaces previous metadata entries for token', async () => {
+      const metadata1 = {
+        name: "Mutant Monkeys #1",
+        image: "https://byzantion.mypinata.cloud/ipfs/QmWAYP9LJD15mgrnapfpJhBArG6T3J4XKTM77tzqggvP7w",
+        attributes: [
+          {
+            trait_type: "Background",
+            value: "MM1 Purple"
+          },
+        ],
+        properties: {
+          external_url: "https://bitcoinmonkeys.io/",
+          colection_name: "Mutant Monkeys",
+        },
+      };
+      const metadata2 = {
+        name: "Mutant Monkeys #1 NEW",
+        image: "https://byzantion.mypinata.cloud/ipfs/new",
+        attributes: [
+          {
+            trait_type: "New Background",
+            value: "MM1 Red"
+          },
+        ],
+        properties: {
+          colection_name: "Mutant Monkeys Reloaded",
+        },
+      };
+      const agent = new MockAgent();
+      agent.disableNetConnect();
+      agent.get(`http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`)
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-nft/get-token-uri',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(stringUtf8CV('http://m.io/{id}.json')),
+        });
+      agent.get(`http://m.io`)
+        .intercept({
+          path: '/1.json',
+          method: 'GET'
+        })
+        .reply(200, metadata1);
+      setGlobalDispatcher(agent);
+
+      // Process once
+      await (new ProcessTokenJob({ db, job: tokenJob })).work();
+
+      const bundle1 = await db.getNftMetadataBundle({
+        contractPrincipal: 'ABCD.test-nft',
+        tokenNumber: 1
+      });
+      expect(bundle1).not.toBeUndefined();
+      expect(bundle1?.token.uri).toBe('http://m.io/1.json');
+      expect(bundle1?.metadataLocale?.metadata.name).toBe('Mutant Monkeys #1');
+      expect(bundle1?.metadataLocale?.metadata.image).toBe(
+        'https://byzantion.mypinata.cloud/ipfs/QmWAYP9LJD15mgrnapfpJhBArG6T3J4XKTM77tzqggvP7w'
+      );
+      expect(bundle1?.metadataLocale?.attributes.length).toBe(1);
+      expect(bundle1?.metadataLocale?.attributes[0].trait_type).toBe('Background');
+      expect(JSON.parse(bundle1!.metadataLocale!.attributes[0].value)).toBe('MM1 Purple');
+      expect(bundle1?.metadataLocale?.properties.length).toBe(2);
+      expect(bundle1?.metadataLocale?.properties[0].name).toBe('external_url');
+      expect(JSON.parse(bundle1!.metadataLocale!.properties[0].value)).toBe('https://bitcoinmonkeys.io/');
+      expect(bundle1?.metadataLocale?.properties[1].name).toBe('colection_name');
+      expect(JSON.parse(bundle1!.metadataLocale!.properties[1].value)).toBe('Mutant Monkeys');
+
+      // Process again with different metadata
+      agent.get(`http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`)
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-nft/get-token-uri',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(stringUtf8CV('http://m.io/{id}.json')),
+        });
+      agent.get(`http://m.io`)
+        .intercept({
+          path: '/1.json',
+          method: 'GET'
+        })
+        .reply(200, metadata2);
+      await db.updateJobStatus({ id: tokenJob.id, status: DbJobStatus.pending });
+      await (new ProcessTokenJob({ db, job: tokenJob })).work();
+
+      const bundle2 = await db.getNftMetadataBundle({
+        contractPrincipal: 'ABCD.test-nft',
+        tokenNumber: 1
+      });
+      expect(bundle2).not.toBeUndefined();
+      expect(bundle2?.token.uri).toBe('http://m.io/1.json');
+      expect(bundle2?.metadataLocale?.metadata.name).toBe('Mutant Monkeys #1 NEW');
+      expect(bundle2?.metadataLocale?.metadata.image).toBe(
+        'https://byzantion.mypinata.cloud/ipfs/new'
+      );
+      expect(bundle2?.metadataLocale?.attributes.length).toBe(1);
+      expect(bundle2?.metadataLocale?.attributes[0].trait_type).toBe('New Background');
+      expect(JSON.parse(bundle2!.metadataLocale!.attributes[0].value)).toBe('MM1 Red');
+      expect(bundle2?.metadataLocale?.properties.length).toBe(1);
+      expect(bundle2?.metadataLocale?.properties[0].name).toBe('colection_name');
+      expect(JSON.parse(bundle2!.metadataLocale!.properties[0].value)).toBe('Mutant Monkeys Reloaded');
     });
   });
 
