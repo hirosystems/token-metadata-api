@@ -168,7 +168,9 @@ export class PgStore {
   }): Promise<void> {
     await this.sql.begin(async sql => {
       // Update token and clear old metadata (this will cascade into all properties and attributes)
-      await sql`UPDATE tokens SET ${sql(args.values.token)} WHERE id = ${args.id}`;
+      await sql`
+        UPDATE tokens SET ${sql(args.values.token)}, updated_at = NOW() WHERE id = ${args.id}
+      `;
       await sql`DELETE FROM metadata WHERE token_id = ${args.id}`;
       // Write new metadata
       for (const locale of args.values.metadataLocales ?? []) {
