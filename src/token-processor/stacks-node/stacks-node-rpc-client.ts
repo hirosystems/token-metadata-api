@@ -1,7 +1,7 @@
 import { Client, getGlobalDispatcher, request } from 'undici';
 import { ClarityType, ClarityValue, cvToHex, hexToCV, UIntCV } from '@stacks/transactions';
 import { RetryableTokenMetadataError } from '../util/errors';
-import { ENV } from '../../util/env';
+import { ENV } from '../../env';
 
 interface ReadOnlyContractCallSuccessResponse {
   okay: true;

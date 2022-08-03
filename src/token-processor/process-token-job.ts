@@ -20,8 +20,8 @@ import {
 import { RetryableTokenMetadataError } from './util/errors';
 import { Job } from './queue/job';
 import { TokenMetadataProcessingMode } from './queue/job-queue';
-import { ENV } from '../util/env';
-import { fetchAllMetadataLocalesFromBaseUri, getTokenSpecificUri } from './util/metadata-parsers';
+import { ENV } from '../env';
+import { fetchAllMetadataLocalesFromBaseUri, getTokenSpecificUri } from './util/metadata-helpers';
 
 /**
  * Downloads, parses and indexes metadata info for a single token in the Stacks blockchain by

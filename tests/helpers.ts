@@ -1,4 +1,4 @@
-import { ENV } from '../src/util/env';
+import { ENV } from '../src/env';
 import * as ley from 'ley';
 
 export async function cycleMigrations() {

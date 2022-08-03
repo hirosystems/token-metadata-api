@@ -1,6 +1,6 @@
 import * as postgres from 'postgres';
 import { TokenMetadataUpdateNotification } from '../token-processor/util/sip-validation';
-import { ENV } from '../util/env';
+import { ENV } from '../env';
 import {
   DbSmartContract,
   DbSmartContractInsert,

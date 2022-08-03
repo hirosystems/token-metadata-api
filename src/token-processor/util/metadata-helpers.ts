@@ -1,5 +1,6 @@
 import * as querystring from 'querystring';
-import { request } from 'undici';
+import { Transform, TransformCallback } from 'stream';
+import { Agent, fetch, getGlobalDispatcher, Response } from 'undici';
 import {
   DbMetadataAttributeInsert,
   DbMetadataInsert,
@@ -7,7 +8,10 @@ import {
   DbMetadataPropertyInsert,
   DbToken
 } from '../../pg/types';
-import { ENV } from '../../util/env';
+import { ENV } from '../../env';
+import { TextDecoder } from 'util';
+import { MetadataSizeExceededError, MetadataTimeoutError } from './errors';
+import { stopwatch } from './helpers';
 
 type RawMetadataLocale = {
   metadata: any,
@@ -130,6 +134,54 @@ function parseMetadataForInsertion(
   return inserts;
 }
 
+/**
+ * Fetches metadata while monitoring timeout and size limits. Throws if any is reached.
+ * Taken from https://github.com/node-fetch/node-fetch/issues/1149#issuecomment-840416752
+ * @param httpUrl URL to fetch
+ * @returns JSON content
+ */
+export async function performSizeAndTimeLimitedMetadataFetch(
+  httpUrl: URL
+): Promise<string | undefined> {
+  const ctrl = new AbortController();
+  let abortReason: Error | undefined;
+
+  const timer = setTimeout(() => {
+    abortReason = new MetadataTimeoutError();
+    ctrl.abort();
+  }, ENV.METADATA_FETCH_TIMEOUT_MS);
+  try {
+    const networkResult = await fetch(httpUrl.toString(), {
+      method: 'GET',
+      signal: ctrl.signal
+    });
+    if (networkResult.body) {
+      const decoder = new TextDecoder();
+      let responseText: string = '';
+      let bytesWritten = 0;
+      const reportedContentLength = Number(networkResult.headers.get('content-length') ?? 0)
+      if (reportedContentLength > ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE) {
+        abortReason = new MetadataSizeExceededError();
+        ctrl.abort();
+      }
+      for await (const chunk of networkResult.body) {
+        bytesWritten += chunk.byteLength
+        if (bytesWritten > ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE) {
+          abortReason = new MetadataSizeExceededError();
+          ctrl.abort();
+        }
+        responseText += decoder.decode(chunk, { stream: true })
+      }
+      responseText += decoder.decode() // flush the remaining bytes
+      clearTimeout(timer);
+      return responseText;
+    }
+  } catch (error) {
+    clearTimeout(timer);
+    throw abortReason ?? error;
+  }
+}
+
 async function getMetadataFromUri(token_uri: string): Promise<any> {
   // Support JSON embedded in a Data URL
   if (new URL(token_uri).protocol === 'data:') {
@@ -165,21 +217,13 @@ async function getMetadataFromUri(token_uri: string): Promise<any> {
   // metadata as dead.
   do {
     try {
-      const networkResult = await request(httpUrl.toString(), {
-        method: 'GET',
-        bodyTimeout: ENV.METADATA_FETCH_TIMEOUT_MS
-      });
-      result = await networkResult.body.json();
-      // FIXME: this
-      // result = await performFetch(httpUrl.toString(), {
-      //   timeoutMs: getTokenMetadataFetchTimeoutMs(),
-      //   maxResponseBytes: METADATA_MAX_PAYLOAD_BYTE_SIZE,
-      // });
+      const text = await performSizeAndTimeLimitedMetadataFetch(httpUrl);
+      result = text ? JSON.parse(text) : undefined;
       break;
     } catch (error) {
       fetchImmediateRetryCount++;
       if (
-        // (error instanceof FetchError && error.type === 'max-size') ||
+        error instanceof MetadataSizeExceededError ||
         fetchImmediateRetryCount >= ENV.METADATA_MAX_IMMEDIATE_URI_RETRIES
       ) {
         throw error;

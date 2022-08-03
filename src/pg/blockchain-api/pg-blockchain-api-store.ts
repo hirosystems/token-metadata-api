@@ -1,5 +1,5 @@
 import * as postgres from 'postgres';
-import { ENV } from '../../util/env';
+import { ENV } from '../../env';
 
 export interface BlockchainDbSmartContract {
   contract_id: string;

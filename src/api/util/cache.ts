@@ -21,7 +21,7 @@ export async function handleTokenCache(request: FastifyRequest, reply: FastifyRe
 }
 
 /**
- * Retrieve the chain tip from the node so we can build the etag.
+ * Retrieve the token's last modified date as a UNIX epoch so we can use it as the response ETag.
  * @returns Etag string
  */
 async function getTokenEtag(request: FastifyRequest): Promise<string | undefined> {

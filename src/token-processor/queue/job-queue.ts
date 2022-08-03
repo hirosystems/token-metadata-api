@@ -1,7 +1,7 @@
 import PQueue from 'p-queue';
 import { PgStore } from '../../pg/pg-store';
 import { DbJob, DbJobStatus } from '../../pg/types';
-import { ENV } from '../../util/env';
+import { ENV } from '../../env';
 import { ProcessSmartContractJob } from '../process-smart-contract-job';
 import { ProcessTokenJob } from '../process-token-job';
 

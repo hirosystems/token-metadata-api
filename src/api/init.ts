@@ -3,7 +3,7 @@ import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { FtRoutes } from './routes/ft';
 import { NftRoutes } from './routes/nft';
 import { PgStore } from '../pg/pg-store';
-import { ENV } from '../util/env';
+import { ENV } from '../env';
 import FastifyCors from '@fastify/cors';
 import FastifySwagger from '@fastify/swagger';
 import { StatusRoutes } from './routes/status';

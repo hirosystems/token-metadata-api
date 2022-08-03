@@ -3,7 +3,7 @@ import { MockAgent, setGlobalDispatcher } from 'undici';
 import { PgStore } from '../src/pg/pg-store';
 import { DbJob, DbJobStatus, DbSipNumber, DbSmartContractInsert, DbTokenType } from '../src/pg/types';
 import { ProcessTokenJob } from '../src/token-processor/process-token-job';
-import { ENV } from '../src/util/env';
+import { ENV } from '../src/env';
 import { cycleMigrations } from './helpers';
 
 describe('ProcessTokenJob', () => {
