@@ -124,15 +124,19 @@ export class PgStore {
     locale?: string,
   }): Promise<DbTokenMetadataLocaleBundle | undefined> {
     return await this.sql.begin(async sql => {
-      const tokenId = await sql<{ id: number }[]>`
+      const tokenIdRes = await sql<{ id: number }[]>`
         SELECT tokens.id FROM tokens
         INNER JOIN smart_contracts ON tokens.smart_contract_id = smart_contracts.id
         WHERE smart_contracts.principal = ${args.contractPrincipal}
+          AND tokens.updated_at IS NOT NULL
       `;
-      if (tokenId.count === 0) {
+      if (tokenIdRes.count === 0) {
         return undefined;
       }
-      return await this.getTokenMetadataBundle(sql, tokenId[0].id, args.locale);
+      if (args.locale && !(await this.isTokenLocaleAvailable(sql, tokenIdRes[0].id, args.locale))) {
+        return undefined;
+      }
+      return await this.getTokenMetadataBundle(sql, tokenIdRes[0].id, args.locale);
     });
   }
 
@@ -142,17 +146,21 @@ export class PgStore {
     locale?: string,
   }): Promise<DbTokenMetadataLocaleBundle | undefined> {
     return await this.sql.begin(async sql => {
-      const tokenId = await sql<{ id: number }[]>`
+      const tokenIdRes = await sql<{ id: number }[]>`
         SELECT tokens.id
         FROM tokens
         INNER JOIN smart_contracts ON tokens.smart_contract_id = smart_contracts.id
         WHERE smart_contracts.principal = ${args.contractPrincipal}
           AND tokens.token_number = ${args.tokenNumber}
+          AND tokens.updated_at IS NOT NULL
       `;
-      if (tokenId.count === 0) {
+      if (tokenIdRes.count === 0) {
         return undefined;
       }
-      return await this.getTokenMetadataBundle(sql, tokenId[0].id, args.locale);
+      if (args.locale && !(await this.isTokenLocaleAvailable(sql, tokenIdRes[0].id, args.locale))) {
+        return undefined;
+      }
+      return await this.getTokenMetadataBundle(sql, tokenIdRes[0].id, args.locale);
     });
   }
 
@@ -323,6 +331,19 @@ export class PgStore {
     `.cursor();
   }
 
+  private async isTokenLocaleAvailable(
+    sql: postgres.TransactionSql<any>,
+    tokenId: number,
+    locale: string,
+  ): Promise<boolean> {
+    const tokenLocale = await sql<{ id: number }[]>`
+      SELECT id FROM metadata
+      WHERE token_id = ${tokenId}
+      AND l10n_locale = ${locale}
+    `;
+    return tokenLocale.count !== 0
+  }
+
   private async getTokenMetadataBundle(
     sql: postgres.TransactionSql<any>,
     tokenId: number,
@@ -339,7 +360,6 @@ export class PgStore {
       // No updated date means this token hasn't been processed once.
       return undefined;
     }
-    // TODO: What if locale is not found?
     const metadata = await sql<DbMetadata[]>`
       SELECT * FROM metadata
       WHERE token_id = ${token.id}

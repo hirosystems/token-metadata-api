@@ -2,7 +2,12 @@ import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { FastifyPluginCallback } from 'fastify';
 import { Server } from 'http';
-import { SmartContractPrincipal, Metadata, TokenNotFoundResponse } from '../types';
+import {
+  SmartContractPrincipal,
+  Metadata,
+  TokenNotFoundResponse,
+  TokenQuerystringParams
+} from '../types';
 import { handleTokenCache } from '../util/cache';
 import { parseMetadataLocaleBundle } from '../util/helpers';
 
@@ -18,6 +23,7 @@ export const FtRoutes: FastifyPluginCallback<
       params: Type.Object({
         principal: SmartContractPrincipal,
       }),
+      querystring: TokenQuerystringParams,
       response: {
         200: Type.Object({
           name: Type.Optional(Type.String()),
@@ -32,7 +38,8 @@ export const FtRoutes: FastifyPluginCallback<
     }
   }, async (request, reply) => {
     const metadataBundle = await fastify.db.getFtMetadataBundle({
-      contractPrincipal: request.params.principal
+      contractPrincipal: request.params.principal,
+      locale: request.query.locale
     });
     if (!metadataBundle) {
       reply.code(404).send({ error: 'Token not found' });

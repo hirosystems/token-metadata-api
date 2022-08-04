@@ -2,7 +2,12 @@ import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { FastifyPluginCallback } from 'fastify';
 import { Server } from 'http';
-import { SmartContractPrincipal, Metadata, TokenNotFoundResponse } from '../types';
+import {
+  SmartContractPrincipal,
+  Metadata,
+  TokenNotFoundResponse,
+  TokenQuerystringParams
+} from '../types';
 import { handleTokenCache } from '../util/cache';
 import { parseMetadataLocaleBundle } from '../util/helpers';
 
@@ -19,9 +24,7 @@ export const NftRoutes: FastifyPluginCallback<
         principal: SmartContractPrincipal,
         token_id: Type.Integer(),
       }),
-      querystring: Type.Optional(Type.Object({
-        locale: Type.String()
-      })),
+      querystring: TokenQuerystringParams,
       response: {
         200: Type.Object({
           token_uri: Type.Optional(Type.String({ format: 'uri' })),

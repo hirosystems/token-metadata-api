@@ -5,6 +5,11 @@ export const SmartContractPrincipal = Type.RegEx(
 );
 export type SmartContractPrincipalType = Static<typeof SmartContractPrincipal>;
 
+export const TokenQuerystringParams = Type.Object({
+  locale: Type.Optional(Type.String())
+});
+export type TokenQuerystringParamsType = Static<typeof TokenQuerystringParams>;
+
 export const MetadataAttribute = Type.Object({
   trait_type: Type.String(),
   value: Type.Any(),
