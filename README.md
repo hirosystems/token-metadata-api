@@ -13,6 +13,7 @@ See the [Token Metadata Service API Reference]() for more information.
     * SIP-013 Semi-Fungible Tokens (coming soon!)
 * Real-time metadata refreshing via SIP-019 notifications
 * Metadata localization support
+* Metadata file fetching via `http:`, `https:`, `ipfs:`, and `data:` URIs
 * Easy to use REST JSON endpoints with ETag caching
 
 ## Quick start
@@ -55,3 +56,5 @@ The Stacks Token Metadata Service connects to three different systems to operate
 1. A Stacks node to issue all read-only contract calls when refreshing metadata (to get token count,
    token URIs, etc.)
 1. A local Postgres DB to store all processed metadata info
+
+Additionally, the service will fetch external metadata files (JSONs, images) from the Internet.
