@@ -28,7 +28,9 @@
         "--testTimeout=3600000",
         "--runInBand",
         "--no-cache",
-        "--detectOpenHandles"
+        // "--detectOpenHandles",
+        "-t",
+        "NFT routes"
       ],
       "outputCapture": "std",
       "console": "integratedTerminal",

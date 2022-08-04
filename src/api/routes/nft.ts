@@ -19,6 +19,9 @@ export const NftRoutes: FastifyPluginCallback<
         principal: SmartContractPrincipal,
         token_id: Type.Integer(),
       }),
+      querystring: Type.Optional(Type.Object({
+        locale: Type.String()
+      })),
       response: {
         200: Type.Object({
           token_uri: Type.Optional(Type.String({ format: 'uri' })),
@@ -30,7 +33,8 @@ export const NftRoutes: FastifyPluginCallback<
   }, async (request, reply) => {
     const metadataBundle = await fastify.db.getNftMetadataBundle({
       contractPrincipal: request.params.principal,
-      tokenNumber: request.params.token_id
+      tokenNumber: request.params.token_id,
+      locale: request.query.locale
     });
     if (!metadataBundle) {
       reply.code(404).send({ error: 'Token not found' });

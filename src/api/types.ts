@@ -5,9 +5,6 @@ export const SmartContractPrincipal = Type.RegEx(
 );
 export type SmartContractPrincipalType = Static<typeof SmartContractPrincipal>;
 
-/**
- * SIP-016 Token Metadata
- */
 export const MetadataAttribute = Type.Object({
   trait_type: Type.String(),
   value: Type.Any(),
