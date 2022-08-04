@@ -3,7 +3,7 @@ import { Sql } from 'postgres';
 export const up = async (sql: Sql<any>) => {
   await sql`CREATE TYPE token_type AS ENUM ('ft', 'nft', 'sft')`;
   await sql`CREATE TABLE tokens (
-    id                    SERIAL PRIMARY KEY,
+    id                    BIGSERIAL PRIMARY KEY,
     smart_contract_id     INT NOT NULL,
     type                  token_type NOT NULL,
     token_number          INT NOT NULL,

@@ -2,7 +2,7 @@ import { Sql } from 'postgres';
 
 export const up = async (sql: Sql<any>) => {
   await sql`CREATE TABLE metadata (
-    id                  SERIAL PRIMARY KEY,
+    id                  BIGSERIAL PRIMARY KEY,
     token_id            INT NOT NULL,
     sip                 INT NOT NULL,
     name                TEXT NOT NULL,

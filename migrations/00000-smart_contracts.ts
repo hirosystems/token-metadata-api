@@ -3,7 +3,7 @@ import { Sql } from 'postgres';
 export const up = async (sql: Sql<any>) => {
   await sql`CREATE TYPE sip_number AS ENUM ('sip-009', 'sip-010', 'sip-013')`;
   await sql`CREATE TABLE smart_contracts (
-    id                  SERIAL PRIMARY KEY,
+    id                  BIGSERIAL PRIMARY KEY,
     principal           TEXT NOT NULL,
     sip                 sip_number NOT NULL,
     abi                 TEXT NOT NULL,

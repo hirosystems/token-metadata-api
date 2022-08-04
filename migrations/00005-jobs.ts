@@ -5,7 +5,7 @@ export const up = async (sql: Sql<any>) => {
     CREATE TYPE job_status AS ENUM ('pending', 'queued', 'done', 'failed')
   `;
   await sql`CREATE TABLE jobs (
-    id                  SERIAL PRIMARY KEY,
+    id                  BIGSERIAL PRIMARY KEY,
     token_id            INT,
     smart_contract_id   INT,
     status              job_status DEFAULT 'pending',
