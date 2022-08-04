@@ -25,7 +25,7 @@ export async function cycleMigrations() {
 }
 
 export async function startTestApiServer(db: PgStore) {
-  const fastify = buildApiServer({ db });
+  const fastify = await buildApiServer({ db });
   await new Promise<void>((resolve, reject) => {
     fastify.listen({ host: '127.0.0.1', port: 9999 }, (err, addr) => {
       if (err) {

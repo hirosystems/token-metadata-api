@@ -310,6 +310,24 @@ export class PgStore {
     return result[0].etag;
   }
 
+  async getJobStatusCounts(): Promise<{ count: number; status: string }[]> {
+    return this.sql<{ count: number; status: string }[]>`
+      SELECT COUNT(*)::int, status FROM jobs GROUP BY status
+    `;
+  }
+
+  async getSmartContractCounts(): Promise<{ count: number; sip: string }[]> {
+    return this.sql<{ count: number; sip: string }[]>`
+      SELECT COUNT(*)::int, sip FROM smart_contracts GROUP BY sip
+    `;
+  }
+
+  async getTokenCounts(): Promise<{ count: number; type: string }[]> {
+    return this.sql<{ count: number; type: string }[]>`
+      SELECT COUNT(*)::int, type FROM tokens GROUP BY type
+    `;
+  }
+
   private async getInsertAndEnqueueTokensCursorInternal(
     tokenValues: DbTokenInsert[],
     sql: postgres.Sql<any>
