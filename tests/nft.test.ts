@@ -21,7 +21,7 @@ describe('NFT routes', () => {
     // TODO: Finish test
     const response = await request('http://127.0.0.1:9999/', { method: 'GET' });
     const json = await response.body.json();
-    expect(json).toBe('');
+    expect(json).toStrictEqual({"status": "ok"});
   });
 
   afterEach(async () => {

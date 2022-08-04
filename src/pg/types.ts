@@ -98,10 +98,10 @@ export type DbSftInsert = {
 export type DbMetadataInsert = {
   sip: number;
   token_id: number;
+  name: string;
   l10n_locale: string | null;
   l10n_uri: string | null;
   l10n_default: boolean | null;
-  name: string | null;
   description: string | null;
   image: string | null;
 }
@@ -110,10 +110,10 @@ export type DbMetadata = {
   id: number;
   sip: number;
   token_id: number;
+  name: string;
   l10n_locale?: string;
   l10n_uri?: string;
   l10n_default?: boolean;
-  name?: string;
   description?: string;
   image?: string;
 }

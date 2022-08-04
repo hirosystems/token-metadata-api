@@ -418,6 +418,43 @@ describe('ProcessTokenJob', () => {
       expect(bundle2?.metadataLocale?.properties[0].name).toBe('colection_name');
       expect(JSON.parse(bundle2!.metadataLocale!.properties[0].value)).toBe('Mutant Monkeys Reloaded');
     });
+
+    test('SIP-016 non-compliant metadata is ignored', async () => {
+      const metadata = {
+        id: "62624cc0065e986192fb9f33",
+        media: "https://sf-stage-s3.s3.us-west-1.amazonaws.com/riyasen_suit.png",
+        title: "Inner Circle",
+        primaryPrice: "USD 25",
+        ownerSuperfandomId: "618273560f040f78926d75d4",
+        auctionDate: "2022-04-22T06:30:00.000Z",
+        totalEditions: 100,
+        currentEdition: 67,
+        editionNft: true
+      };
+      const agent = new MockAgent();
+      agent.disableNetConnect();
+      agent.get(`http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`)
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-nft/get-token-uri',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(stringUtf8CV('http://m.io/{id}.json')),
+        });
+      agent.get(`http://m.io`)
+        .intercept({
+          path: '/1.json',
+          method: 'GET'
+        })
+        .reply(200, metadata);
+      setGlobalDispatcher(agent);
+
+      await (new ProcessTokenJob({ db, job: tokenJob })).work();
+
+      const bundle = await db.getNftMetadataBundle({ contractPrincipal: 'ABCD.test-nft', tokenNumber: 1 });
+      expect(bundle!.metadataLocale).toBeUndefined();
+    });
   });
 
   afterEach(async () => {

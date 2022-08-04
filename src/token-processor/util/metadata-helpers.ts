@@ -80,11 +80,16 @@ function parseMetadataForInsertion(
   for (const raw of rawMetadataLocales) {
     const metadata = raw.metadata;
     const sip = metadata.sip ?? 16;
+    const name = metadata.name ?? defaultInsert?.metadata.name;
+    if (!name) {
+      // SIP-016 requires at least `sip` and `name` to be defined.
+      continue;
+    }
     // Localized values override defaults.
     const metadataInsert: DbMetadataInsert = {
       sip: sip,
       token_id: token.id,
-      name: metadata.name ?? defaultInsert?.metadata.name ?? null,
+      name: name,
       description: metadata.description ?? defaultInsert?.metadata.description ?? null,
       image: metadata.image ?? defaultInsert?.metadata.image ?? null, // TODO: CDN
       l10n_default: raw.default,

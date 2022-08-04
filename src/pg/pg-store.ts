@@ -14,6 +14,7 @@ import {
   DbMetadata,
   DbMetadataAttribute,
   DbMetadataProperty,
+  DbMetadataLocaleBundle,
 } from './types';
 
 /**
@@ -181,24 +182,26 @@ export class PgStore {
       `;
       await sql`DELETE FROM metadata WHERE token_id = ${args.id}`;
       // Write new metadata
-      for (const locale of args.values.metadataLocales ?? []) {
-        const metadataInsert = await sql<{ id: number }[]>`
-          INSERT INTO metadata ${sql(locale.metadata)} RETURNING id
-        `;
-        const metadataId = metadataInsert[0].id;
-        if (locale.attributes && locale.attributes.length > 0) {
-          const values = locale.attributes.map(attribute => ({
-            ...attribute,
-            metadata_id: metadataId
-          }));
-          await sql`INSERT INTO metadata_attributes ${sql(values)}`;
-        }
-        if (locale.properties && locale.properties.length > 0) {
-          const values = locale.properties.map(property => ({
-            ...property,
-            metadata_id: metadataId
-          }));
-          await sql`INSERT INTO metadata_properties ${sql(values)}`;
+      if (args.values.metadataLocales && args.values.metadataLocales.length > 0) {
+        for (const locale of args.values.metadataLocales) {
+          const metadataInsert = await sql<{ id: number }[]>`
+            INSERT INTO metadata ${sql(locale.metadata)} RETURNING id
+          `;
+          const metadataId = metadataInsert[0].id;
+          if (locale.attributes && locale.attributes.length > 0) {
+            const values = locale.attributes.map(attribute => ({
+              ...attribute,
+              metadata_id: metadataId
+            }));
+            await sql`INSERT INTO metadata_attributes ${sql(values)}`;
+          }
+          if (locale.properties && locale.properties.length > 0) {
+            const values = locale.properties.map(property => ({
+              ...property,
+              metadata_id: metadataId
+            }));
+            await sql`INSERT INTO metadata_properties ${sql(values)}`;
+          }
         }
       }
     });
@@ -360,28 +363,28 @@ export class PgStore {
       // No updated date means this token hasn't been processed once.
       return undefined;
     }
-    const metadata = await sql<DbMetadata[]>`
+    let localeBundle: DbMetadataLocaleBundle | undefined;
+    const metadataRes = await sql<DbMetadata[]>`
       SELECT * FROM metadata
       WHERE token_id = ${token.id}
       AND ${locale ? sql`l10n_locale = ${locale}` : sql`l10n_default = TRUE`}
     `;
-    let attributes: DbMetadataAttribute[] = [];
-    let properties: DbMetadataProperty[] = [];
-    if (metadata.count > 0) {
-      attributes = await sql<DbMetadataAttribute[]>`
-        SELECT * FROM metadata_attributes WHERE metadata_id = ${metadata[0].id}
+    if (metadataRes.count > 0) {
+      let attributes = await sql<DbMetadataAttribute[]>`
+        SELECT * FROM metadata_attributes WHERE metadata_id = ${metadataRes[0].id}
       `;
-      properties = await sql<DbMetadataProperty[]>`
-        SELECT * FROM metadata_properties WHERE metadata_id = ${metadata[0].id}
+      let properties = await sql<DbMetadataProperty[]>`
+        SELECT * FROM metadata_properties WHERE metadata_id = ${metadataRes[0].id}
       `;
+      localeBundle = {
+        metadata: metadataRes[0],
+        attributes: attributes,
+        properties: properties,
+      };
     }
     return {
       token: token,
-      metadataLocale: {
-        metadata: metadata[0],
-        attributes: attributes,
-        properties: properties,
-      }
+      metadataLocale: localeBundle
     };
   }
 }

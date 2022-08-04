@@ -5,10 +5,10 @@ export const up = async (sql: Sql<any>) => {
     id                  SERIAL PRIMARY KEY,
     token_id            INT NOT NULL,
     sip                 INT NOT NULL,
+    name                TEXT NOT NULL,
     l10n_locale         TEXT,
     l10n_uri            TEXT,
     l10n_default        BOOLEAN,
-    name                TEXT,
     description         TEXT,
     image               TEXT,
 
