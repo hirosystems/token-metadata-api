@@ -15,6 +15,7 @@ See the [Token Metadata Service API Reference]() for more information.
 * Metadata localization support
 * Metadata file fetching via `http:`, `https:`, `ipfs:`, and `data:` URIs
 * Easy to use REST JSON endpoints with ETag caching
+* Prometheus metrics for job queue status, contract and token counts, API performance, etc.
 
 ## Quick start
 
