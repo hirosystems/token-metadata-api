@@ -8,6 +8,8 @@
     "start": "node dist/index.js",
     "start-ts": "ts-node ./src/index.ts",
     "test": "jest",
+    "test:run:pg": "docker-compose -f docker/docker-compose.dev.postgres.yml up",
+    "test:stop:pg": "docker-compose -f docker/docker-compose.dev.postgres.yml down -v -t 0",
     "migrate": "ley -r ts-node/register",
     "db-down": "ley -r ts-node/register down --all",
     "db-reset": "ley -r ts-node/register down --all && ley -r ts-node/register up"
