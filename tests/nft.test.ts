@@ -17,7 +17,7 @@ describe('NFT routes', () => {
     fastify = await startTestApiServer(db);
   });
 
-  test('return metadata correctly', async () => {
+  test.skip('return metadata correctly', async () => {
     // TODO: Finish test
     const response = await request('http://127.0.0.1:9999/', { method: 'GET' });
     const json = await response.body.json();

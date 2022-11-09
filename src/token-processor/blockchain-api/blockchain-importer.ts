@@ -47,7 +47,7 @@ export class BlockchainImporter {
         if (!sip) {
           continue; // Not a token contract.
         }
-        console.info(`BlockchainImporter detected (${sip}): ${row.contract_id}`);
+        console.info(`BlockchainImporter detected token contract (${sip}): ${row.contract_id}`);
         await this.db.insertAndEnqueueSmartContract({
           values: {
             principal: row.contract_id,

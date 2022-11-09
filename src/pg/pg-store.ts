@@ -67,7 +67,7 @@ export class PgStore {
 
   /**
    * Retrieves the latest block height of imported contracts. Useful for when we want to only import
-   * missing contracts from the Stacks chain.
+   * remaining contracts from the Stacks chain.
    * @returns Max block height
    */
   async getSmartContractsMaxBlockHeight(): Promise<number | undefined> {
