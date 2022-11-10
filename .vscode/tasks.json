@@ -2,9 +2,9 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "npm: test:run:pg",
+      "label": "npm: testenv:run",
       "type": "shell",
-      "command": "npm run test:run:pg -- -d",
+      "command": "npm run testenv:run -- -d",
       "isBackground": true,
       "problemMatcher": [
         {
@@ -20,9 +20,9 @@
       ]
     },
     {
-      "label": "npm: test:stop:pg",
+      "label": "npm: testenv:stop",
       "type": "shell",
-      "command": "npm run test:stop:pg",
+      "command": "npm run testenv:stop",
       "presentation": {
         "echo": true,
         "reveal": "silent",
