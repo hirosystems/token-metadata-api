@@ -31,8 +31,8 @@
       ],
       "outputCapture": "std",
       "console": "integratedTerminal",
-      "preLaunchTask": "npm: test:run:pg",
-      "postDebugTask": "npm: test:stop:pg",
+      "preLaunchTask": "npm: testenv:run",
+      "postDebugTask": "npm: testenv:stop",
     },
   ]
 }
