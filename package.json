@@ -18,10 +18,12 @@
   },
   "author": "",
   "license": "ISC",
+  "prettier": "@stacks/prettier-config",
   "devDependencies": {
     "@babel/core": "^7.20.2",
     "@babel/preset-env": "^7.20.2",
     "@babel/preset-typescript": "^7.18.6",
+    "@stacks/eslint-config": "^1.2.0",
     "@types/jest": "^28.1.8",
     "@typescript-eslint/eslint-plugin": "^5.43.0",
     "@typescript-eslint/parser": "^5.43.0",

@@ -1,9 +1,6 @@
 module.exports = {
-  env: {
-    browser: true,
-    es2021: true,
-  },
-  extends: ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
+  root: true,
+  extends: ['@stacks/eslint-config', 'prettier'],
   overrides: [],
   parser: "@typescript-eslint/parser",
   parserOptions: {
@@ -16,7 +13,7 @@ module.exports = {
   plugins: [
     "@typescript-eslint",
     "eslint-plugin-tsdoc",
-    "eslint-plugin-prettier",
+    "prettier",
   ],
   rules: {
     "prettier/prettier": "error",

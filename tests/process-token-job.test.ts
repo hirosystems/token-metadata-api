@@ -30,7 +30,7 @@ describe('ProcessTokenJob', () => {
       const cursor = await db.getInsertAndEnqueueTokensCursor({
         smart_contract_id: 1,
         token_count: 1,
-        type: DbTokenType.ft
+        type: DbTokenType.ft,
       });
       for await (const [job] of cursor) {
         tokenJob = job
