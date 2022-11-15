@@ -1,5 +1,5 @@
 import { ClarityAbi } from '@stacks/transactions';
-import { PgBlockchainApiStore } from "../../pg/blockchain-api/pg-blockchain-api-store";
+import { BlockchainDbSmartContract, PgBlockchainApiStore } from "../../pg/blockchain-api/pg-blockchain-api-store";
 import { PgStore } from "../../pg/pg-store";
 import { getContractLogMetadataUpdateNotification, getSmartContractSip } from '../util/sip-validation';
 
@@ -43,25 +43,29 @@ export class BlockchainImporter {
     const cursor = await this.apiDb.getSmartContractsCursor({ afterBlockHeight });
     for await (const rows of cursor) {
       for (const row of rows) {
-        const sip = getSmartContractSip(row.abi as ClarityAbi);
-        if (!sip) {
-          continue; // Not a token contract.
-        }
-        console.info(`BlockchainImporter detected token contract (${sip}): ${row.contract_id}`);
-        await this.db.insertAndEnqueueSmartContract({
-          values: {
-            principal: row.contract_id,
-            sip: sip,
-            abi: JSON.stringify(row.abi),
-            tx_id: row.tx_id,
-            block_height: row.block_height
-          }
-        });
+        await this.doImportSmartContract(row);
       }
     }
     console.info(
       `BlockchainImporter smart contract import finished`
     );
+  }
+
+  protected async doImportSmartContract(contract: BlockchainDbSmartContract): Promise<void> {
+    const sip = getSmartContractSip(contract.abi as ClarityAbi);
+    if (!sip) {
+      return; // Not a token contract.
+    }
+    console.info(`BlockchainImporter detected token contract (${sip}): ${contract.contract_id}`);
+    await this.db.insertAndEnqueueSmartContract({
+      values: {
+        principal: contract.contract_id,
+        sip: sip,
+        abi: JSON.stringify(contract.abi),
+        tx_id: contract.tx_id,
+        block_height: contract.block_height
+      }
+    });
   }
 
   /**

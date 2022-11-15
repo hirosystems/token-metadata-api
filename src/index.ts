@@ -19,7 +19,7 @@ const metrics = new TokenProcessorMetrics({ db });
 async function initApp() {
   // Take all smart contracts from the Blockchain API starting from what we already have.
   // This will fill up our job queue.
-  // await contractImporter.import();
+  await contractImporter.import();
   // Listen for new ones that may come, including SIP-019 notifications.
   // contractMonitor.start();
 
@@ -28,3 +28,5 @@ async function initApp() {
   startApiServer({ db });
 }
 initApp();
+
+// Close.

@@ -30,6 +30,10 @@ export class PgBlockchainApiStore {
     });    
   }
 
+  async close() {
+    await this.sql.end();
+  }
+
   async getSmartContractsCursor(
     args: { afterBlockHeight: number }
   ): Promise<AsyncIterable<BlockchainDbSmartContract[]>> {
