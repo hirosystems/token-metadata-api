@@ -2,6 +2,17 @@ import { ENV } from '../src/env';
 import * as ley from 'ley';
 import { PgStore } from '../src/pg/pg-store';
 import { buildApiServer } from '../src/api/init';
+import { FastifyBaseLogger, FastifyInstance } from 'fastify';
+import { IncomingMessage, Server, ServerResponse } from 'http';
+import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
+
+export type TestFastifyServer = FastifyInstance<
+  Server,
+  IncomingMessage,
+  ServerResponse,
+  FastifyBaseLogger,
+  TypeBoxTypeProvider
+>;
 
 export async function cycleMigrations() {
   const config = {
@@ -24,16 +35,6 @@ export async function cycleMigrations() {
   });
 }
 
-export async function startTestApiServer(db: PgStore) {
-  const fastify = await buildApiServer({ db });
-  await new Promise<void>((resolve, reject) => {
-    fastify.listen({ host: '127.0.0.1', port: 9999 }, (err, addr) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve();
-      }
-    });
-  });
-  return fastify;
+export async function startTestApiServer(db: PgStore): Promise<TestFastifyServer> {
+  return await buildApiServer({ db });
 }
