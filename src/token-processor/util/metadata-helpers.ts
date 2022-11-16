@@ -318,6 +318,8 @@ const PUBLIC_IPFS = 'https://ipfs.io';
  * URLs with `http` or `https` protocols are returned as-is.
  * URLs with `ipfs` or `ipns` protocols are returned with as an `https` url
  * using a public IPFS gateway.
+ * @param uri - URL to convert
+ * @returns Fetchable URL
  */
 function getFetchableUrl(uri: string): URL {
   const parsedUri = new URL(uri);
