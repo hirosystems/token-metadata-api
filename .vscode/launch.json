@@ -27,7 +27,7 @@
       "args": [
         "--testTimeout=3600000",
         "--runInBand",
-        "--no-cache"
+        "--no-cache",
       ],
       "outputCapture": "std",
       "console": "integratedTerminal",
