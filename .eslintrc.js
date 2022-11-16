@@ -1,6 +1,6 @@
 module.exports = {
   root: true,
-  extends: ['@stacks/eslint-config', 'prettier'],
+  extends: ["@stacks/eslint-config", "prettier"],
   overrides: [],
   parser: "@typescript-eslint/parser",
   parserOptions: {
@@ -24,5 +24,10 @@ module.exports = {
     "@typescript-eslint/no-floating-promises": ["error", { ignoreVoid: true }],
     "no-warning-comments": "warn",
     "tsdoc/syntax": "error",
+    // TODO: Remove this when `any` abi type is fixed.
+    "@typescript-eslint/no-unsafe-assignment": "off",
+    "@typescript-eslint/no-unsafe-member-access": "off",
+    "@typescript-eslint/no-unsafe-call": "off",
+    '@typescript-eslint/restrict-template-expressions': 'off',
   },
 };

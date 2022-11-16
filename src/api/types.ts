@@ -6,14 +6,14 @@ export const SmartContractPrincipal = Type.RegEx(
 export type SmartContractPrincipalType = Static<typeof SmartContractPrincipal>;
 
 export const TokenQuerystringParams = Type.Object({
-  locale: Type.Optional(Type.String())
+  locale: Type.Optional(Type.String()),
 });
 export type TokenQuerystringParamsType = Static<typeof TokenQuerystringParams>;
 
 export const MetadataAttribute = Type.Object({
   trait_type: Type.String(),
   value: Type.Any(),
-  display_type: Type.Optional(Type.String())
+  display_type: Type.Optional(Type.String()),
 });
 export type MetadataAttributeType = Static<typeof MetadataAttribute>;
 
@@ -39,6 +39,6 @@ export const Metadata = Type.Object({
 export type MetadataType = Static<typeof Metadata>;
 
 export const TokenNotFoundResponse = Type.Object({
-  error: Type.Literal('Token not found')
+  error: Type.Literal('Token not found'),
 });
 export type TokenNotFoundResponseType = Static<typeof TokenNotFoundResponse>;

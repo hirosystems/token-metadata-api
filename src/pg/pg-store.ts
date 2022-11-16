@@ -29,7 +29,7 @@ export class PgStore {
       port: ENV.PGPORT,
       user: ENV.PGUSER,
       password: ENV.PGPASSWORD,
-      database: ENV.PGDATABASE
+      database: ENV.PGDATABASE,
     });
   }
 
@@ -37,9 +37,7 @@ export class PgStore {
     await this.sql.end();
   }
 
-  async insertAndEnqueueSmartContract(args: {
-    values: DbSmartContractInsert
-  }): Promise<DbJob> {
+  async insertAndEnqueueSmartContract(args: { values: DbSmartContractInsert }): Promise<DbJob> {
     const result = await this.sql<DbJob[]>`
       WITH smart_contract_inserts AS (
         INSERT INTO smart_contracts ${this.sql(args.values)}
@@ -89,17 +87,17 @@ export class PgStore {
   /**
    * Returns a cursor that inserts new tokens and new token queue entries until `token_count` items
    * are created. A cursor is preferred because `token_count` could be in the tens of thousands.
-   * @param smart_contract_id smart contract id
-   * @param token_count how many tokens to insert
-   * @param type token type (ft, nft, sft)
+   * @param smart_contract_id - smart contract id
+   * @param token_count - how many tokens to insert
+   * @param type - token type (ft, nft, sft)
    * @returns `DbTokenQueueEntry` cursor
    */
-  async getInsertAndEnqueueTokensCursor(args: {
+  getInsertAndEnqueueTokensCursor(args: {
     smart_contract_id: number;
     token_count: number;
     type: DbTokenType;
-  }): Promise<AsyncIterable<DbJob[]>> {
-    let tokenValues: DbTokenInsert[] = [];
+  }): AsyncIterable<DbJob[]> {
+    const tokenValues: DbTokenInsert[] = [];
     for (let index = 1; index <= args.token_count; index++) {
       tokenValues.push({
         smart_contract_id: args.smart_contract_id,
@@ -121,8 +119,8 @@ export class PgStore {
   }
 
   async getFtMetadataBundle(args: {
-    contractPrincipal: string,
-    locale?: string,
+    contractPrincipal: string;
+    locale?: string;
   }): Promise<DbTokenMetadataLocaleBundle | undefined> {
     return await this.sql.begin(async sql => {
       const tokenIdRes = await sql<{ id: number }[]>`
@@ -142,9 +140,9 @@ export class PgStore {
   }
 
   async getNftMetadataBundle(args: {
-    contractPrincipal: string,
-    tokenNumber: number,
-    locale?: string,
+    contractPrincipal: string;
+    tokenNumber: number;
+    locale?: string;
   }): Promise<DbTokenMetadataLocaleBundle | undefined> {
     return await this.sql.begin(async sql => {
       const tokenIdRes = await sql<{ id: number }[]>`
@@ -168,12 +166,12 @@ export class PgStore {
   /**
    * Writes a full bundle of token info and metadata (including attributes and properties) into the
    * db.
-   * @param id token id
-   * @param values update bundle values
+   * @param id - token id
+   * @param values - update bundle values
    */
   async updateProcessedTokenWithMetadata(args: {
     id: number;
-    values: DbProcessedTokenUpdateBundle
+    values: DbProcessedTokenUpdateBundle;
   }): Promise<void> {
     await this.sql.begin(async sql => {
       // Update token and clear old metadata (this will cascade into all properties and attributes)
@@ -191,14 +189,14 @@ export class PgStore {
           if (locale.attributes && locale.attributes.length > 0) {
             const values = locale.attributes.map(attribute => ({
               ...attribute,
-              metadata_id: metadataId
+              metadata_id: metadataId,
             }));
             await sql`INSERT INTO metadata_attributes ${sql(values)}`;
           }
           if (locale.properties && locale.properties.length > 0) {
             const values = locale.properties.map(property => ({
               ...property,
-              metadata_id: metadataId
+              metadata_id: metadataId,
             }));
             await sql`INSERT INTO metadata_properties ${sql(values)}`;
           }
@@ -227,7 +225,7 @@ export class PgStore {
 
   /**
    * Retrieves a number of queued jobs so they can be processed immediately.
-   * @param limit number of jobs to retrieve
+   * @param limit - number of jobs to retrieve
    * @returns `DbJob[]`
    */
   async getPendingJobBatch(args: { limit: number }): Promise<DbJob[]> {
@@ -243,10 +241,10 @@ export class PgStore {
    * Enqueues the tokens specified by a SIP-019 notification for metadata refresh. Depending on the
    * token type and notification parameters, this will refresh specific tokens or complete
    * contracts. See SIP-019 for more info.
-   * @param notification SIP-019 notification
+   * @param notification - SIP-019 notification
    */
   async enqueueTokenMetadataUpdateNotification(args: {
-    notification: TokenMetadataUpdateNotification
+    notification: TokenMetadataUpdateNotification;
   }): Promise<void> {
     await this.sql.begin(async sql => {
       // First, make sure we have the specified contract.
@@ -268,29 +266,34 @@ export class PgStore {
             WHERE smart_contract_id = ${contractId}
           `;
         } else {
-          // Enqueue each specified token id otherwise.
+          // FIXME: Enqueue each specified token id otherwise.
           const insertValues: DbTokenInsert[] = args.notification.token_ids.map(i => ({
             smart_contract_id: contractId,
             token_number: i,
             type: DbTokenType.nft,
           }));
-          await this.getInsertAndEnqueueTokensCursorInternal(insertValues, sql);
+          this.getInsertAndEnqueueTokensCursorInternal(insertValues, sql);
         }
       } else if (args.notification.token_class === 'ft') {
-        // Enqueue the only token for FTs.
-        await this.getInsertAndEnqueueTokensCursorInternal([{
-          smart_contract_id: contractId,
-          token_number: 1,
-          type: DbTokenType.ft
-        }], sql);
+        // FIXME: Enqueue the only token for FTs.
+        this.getInsertAndEnqueueTokensCursorInternal(
+          [
+            {
+              smart_contract_id: contractId,
+              token_number: 1,
+              type: DbTokenType.ft,
+            },
+          ],
+          sql
+        );
       }
     });
   }
 
   /**
    * Returns a token ETag based on its last updated date.
-   * @param contractPrincipal smart contract principal
-   * @param tokenNumber token number
+   * @param contractPrincipal - smart contract principal
+   * @param tokenNumber - token number
    * @returns ETag
    */
   async getTokenEtag(args: {
@@ -328,10 +331,10 @@ export class PgStore {
     `;
   }
 
-  private async getInsertAndEnqueueTokensCursorInternal(
+  private getInsertAndEnqueueTokensCursorInternal(
     tokenValues: DbTokenInsert[],
     sql: postgres.Sql<any>
-  ): Promise<AsyncIterable<DbJob[]>> {
+  ): AsyncIterable<DbJob[]> {
     return sql<DbJob[]>`
       WITH token_inserts AS (
         INSERT INTO tokens ${this.sql(tokenValues)}
@@ -355,20 +358,20 @@ export class PgStore {
   private async isTokenLocaleAvailable(
     sql: postgres.TransactionSql<any>,
     tokenId: number,
-    locale: string,
+    locale: string
   ): Promise<boolean> {
     const tokenLocale = await sql<{ id: number }[]>`
       SELECT id FROM metadata
       WHERE token_id = ${tokenId}
       AND l10n_locale = ${locale}
     `;
-    return tokenLocale.count !== 0
+    return tokenLocale.count !== 0;
   }
 
   private async getTokenMetadataBundle(
     sql: postgres.TransactionSql<any>,
     tokenId: number,
-    locale?: string,
+    locale?: string
   ): Promise<DbTokenMetadataLocaleBundle | undefined> {
     const tokenRes = await sql<DbToken[]>`
       SELECT * FROM tokens WHERE id = ${tokenId}
@@ -388,10 +391,10 @@ export class PgStore {
       AND ${locale ? sql`l10n_locale = ${locale}` : sql`l10n_default = TRUE`}
     `;
     if (metadataRes.count > 0) {
-      let attributes = await sql<DbMetadataAttribute[]>`
+      const attributes = await sql<DbMetadataAttribute[]>`
         SELECT * FROM metadata_attributes WHERE metadata_id = ${metadataRes[0].id}
       `;
-      let properties = await sql<DbMetadataProperty[]>`
+      const properties = await sql<DbMetadataProperty[]>`
         SELECT * FROM metadata_properties WHERE metadata_id = ${metadataRes[0].id}
       `;
       localeBundle = {
@@ -402,7 +405,7 @@ export class PgStore {
     }
     return {
       token: token,
-      metadataLocale: localeBundle
+      metadataLocale: localeBundle,
     };
   }
 }

@@ -4,20 +4,20 @@ export enum DbSipNumber {
   /** Fungible Tokens */
   sip010 = 'sip-010',
   /** Semi-Fungible Tokens */
-  sip013 = 'sip-013'
+  sip013 = 'sip-013',
 }
 
 export enum DbJobStatus {
   pending = 'pending',
   queued = 'queued',
   done = 'done',
-  failed = 'failed'
+  failed = 'failed',
 }
 
 export enum DbTokenType {
   ft = 'ft',
   nft = 'nft',
-  sft = 'sft'
+  sft = 'sft',
 }
 
 export type DbSmartContractInsert = {
@@ -26,7 +26,7 @@ export type DbSmartContractInsert = {
   abi: string;
   tx_id: string;
   block_height: number;
-}
+};
 
 export type DbSmartContract = {
   id: number;
@@ -38,18 +38,18 @@ export type DbSmartContract = {
   token_count?: number;
   created_at: string;
   updated_at?: string;
-}
+};
 
 export type DbTokenInsert = {
   smart_contract_id: number;
-  type: DbTokenType,
+  type: DbTokenType;
   token_number: number;
-}
+};
 
 export type DbToken = {
   id: number;
   smart_contract_id: number;
-  type: DbTokenType,
+  type: DbTokenType;
   token_number: number;
   uri?: string;
   name?: string;
@@ -58,12 +58,12 @@ export type DbToken = {
   symbol?: string;
   created_at: string;
   updated_at?: string;
-}
+};
 
 export type DbJobInsert = {
   token_id?: number;
   smart_contract_id?: number;
-}
+};
 
 export type DbJob = {
   id: number;
@@ -73,7 +73,7 @@ export type DbJob = {
   retry_count: number;
   created_at: string;
   updated_at?: string;
-}
+};
 
 export type DbFtInsert = {
   name: string | null;
@@ -81,11 +81,11 @@ export type DbFtInsert = {
   decimals: number | null;
   total_supply: number | null;
   uri: string | null;
-}
+};
 
 export type DbNftInsert = {
   uri: string | null;
-}
+};
 
 export type DbSftInsert = {
   name: string | null;
@@ -93,7 +93,7 @@ export type DbSftInsert = {
   decimals: number | null;
   total_supply: number | null;
   uri: string | null;
-}
+};
 
 export type DbMetadataInsert = {
   sip: number;
@@ -104,7 +104,7 @@ export type DbMetadataInsert = {
   l10n_default: boolean | null;
   description: string | null;
   image: string | null;
-}
+};
 
 export type DbMetadata = {
   id: number;
@@ -116,14 +116,14 @@ export type DbMetadata = {
   l10n_default?: boolean;
   description?: string;
   image?: string;
-}
+};
 
 export type DbMetadataAttributeInsert = {
   // We don't require `metadata_id` because that is determined by the insertion query.
   trait_type: string;
   value: string;
   display_type: string | null;
-}
+};
 
 export type DbMetadataAttribute = {
   id: number;
@@ -131,39 +131,39 @@ export type DbMetadataAttribute = {
   trait_type: string;
   value: string;
   display_type?: string;
-}
+};
 
 export type DbMetadataPropertyInsert = {
   // We don't require `metadata_id` because that is determined by the insertion query.
   name: string;
   value: string;
-}
+};
 
 export type DbMetadataProperty = {
   id: number;
   metadata_id: number;
   name: string;
   value: string;
-}
+};
 
 export type DbMetadataLocaleInsertBundle = {
   metadata: DbMetadataInsert;
   attributes?: DbMetadataAttributeInsert[];
   properties?: DbMetadataPropertyInsert[];
-}
+};
 
 export type DbProcessedTokenUpdateBundle = {
-  token: DbFtInsert | DbNftInsert | DbSftInsert,
-  metadataLocales?: DbMetadataLocaleInsertBundle[]
-}
+  token: DbFtInsert | DbNftInsert | DbSftInsert;
+  metadataLocales?: DbMetadataLocaleInsertBundle[];
+};
 
 export type DbMetadataLocaleBundle = {
   metadata: DbMetadata;
   attributes: DbMetadataAttribute[];
   properties: DbMetadataProperty[];
-}
+};
 
 export type DbTokenMetadataLocaleBundle = {
-  token: DbToken,
-  metadataLocale?: DbMetadataLocaleBundle
-}
+  token: DbToken;
+  metadataLocale?: DbMetadataLocaleBundle;
+};

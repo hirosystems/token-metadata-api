@@ -1,6 +1,6 @@
-import { MockAgent, setGlobalDispatcher } from "undici";
-import { ENV } from "../src/env";
-import { performSizeAndTimeLimitedMetadataFetch } from "../src/token-processor/util/metadata-helpers";
+import { MockAgent, setGlobalDispatcher } from 'undici';
+import { ENV } from '../src/env';
+import { performSizeAndTimeLimitedMetadataFetch } from '../src/token-processor/util/metadata-helpers';
 
 describe('Metadata Helpers', () => {
   test('performs timed and limited request', async () => {
@@ -8,10 +8,11 @@ describe('Metadata Helpers', () => {
 
     const agent = new MockAgent();
     agent.disableNetConnect();
-    agent.get('http://test.io')
+    agent
+      .get('http://test.io')
       .intercept({
         path: '/1.json',
-        method: 'GET'
+        method: 'GET',
       })
       .reply(200, 'hello');
     setGlobalDispatcher(agent);
@@ -26,16 +27,18 @@ describe('Metadata Helpers', () => {
 
     const agent = new MockAgent();
     agent.disableNetConnect();
-    agent.get('http://test.io')
+    agent
+      .get('http://test.io')
       .intercept({
         path: '/1.json',
-        method: 'GET'
+        method: 'GET',
       })
       .reply(200, yugeBuffer);
     setGlobalDispatcher(agent);
 
-    await expect(performSizeAndTimeLimitedMetadataFetch(url))
-      .rejects.toThrow(/Fetch size limit exceeded/);
+    await expect(performSizeAndTimeLimitedMetadataFetch(url)).rejects.toThrow(
+      /Fetch size limit exceeded/
+    );
   });
 
   test('reject timed out requests', async () => {
@@ -45,17 +48,19 @@ describe('Metadata Helpers', () => {
 
     const agent = new MockAgent();
     agent.disableNetConnect();
-    agent.get('http://test.io')
+    agent
+      .get('http://test.io')
       .intercept({
         path: '/1.json',
-        method: 'GET'
+        method: 'GET',
       })
       .reply(200, '')
       .delay(150);
     setGlobalDispatcher(agent);
 
-    await expect(performSizeAndTimeLimitedMetadataFetch(url))
-      .rejects.toThrow(/Time limit exceeded/);
+    await expect(performSizeAndTimeLimitedMetadataFetch(url)).rejects.toThrow(
+      /Time limit exceeded/
+    );
     ENV.METADATA_FETCH_TIMEOUT_MS = prevTimeout;
   });
 });

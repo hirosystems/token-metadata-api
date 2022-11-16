@@ -1,4 +1,4 @@
-import fastify, { FastifyReply, FastifyRequest } from "fastify";
+import { FastifyReply, FastifyRequest } from 'fastify';
 
 /**
  * A `Cache-Control` header used for re-validation based caching.
@@ -9,13 +9,13 @@ import fastify, { FastifyReply, FastifyRequest } from "fastify";
 const CACHE_CONTROL_MUST_REVALIDATE = 'public, no-cache, must-revalidate';
 
 export async function handleTokenCache(request: FastifyRequest, reply: FastifyReply) {
-  const ifNoneMatch = parseIfNoneMatchHeader(request.headers["if-none-match"]);
+  const ifNoneMatch = parseIfNoneMatchHeader(request.headers['if-none-match']);
   const etag = await getTokenEtag(request);
   if (etag) {
     if (ifNoneMatch && ifNoneMatch.includes(etag)) {
-      reply.header('cache-control', CACHE_CONTROL_MUST_REVALIDATE).code(304).send();
+      await reply.header('cache-control', CACHE_CONTROL_MUST_REVALIDATE).code(304).send();
     } else {
-      reply.header('etag', etag);
+      await reply.header('etag', etag);
     }
   }
 }
@@ -29,7 +29,7 @@ async function getTokenEtag(request: FastifyRequest): Promise<string | undefined
     const components = request.url.split('/');
     components.shift();
     const contractPrincipal = components[1];
-    let tokenNumber = (components[0] === 'ft') ? 1 : Number(components[2]);
+    const tokenNumber = components[0] === 'ft' ? 1 : Number(components[2]);
     return await request.server.db.getTokenEtag({ contractPrincipal, tokenNumber });
   } catch (error) {
     return undefined;

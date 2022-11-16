@@ -15,25 +15,31 @@ export async function buildApiServer(args: { db: PgStore }) {
     logger: true,
   }).withTypeProvider<TypeBoxTypeProvider>();
 
-  await fastify.decorate('db', args.db);
+  fastify.decorate('db', args.db);
 
   await fastify.register(FastifyCors);
   await fastify.register(FastifyMetrics);
-  await fastify.register(FastifySwagger, { openapi: {
-    info: {
-      title: 'Stacks Token Metadata Service',
-      description: 'A microservice that indexes metadata for every single Fungible and Non-Fungible Token in the Stacks blockchain and exposes it via REST API endpoints.',
-      version: '0.0.1',
+  await fastify.register(FastifySwagger, {
+    openapi: {
+      info: {
+        title: 'Stacks Token Metadata Service',
+        description:
+          'A microservice that indexes metadata for every single Fungible and Non-Fungible Token in the Stacks blockchain and exposes it via REST API endpoints.',
+        version: '0.0.1',
+      },
+      externalDocs: {
+        url: 'https://github.com/rafaelcr/token-metadata-service',
+        description: 'Source Repository',
+      },
+      tags: [
+        {
+          name: 'Tokens',
+          description: 'Token metadata',
+        },
+      ],
     },
-    externalDocs: {
-      url: 'https://github.com/rafaelcr/token-metadata-service',
-      description: 'Source Repository'
-    },
-    tags: [{
-      name: 'Tokens',
-      description: 'Token metadata'
-    }],
-  }, exposeRoute: true });
+    exposeRoute: true,
+  });
 
   await fastify.register(FtRoutes);
   await fastify.register(NftRoutes);
@@ -46,7 +52,7 @@ export async function startApiServer(args: { db: PgStore }) {
   const fastify = await buildApiServer({ db: args.db });
   fastify.listen({ host: ENV.API_HOST, port: ENV.API_PORT }, (err, address) => {
     if (err) {
-      fastify.log.error(err)
+      fastify.log.error(err);
       // process.exit(1)
     }
   });

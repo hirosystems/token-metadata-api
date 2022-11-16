@@ -7,7 +7,7 @@ declare module 'fastify' {
     HttpRequest = IncomingMessage,
     HttpResponse = ServerResponse,
     Logger = FastifyLoggerInstance,
-    TypeProvider = FastifyTypeProviderDefault,
+    TypeProvider = FastifyTypeProviderDefault
   > {
     db: PgStore;
   }

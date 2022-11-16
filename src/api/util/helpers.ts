@@ -16,14 +16,14 @@ export function parseMetadataLocaleBundle(
       response.attributes = locale.attributes.map(item => ({
         trait_type: item.trait_type,
         value: JSON.parse(item.value),
-        display_type: item.display_type ?? undefined
+        display_type: item.display_type ?? undefined,
       }));
     }
     if (locale.properties.length > 0) {
-      let mergedProperties: { [k: string]: any } = {};
+      const mergedProperties: { [k: string]: any } = {};
       for (const property of locale.properties) {
         if (property.value) {
-          mergedProperties[property.name] = JSON.parse(property.value)
+          mergedProperties[property.name] = JSON.parse(property.value);
         }
       }
       response.properties = mergedProperties;

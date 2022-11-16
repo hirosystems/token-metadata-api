@@ -1,5 +1,5 @@
-import { PgStore } from "../../pg/pg-store";
-import { DbJob } from "../../pg/types";
+import { PgStore } from '../../pg/pg-store';
+import { DbJob } from '../../pg/types';
 
 export abstract class Job {
   protected readonly db: PgStore;
