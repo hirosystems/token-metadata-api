@@ -1,5 +1,5 @@
 import * as querystring from 'querystring';
-import { Agent, fetch, getGlobalDispatcher, Response } from 'undici';
+import { fetch } from 'undici';
 import {
   DbMetadataAttributeInsert,
   DbMetadataInsert,
@@ -22,8 +22,8 @@ type RawMetadataLocale = {
  * Fetches all the localized metadata JSONs for a token. First, it downloads the default metadata
  * and parses it looking for other localizations. If those are found, each of them is then
  * downloaded, parsed, and returned for DB insertion.
- * @param uri token metadata URI
- * @param token token DB entry
+ * @param uri - token metadata URI
+ * @param token - token DB entry
  * @returns parsed metadata ready for insertion
  */
 export async function fetchAllMetadataLocalesFromBaseUri(
@@ -48,6 +48,7 @@ export async function fetchAllMetadataLocalesFromBaseUri(
         // Skip the default, we already have it.
         continue;
       }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       const localeUri = getTokenSpecificUri(uri, token.token_number, locale);
       const localeMetadata = await getMetadataFromUri(localeUri);
       rawMetadataLocales.push({
@@ -108,6 +109,7 @@ function parseMetadataForInsertion(
     // values.
     const properties: DbMetadataPropertyInsert[] = defaultInsert?.properties ?? [];
     if (metadata.properties) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       for (const [key, value] of Object.entries(metadata.properties)) {
         if (key && value) {
           const defaultProp = properties.find(p => p.name === key);
@@ -137,7 +139,7 @@ function parseMetadataForInsertion(
 /**
  * Fetches metadata while monitoring timeout and size limits. Throws if any is reached.
  * Taken from https://github.com/node-fetch/node-fetch/issues/1149#issuecomment-840416752
- * @param httpUrl URL to fetch
+ * @param httpUrl - URL to fetch
  * @returns JSON content
  */
 export async function performSizeAndTimeLimitedMetadataFetch(
@@ -170,6 +172,7 @@ export async function performSizeAndTimeLimitedMetadataFetch(
           abortReason = new MetadataSizeExceededError();
           ctrl.abort();
         }
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         responseText += decoder.decode(chunk, { stream: true });
       }
       responseText += decoder.decode(); // flush the remaining bytes
@@ -203,6 +206,7 @@ async function getMetadataFromUri(token_uri: string): Promise<any> {
       content = dataUrl.data;
     }
     try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return JSON.parse(content);
     } catch (error) {
       throw new Error(`Data URL could not be parsed as JSON: ${token_uri}`);
