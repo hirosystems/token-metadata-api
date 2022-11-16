@@ -1,5 +1,6 @@
 import { MockAgent, setGlobalDispatcher } from 'undici';
 import { ENV } from '../src/env';
+import { DbToken, DbTokenType } from '../src/pg/types';
 import { performSizeAndTimeLimitedMetadataFetch } from '../src/token-processor/util/metadata-helpers';
 
 describe('Metadata Helpers', () => {
@@ -62,5 +63,15 @@ describe('Metadata Helpers', () => {
       /Time limit exceeded/
     );
     ENV.METADATA_FETCH_TIMEOUT_MS = prevTimeout;
+  });
+
+  test('fetches all metadata locales', async () => {
+    const token: DbToken = {
+      id: 1,
+      smart_contract_id: 1,
+      type: DbTokenType.nft,
+      token_number: 1,
+      created_at: '2022-01-01',
+    };
   });
 });

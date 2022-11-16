@@ -20,7 +20,7 @@ type RawMetadataLocale = {
 
 /**
  * Fetches all the localized metadata JSONs for a token. First, it downloads the default metadata
- * and parses it looking for other localizations. If those are found, each of them is then
+ * JSON and parses it looking for other localizations. If those are found, each of them is then
  * downloaded, parsed, and returned for DB insertion.
  * @param uri - token metadata URI
  * @param token - token DB entry
@@ -62,6 +62,15 @@ export async function fetchAllMetadataLocalesFromBaseUri(
   return parseMetadataForInsertion(rawMetadataLocales, token);
 }
 
+/**
+ * Returns a metadata URI that is specific to a token number within a contract,
+ * i.e. replacing `{id}` with the token number and `{locale}` with the given
+ * locale.
+ * @param uri - Original metadata URI
+ * @param tokenNumber - token number
+ * @param locale - locale to apply
+ * @returns token specific uri string
+ */
 export function getTokenSpecificUri(uri: string, tokenNumber: number, locale?: string): string {
   return uri.replace('{id}', tokenNumber.toString()).replace('{locale}', locale ?? '');
 }
@@ -140,7 +149,7 @@ function parseMetadataForInsertion(
  * Fetches metadata while monitoring timeout and size limits. Throws if any is reached.
  * Taken from https://github.com/node-fetch/node-fetch/issues/1149#issuecomment-840416752
  * @param httpUrl - URL to fetch
- * @returns JSON content
+ * @returns JSON result string
  */
 export async function performSizeAndTimeLimitedMetadataFetch(
   httpUrl: URL
