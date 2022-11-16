@@ -13,6 +13,7 @@ import { MetadataSizeExceededError, MetadataTimeoutError } from './errors';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
 import { Static, Type } from '@sinclair/typebox';
 
+// Raw metadata object types.
 const RawMetadata = Type.Object(
   {
     sip: Type.Optional(Type.Integer()),
@@ -28,6 +29,7 @@ const RawMetadata = Type.Object(
 type RawMetadataType = Static<typeof RawMetadata>;
 const RawMetadataCType = TypeCompiler.Compile(RawMetadata);
 
+// Raw metadata localization types.
 const RawMetadataLocalization = Type.Object({
   uri: Type.String(),
   default: Type.String(),
@@ -35,6 +37,7 @@ const RawMetadataLocalization = Type.Object({
 });
 const RawMetadataLocalizationCType = TypeCompiler.Compile(RawMetadataLocalization);
 
+// Raw metadata attribute types.
 const RawMetadataAttribute = Type.Object({
   trait_type: Type.String(),
   value: Type.Any(),
@@ -43,6 +46,7 @@ const RawMetadataAttribute = Type.Object({
 const RawMetadataAttributes = Type.Array(RawMetadataAttribute);
 const RawMetadataAttributesCType = TypeCompiler.Compile(RawMetadataAttributes);
 
+// Raw metadata property types.
 const RawMetadataProperties = Type.Record(Type.String(), Type.Any());
 const RawMetadataPropertiesCType = TypeCompiler.Compile(RawMetadataProperties);
 
@@ -217,8 +221,7 @@ export async function performSizeAndTimeLimitedMetadataFetch(
           abortReason = new MetadataSizeExceededError();
           ctrl.abort();
         }
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-        responseText += decoder.decode(chunk, { stream: true });
+        responseText += decoder.decode(chunk as ArrayBuffer, { stream: true });
       }
       responseText += decoder.decode(); // flush the remaining bytes
       clearTimeout(timer);
