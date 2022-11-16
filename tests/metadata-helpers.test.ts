@@ -131,29 +131,4 @@ describe('Metadata Helpers', () => {
       expect(attributes[0].value).toBe('MM1 Orange');
     }
   });
-
-  // test('fetches all metadata locales', async () => {
-  //   const token: DbToken = {
-  //     id: 1,
-  //     smart_contract_id: 1,
-  //     type: DbTokenType.nft,
-  //     token_number: 1,
-  //     created_at: '2022-01-01',
-  //   };
-
-  //   const agent = new MockAgent();
-  //   agent.disableNetConnect();
-  //   agent
-  //     .get('http://test.io')
-  //     .intercept({
-  //       path: '/1.json',
-  //       method: 'GET',
-  //     })
-  //     .reply(200, '[{"test-bad-json": true}]');
-  //   setGlobalDispatcher(agent);
-
-  //   await expect(
-  //     fetchAllMetadataLocalesFromBaseUri('http://test.io/{id}.json', token)
-  //   ).rejects.toThrow(/Invalid raw metadata JSON schema/);
-  // });
 });

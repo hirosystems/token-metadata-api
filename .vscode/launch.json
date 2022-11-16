@@ -27,9 +27,7 @@
       "args": [
         "--testTimeout=3600000",
         "--runInBand",
-        "--no-cache",
-        "-t",
-        "Status routes"
+        "--no-cache"
       ],
       "outputCapture": "std",
       "console": "integratedTerminal",
