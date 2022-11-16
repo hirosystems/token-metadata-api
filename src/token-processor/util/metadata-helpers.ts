@@ -10,9 +10,48 @@ import {
 import { ENV } from '../../env';
 import { TextDecoder } from 'util';
 import { MetadataSizeExceededError, MetadataTimeoutError } from './errors';
+import { TypeCompiler } from '@sinclair/typebox/compiler';
+import { Static, Type } from '@sinclair/typebox';
+
+// Raw metadata object types.
+const RawMetadata = Type.Object(
+  {
+    sip: Type.Optional(Type.Integer()),
+    name: Type.Optional(Type.String()),
+    description: Type.Optional(Type.String()),
+    image: Type.Optional(Type.String()),
+    attributes: Type.Optional(Type.Any()),
+    properties: Type.Optional(Type.Any()),
+    localization: Type.Optional(Type.Any()),
+  },
+  { additionalProperties: true }
+);
+type RawMetadataType = Static<typeof RawMetadata>;
+const RawMetadataCType = TypeCompiler.Compile(RawMetadata);
+
+// Raw metadata localization types.
+const RawMetadataLocalization = Type.Object({
+  uri: Type.String(),
+  default: Type.String(),
+  locales: Type.Array(Type.String()),
+});
+const RawMetadataLocalizationCType = TypeCompiler.Compile(RawMetadataLocalization);
+
+// Raw metadata attribute types.
+const RawMetadataAttribute = Type.Object({
+  trait_type: Type.String(),
+  value: Type.Any(),
+  display_type: Type.Optional(Type.String()),
+});
+const RawMetadataAttributes = Type.Array(RawMetadataAttribute);
+const RawMetadataAttributesCType = TypeCompiler.Compile(RawMetadataAttributes);
+
+// Raw metadata property types.
+const RawMetadataProperties = Type.Record(Type.String(), Type.Any());
+const RawMetadataPropertiesCType = TypeCompiler.Compile(RawMetadataProperties);
 
 type RawMetadataLocale = {
-  metadata: any;
+  metadata: RawMetadataType;
   locale?: string;
   default: boolean;
   uri: string;
@@ -20,7 +59,7 @@ type RawMetadataLocale = {
 
 /**
  * Fetches all the localized metadata JSONs for a token. First, it downloads the default metadata
- * and parses it looking for other localizations. If those are found, each of them is then
+ * JSON and parses it looking for other localizations. If those are found, each of them is then
  * downloaded, parsed, and returned for DB insertion.
  * @param uri - token metadata URI
  * @param token - token DB entry
@@ -32,14 +71,16 @@ export async function fetchAllMetadataLocalesFromBaseUri(
 ): Promise<DbMetadataLocaleInsertBundle[]> {
   const tokenUri = getTokenSpecificUri(uri, token.token_number);
   const rawMetadataLocales: RawMetadataLocale[] = [];
-  const defaultMetadata = await getMetadataFromUri(tokenUri);
 
+  const defaultMetadata = await getMetadataFromUri(tokenUri);
   rawMetadataLocales.push({
     metadata: defaultMetadata,
     default: true,
     uri: tokenUri,
   });
-  if (defaultMetadata.localization) {
+
+  // Does it declare localizations? If so, fetch and parse all of them.
+  if (RawMetadataLocalizationCType.Check(defaultMetadata.localization)) {
     const uri = defaultMetadata.localization.uri;
     const locales = defaultMetadata.localization.locales;
     rawMetadataLocales[0].locale = defaultMetadata.localization.default;
@@ -48,7 +89,6 @@ export async function fetchAllMetadataLocalesFromBaseUri(
         // Skip the default, we already have it.
         continue;
       }
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       const localeUri = getTokenSpecificUri(uri, token.token_number, locale);
       const localeMetadata = await getMetadataFromUri(localeUri);
       rawMetadataLocales.push({
@@ -59,9 +99,19 @@ export async function fetchAllMetadataLocalesFromBaseUri(
       });
     }
   }
+
   return parseMetadataForInsertion(rawMetadataLocales, token);
 }
 
+/**
+ * Returns a metadata URI that is specific to a token number within a contract,
+ * i.e. replacing `{id}` with the token number and `{locale}` with the given
+ * locale.
+ * @param uri - Original metadata URI
+ * @param tokenNumber - token number
+ * @param locale - locale to apply
+ * @returns token specific uri string
+ */
 export function getTokenSpecificUri(uri: string, tokenNumber: number, locale?: string): string {
   return uri.replace('{id}', tokenNumber.toString()).replace('{locale}', locale ?? '');
 }
@@ -94,7 +144,7 @@ function parseMetadataForInsertion(
     };
     // Localized attributes rewrite all default attributes. No fall back.
     const attributes: DbMetadataAttributeInsert[] = [];
-    if (metadata.attributes) {
+    if (RawMetadataAttributesCType.Check(metadata.attributes)) {
       for (const { trait_type, value, display_type } of metadata.attributes) {
         if (trait_type && value) {
           attributes.push({
@@ -108,8 +158,7 @@ function parseMetadataForInsertion(
     // Localized properties only override their default. All others have to fall back to default
     // values.
     const properties: DbMetadataPropertyInsert[] = defaultInsert?.properties ?? [];
-    if (metadata.properties) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    if (RawMetadataPropertiesCType.Check(metadata.properties)) {
       for (const [key, value] of Object.entries(metadata.properties)) {
         if (key && value) {
           const defaultProp = properties.find(p => p.name === key);
@@ -140,7 +189,7 @@ function parseMetadataForInsertion(
  * Fetches metadata while monitoring timeout and size limits. Throws if any is reached.
  * Taken from https://github.com/node-fetch/node-fetch/issues/1149#issuecomment-840416752
  * @param httpUrl - URL to fetch
- * @returns JSON content
+ * @returns JSON result string
  */
 export async function performSizeAndTimeLimitedMetadataFetch(
   httpUrl: URL
@@ -172,8 +221,7 @@ export async function performSizeAndTimeLimitedMetadataFetch(
           abortReason = new MetadataSizeExceededError();
           ctrl.abort();
         }
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-        responseText += decoder.decode(chunk, { stream: true });
+        responseText += decoder.decode(chunk as ArrayBuffer, { stream: true });
       }
       responseText += decoder.decode(); // flush the remaining bytes
       clearTimeout(timer);
@@ -185,7 +233,7 @@ export async function performSizeAndTimeLimitedMetadataFetch(
   }
 }
 
-async function getMetadataFromUri(token_uri: string): Promise<any> {
+export async function getMetadataFromUri(token_uri: string): Promise<RawMetadataType> {
   // Support JSON embedded in a Data URL
   if (new URL(token_uri).protocol === 'data:') {
     const dataUrl = parseDataUrl(token_uri);
@@ -206,8 +254,11 @@ async function getMetadataFromUri(token_uri: string): Promise<any> {
       content = dataUrl.data;
     }
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-      return JSON.parse(content);
+      const result = JSON.parse(content);
+      if (RawMetadataCType.Check(result)) {
+        return result;
+      }
+      throw new Error(`Invalid raw metadata JSON schema from Data URL`);
     } catch (error) {
       throw new Error(`Data URL could not be parsed as JSON: ${token_uri}`);
     }
@@ -235,7 +286,10 @@ async function getMetadataFromUri(token_uri: string): Promise<any> {
     }
   } while (fetchImmediateRetryCount < ENV.METADATA_MAX_IMMEDIATE_URI_RETRIES);
   if (result) {
-    return result;
+    if (RawMetadataCType.Check(result)) {
+      return result;
+    }
+    throw new Error(`Invalid raw metadata JSON schema from ${httpUrl.toString()}`);
   }
   throw new Error(`Unable to fetch metadata from ${httpUrl.toString()}`);
 }
@@ -264,6 +318,8 @@ const PUBLIC_IPFS = 'https://ipfs.io';
  * URLs with `http` or `https` protocols are returned as-is.
  * URLs with `ipfs` or `ipns` protocols are returned with as an `https` url
  * using a public IPFS gateway.
+ * @param uri - URL to convert
+ * @returns Fetchable URL
  */
 function getFetchableUrl(uri: string): URL {
   const parsedUri = new URL(uri);
