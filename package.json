@@ -14,7 +14,8 @@
     "migrate": "ley -r ts-node/register",
     "db-down": "ley -r ts-node/register down --all",
     "db-reset": "ley -r ts-node/register down --all && ley -r ts-node/register up",
-    "lint:eslint": "eslint . --ext .js,.jsx,.ts,.tsx -f unix"
+    "lint:eslint": "eslint . --ext .js,.jsx,.ts,.tsx -f unix",
+    "lint:prettier": "prettier --check src/**/*.ts tests/**/*.ts migrations/**/*.ts"
   },
   "author": "",
   "license": "ISC",
