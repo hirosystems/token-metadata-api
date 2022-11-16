@@ -21,7 +21,7 @@ describe('ProcessSmartContractJob', () => {
       sip: DbSipNumber.sip010,
       abi: '"some"',
       tx_id: '0x123456',
-      block_height: 1
+      block_height: 1,
     };
     const job = await db.insertAndEnqueueSmartContract({ values });
     const processor = new ProcessSmartContractJob({ db, job });
@@ -36,14 +36,15 @@ describe('ProcessSmartContractJob', () => {
   test('enqueues all tokens per NFT contract', async () => {
     const agent = new MockAgent();
     agent.disableNetConnect();
-    agent.get(`http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`)
+    agent
+      .get(`http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`)
       .intercept({
         path: '/v2/contracts/call-read/ABCD/test-nft/get-last-token-id',
         method: 'POST',
       })
       .reply(200, {
         okay: true,
-        result: cvToHex(uintCV(5))
+        result: cvToHex(uintCV(5)),
       });
     setGlobalDispatcher(agent);
 
@@ -52,7 +53,7 @@ describe('ProcessSmartContractJob', () => {
       sip: DbSipNumber.sip009,
       abi: '"some"',
       tx_id: '0x123456',
-      block_height: 1
+      block_height: 1,
     };
     const job = await db.insertAndEnqueueSmartContract({ values });
     const processor = new ProcessSmartContractJob({ db, job });

@@ -25,8 +25,11 @@ async function initApp() {
 
   // Start the queue and API endpoints.
   // jobQueue.start();
-  startApiServer({ db });
+  await startApiServer({ db });
 }
-initApp();
+
+initApp()
+  .then(() => {})
+  .catch(error => console.error(`Unable to launch service`, error));
 
 // Close.

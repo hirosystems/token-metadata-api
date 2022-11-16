@@ -38,7 +38,7 @@ export class TokenProcessorMetrics {
           for (const count of contractCounts) {
             this.set({ sip: count.sip }, count.count);
           }
-        }
+        },
       }),
       tokenCount: new prom.Gauge({
         name: `token_count`,
@@ -49,8 +49,8 @@ export class TokenProcessorMetrics {
           for (const count of tokenCounts) {
             this.set({ type: count.type }, count.count);
           }
-        }
+        },
       }),
-    };    
+    };
   }
 }

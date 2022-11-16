@@ -1,38 +1,37 @@
 import * as querystring from 'querystring';
-import { Transform, TransformCallback } from 'stream';
-import { Agent, fetch, getGlobalDispatcher, Response } from 'undici';
+import { fetch } from 'undici';
 import {
   DbMetadataAttributeInsert,
   DbMetadataInsert,
   DbMetadataLocaleInsertBundle,
   DbMetadataPropertyInsert,
-  DbToken
+  DbToken,
 } from '../../pg/types';
 import { ENV } from '../../env';
 import { TextDecoder } from 'util';
 import { MetadataSizeExceededError, MetadataTimeoutError } from './errors';
-import { stopwatch } from './helpers';
 
 type RawMetadataLocale = {
-  metadata: any,
-  locale?: string,
-  default: boolean,
-  uri: string,
-}
+  metadata: any;
+  locale?: string;
+  default: boolean;
+  uri: string;
+};
 
 /**
  * Fetches all the localized metadata JSONs for a token. First, it downloads the default metadata
  * and parses it looking for other localizations. If those are found, each of them is then
  * downloaded, parsed, and returned for DB insertion.
- * @param uri token metadata URI
- * @param token token DB entry
+ * @param uri - token metadata URI
+ * @param token - token DB entry
  * @returns parsed metadata ready for insertion
  */
 export async function fetchAllMetadataLocalesFromBaseUri(
-  uri: string, token: DbToken
+  uri: string,
+  token: DbToken
 ): Promise<DbMetadataLocaleInsertBundle[]> {
   const tokenUri = getTokenSpecificUri(uri, token.token_number);
-  let rawMetadataLocales: RawMetadataLocale[] = [];
+  const rawMetadataLocales: RawMetadataLocale[] = [];
   const defaultMetadata = await getMetadataFromUri(tokenUri);
 
   rawMetadataLocales.push({
@@ -49,6 +48,7 @@ export async function fetchAllMetadataLocalesFromBaseUri(
         // Skip the default, we already have it.
         continue;
       }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       const localeUri = getTokenSpecificUri(uri, token.token_number, locale);
       const localeMetadata = await getMetadataFromUri(localeUri);
       rawMetadataLocales.push({
@@ -62,11 +62,7 @@ export async function fetchAllMetadataLocalesFromBaseUri(
   return parseMetadataForInsertion(rawMetadataLocales, token);
 }
 
-export function getTokenSpecificUri(
-  uri: string,
-  tokenNumber: number,
-  locale?: string
-): string {
+export function getTokenSpecificUri(uri: string, tokenNumber: number, locale?: string): string {
   return uri.replace('{id}', tokenNumber.toString()).replace('{locale}', locale ?? '');
 }
 
@@ -76,7 +72,7 @@ function parseMetadataForInsertion(
 ): DbMetadataLocaleInsertBundle[] {
   // Keep the default because we may need to fall back into its data.
   let defaultInsert: DbMetadataLocaleInsertBundle | undefined;
-  let inserts: DbMetadataLocaleInsertBundle[] = [];
+  const inserts: DbMetadataLocaleInsertBundle[] = [];
   for (const raw of rawMetadataLocales) {
     const metadata = raw.metadata;
     const sip = metadata.sip ?? 16;
@@ -113,15 +109,16 @@ function parseMetadataForInsertion(
     // values.
     const properties: DbMetadataPropertyInsert[] = defaultInsert?.properties ?? [];
     if (metadata.properties) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       for (const [key, value] of Object.entries(metadata.properties)) {
         if (key && value) {
           const defaultProp = properties.find(p => p.name === key);
           if (defaultProp) {
-            defaultProp.value = JSON.stringify(value)
+            defaultProp.value = JSON.stringify(value);
           } else {
             properties.push({
               name: key,
-              value: JSON.stringify(value)
+              value: JSON.stringify(value),
             });
           }
         }
@@ -142,7 +139,7 @@ function parseMetadataForInsertion(
 /**
  * Fetches metadata while monitoring timeout and size limits. Throws if any is reached.
  * Taken from https://github.com/node-fetch/node-fetch/issues/1149#issuecomment-840416752
- * @param httpUrl URL to fetch
+ * @param httpUrl - URL to fetch
  * @returns JSON content
  */
 export async function performSizeAndTimeLimitedMetadataFetch(
@@ -158,26 +155,27 @@ export async function performSizeAndTimeLimitedMetadataFetch(
   try {
     const networkResult = await fetch(httpUrl.toString(), {
       method: 'GET',
-      signal: ctrl.signal
+      signal: ctrl.signal,
     });
     if (networkResult.body) {
       const decoder = new TextDecoder();
       let responseText: string = '';
       let bytesWritten = 0;
-      const reportedContentLength = Number(networkResult.headers.get('content-length') ?? 0)
+      const reportedContentLength = Number(networkResult.headers.get('content-length') ?? 0);
       if (reportedContentLength > ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE) {
         abortReason = new MetadataSizeExceededError();
         ctrl.abort();
       }
       for await (const chunk of networkResult.body) {
-        bytesWritten += chunk.byteLength
+        bytesWritten += chunk.byteLength;
         if (bytesWritten > ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE) {
           abortReason = new MetadataSizeExceededError();
           ctrl.abort();
         }
-        responseText += decoder.decode(chunk, { stream: true })
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        responseText += decoder.decode(chunk, { stream: true });
       }
-      responseText += decoder.decode() // flush the remaining bytes
+      responseText += decoder.decode(); // flush the remaining bytes
       clearTimeout(timer);
       return responseText;
     }
@@ -208,6 +206,7 @@ async function getMetadataFromUri(token_uri: string): Promise<any> {
       content = dataUrl.data;
     }
     try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return JSON.parse(content);
     } catch (error) {
       throw new Error(`Data URL could not be parsed as JSON: ${token_uri}`);
@@ -278,7 +277,9 @@ function getFetchableUrl(uri: string): URL {
   throw new Error(`Unsupported uri protocol: ${uri}`);
 }
 
-function parseDataUrl(s: string):
+function parseDataUrl(
+  s: string
+):
   | { mediaType?: string; contentType?: string; charset?: string; base64: boolean; data: string }
   | false {
   try {
@@ -286,7 +287,8 @@ function parseDataUrl(s: string):
     if (url.protocol !== 'data:') {
       return false;
     }
-    const validDataUrlRegex = /^data:([a-z]+\/[a-z0-9-+.]+(;[a-z0-9-.!#$%*+.{}|~`]+=[a-z0-9-.!#$%*+.{}()|~`]+)*)?(;base64)?,(.*)$/i;
+    const validDataUrlRegex =
+      /^data:([a-z]+\/[a-z0-9-+.]+(;[a-z0-9-.!#$%*+.{}|~`]+=[a-z0-9-.!#$%*+.{}()|~`]+)*)?(;base64)?,(.*)$/i;
     const parts = validDataUrlRegex.exec(s.trim());
     if (parts === null) {
       return false;

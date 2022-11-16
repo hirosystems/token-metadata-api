@@ -105,5 +105,7 @@
   },
   "include": [
     "./src/**/*.ts",
+    "./tests/**/*.ts",
+    "./migrations/**/*.ts"
   ],
 }

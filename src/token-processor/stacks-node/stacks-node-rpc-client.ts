@@ -27,10 +27,7 @@ export class StacksNodeRpcClient {
   private readonly senderAddress: string;
   private readonly basePath: string;
 
-  constructor(args: {
-    contractPrincipal: string;
-    senderAddress: string;
-  }) {
+  constructor(args: { contractPrincipal: string; senderAddress: string }) {
     [this.contractAddress, this.contractName] = args.contractPrincipal.split('.');
     this.senderAddress = args.senderAddress;
     this.basePath = `http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`;
@@ -53,7 +50,7 @@ export class StacksNodeRpcClient {
     try {
       return BigInt(uintVal.value.toString());
     } catch (error) {
-      throw new RetryableTokenMetadataError(`Invalid uint value '${uintVal}'`);
+      throw new RetryableTokenMetadataError(`Invalid uint value '${uintVal.value}'`);
     }
   }
 
@@ -71,8 +68,9 @@ export class StacksNodeRpcClient {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-      });
-    return await result.body.json();
+      }
+    );
+    return (await result.body.json()) as ReadOnlyContractCallResponse;
   }
 
   private async makeReadOnlyContractCall(

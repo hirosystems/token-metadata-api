@@ -4,10 +4,7 @@ import {
   TransactionVersion,
   uintCV,
 } from '@stacks/transactions';
-import {
-  getTokenMetadataProcessingMode,
-  stopwatch,
-} from './util/helpers';
+import { getTokenMetadataProcessingMode, stopwatch } from './util/helpers';
 import { StacksNodeRpcClient } from './stacks-node/stacks-node-rpc-client';
 import {
   DbJobStatus,
@@ -58,7 +55,7 @@ export class ProcessTokenJob extends Job {
       );
       const client = new StacksNodeRpcClient({
         contractPrincipal: contract.principal,
-        senderAddress: senderAddress
+        senderAddress: senderAddress,
       });
       console.info(`ProcessTokenJob processing ${this.tokenDescription(token, contract)}`);
       switch (token.type) {
@@ -76,26 +73,34 @@ export class ProcessTokenJob extends Job {
     } catch (error) {
       if (error instanceof RetryableTokenMetadataError) {
         const retries = await this.db.increaseJobRetryCount({
-          id: this.job.id
+          id: this.job.id,
         });
         if (
           getTokenMetadataProcessingMode() === TokenMetadataProcessingMode.strict ||
           retries <= ENV.METADATA_MAX_RETRIES
         ) {
           console.info(
-            `ProcessTokenJob a recoverable error happened while processing ${this.tokenDescription(token, contract)}, trying again later: ${error}`
+            `ProcessTokenJob a recoverable error happened while processing ${this.tokenDescription(
+              token,
+              contract
+            )}, trying again later: ${error}`
           );
           await this.db.updateJobStatus({ id: this.job.id, status: DbJobStatus.pending });
         } else {
           console.warn(
-            `ProcessTokenJob max retries reached while processing ${this.tokenDescription(token, contract)}, giving up: ${error}`
+            `ProcessTokenJob max retries reached while processing ${this.tokenDescription(
+              token,
+              contract
+            )}, giving up: ${error}`
           );
           processingFinished = true;
           finishedWithError = true;
         }
       } else {
         // Something more serious happened, mark this token as failed.
-        console.error(`ProcessTokenJob error processing ${this.tokenDescription(token, contract)}: ${error}`);
+        console.error(
+          `ProcessTokenJob error processing ${this.tokenDescription(token, contract)}: ${error}`
+        );
         processingFinished = true;
         finishedWithError = true;
       }
@@ -103,10 +108,13 @@ export class ProcessTokenJob extends Job {
       if (processingFinished) {
         await this.db.updateJobStatus({
           id: this.job.id,
-          status: finishedWithError ? DbJobStatus.failed : DbJobStatus.done
+          status: finishedWithError ? DbJobStatus.failed : DbJobStatus.done,
         });
         console.info(
-          `ProcessTokenJob finished processing ${this.tokenDescription(token, contract)} in ${sw.getElapsed()}ms`
+          `ProcessTokenJob finished processing ${this.tokenDescription(
+            token,
+            contract
+          )} in ${sw.getElapsed()}ms`
         );
       }
     }
@@ -151,9 +159,9 @@ export class ProcessTokenJob extends Job {
         symbol: symbol ?? null,
         decimals: fDecimals ?? null,
         total_supply: fTotalSupply ?? null,
-        uri: uri ? getTokenSpecificUri(uri, token.token_number) : null
+        uri: uri ? getTokenSpecificUri(uri, token.token_number) : null,
       },
-      metadataLocales: metadataLocales
+      metadataLocales: metadataLocales,
     };
     await this.db.updateProcessedTokenWithMetadata({ id: token.id, values: tokenValues });
   }
@@ -167,9 +175,9 @@ export class ProcessTokenJob extends Job {
 
     const tokenValues: DbProcessedTokenUpdateBundle = {
       token: {
-        uri: uri ? getTokenSpecificUri(uri, token.token_number) : null
+        uri: uri ? getTokenSpecificUri(uri, token.token_number) : null,
       },
-      metadataLocales: metadataLocales
+      metadataLocales: metadataLocales,
     };
     await this.db.updateProcessedTokenWithMetadata({ id: token.id, values: tokenValues });
   }

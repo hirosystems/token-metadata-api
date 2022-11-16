@@ -1,9 +1,13 @@
-import { getAddressFromPrivateKey, makeRandomPrivKey, TransactionVersion } from "@stacks/transactions";
-import { DbJobStatus, DbSipNumber, DbSmartContract } from "../pg/types";
-import { Job } from "./queue/job";
-import { StacksNodeRpcClient } from "./stacks-node/stacks-node-rpc-client";
-import { RetryableTokenMetadataError } from "./util/errors";
-import { dbSipNumberToDbTokenType } from "./util/helpers";
+import {
+  getAddressFromPrivateKey,
+  makeRandomPrivKey,
+  TransactionVersion,
+} from '@stacks/transactions';
+import { DbJobStatus, DbSipNumber, DbSmartContract } from '../pg/types';
+import { Job } from './queue/job';
+import { StacksNodeRpcClient } from './stacks-node/stacks-node-rpc-client';
+import { RetryableTokenMetadataError } from './util/errors';
+import { dbSipNumberToDbTokenType } from './util/helpers';
 
 /**
  * Takes a smart contract and (depending on its SIP) enqueues all of its underlying tokens for
@@ -28,23 +32,27 @@ export class ProcessSmartContractJob extends Job {
             await this.enqueueTokens(contract, Number(tokenCount));
           }
           break;
-  
+
         case DbSipNumber.sip010:
           // FT contracts only have 1 token to process. Do that immediately.
           await this.enqueueTokens(contract, 1);
           break;
-  
+
         case DbSipNumber.sip013:
           // TODO: Here
           break;
       }
     } catch (error) {
       if (error instanceof RetryableTokenMetadataError) {
-        console.warn(`ProcessSmartContractJob processing for ${contract.principal} (id=${contract.id}) failed with retryable error: ${error}`);
+        console.warn(
+          `ProcessSmartContractJob processing for ${contract.principal} (id=${contract.id}) failed with retryable error: ${error}`
+        );
         return;
       }
       await this.db.updateJobStatus({ id: this.job.id, status: DbJobStatus.failed });
-      console.error(`ProcessSmartContractJob processing for ${contract.principal} (id=${contract.id}) failed: ${error}`);
+      console.error(
+        `ProcessSmartContractJob processing for ${contract.principal} (id=${contract.id}) failed: ${error}`
+      );
     }
     await this.db.updateJobStatus({ id: this.job.id, status: DbJobStatus.done });
   }
@@ -54,7 +62,7 @@ export class ProcessSmartContractJob extends Job {
     const senderAddress = getAddressFromPrivateKey(key.data, TransactionVersion.Mainnet);
     const client = new StacksNodeRpcClient({
       contractPrincipal: contract.principal,
-      senderAddress: senderAddress
+      senderAddress: senderAddress,
     });
     return await client.readUIntFromContract('get-last-token-id');
   }
@@ -67,10 +75,10 @@ export class ProcessSmartContractJob extends Job {
     console.info(
       `ProcessSmartContractJob enqueueing ${tokenCount} tokens for ${contract.sip} ${contract.principal}`
     );
-    const cursor = await this.db.getInsertAndEnqueueTokensCursor({
+    const cursor = this.db.getInsertAndEnqueueTokensCursor({
       smart_contract_id: contract.id,
       token_count: tokenCount,
-      type: dbSipNumberToDbTokenType(contract.sip)
+      type: dbSipNumberToDbTokenType(contract.sip),
     });
     for await (const jobs of cursor) {
       // this.queue.add(job);

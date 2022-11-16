@@ -1,4 +1,4 @@
-import envSchema from "env-schema";
+import envSchema from 'env-schema';
 
 interface Env {
   API_HOST: string;
@@ -40,10 +40,20 @@ export function getEnvVars(): Env {
   const schema = {
     type: 'object',
     required: [
-      'API_HOST', 'API_PORT', 'PGHOST', 'PGPORT', 'PGUSER', 'PGPASSWORD', 'PGDATABASE',
-      'BLOCKCHAIN_API_PGHOST', 'BLOCKCHAIN_API_PGPORT', 'BLOCKCHAIN_API_PGUSER',
-      'BLOCKCHAIN_API_PGPASSWORD', 'BLOCKCHAIN_API_PGDATABASE', 'STACKS_NODE_RPC_HOST',
-      'STACKS_NODE_RPC_PORT'
+      'API_HOST',
+      'API_PORT',
+      'PGHOST',
+      'PGPORT',
+      'PGUSER',
+      'PGPASSWORD',
+      'PGDATABASE',
+      'BLOCKCHAIN_API_PGHOST',
+      'BLOCKCHAIN_API_PGPORT',
+      'BLOCKCHAIN_API_PGUSER',
+      'BLOCKCHAIN_API_PGPASSWORD',
+      'BLOCKCHAIN_API_PGDATABASE',
+      'STACKS_NODE_RPC_HOST',
+      'STACKS_NODE_RPC_PORT',
     ],
     properties: {
       API_HOST: {
@@ -92,7 +102,7 @@ export function getEnvVars(): Env {
         type: 'string',
       },
       STACKS_NODE_RPC_HOST: {
-        type: 'string'
+        type: 'string',
       },
       STACKS_NODE_RPC_PORT: {
         type: 'number',
@@ -113,21 +123,21 @@ export function getEnvVars(): Env {
       },
       METADATA_MAX_PAYLOAD_BYTE_SIZE: {
         type: 'number',
-        default: 1_000_000 // 1 MB
+        default: 1_000_000, // 1 MB
       },
       JOB_QUEUE_CONCURRENCY_LIMIT: {
         type: 'number',
-        default: 5
+        default: 5,
       },
       JOB_QUEUE_SIZE_LIMIT: {
         type: 'number',
         default: 200,
-      }
-    }
-  }
+      },
+    },
+  };
   const config = envSchema<Env>({
     schema: schema,
-    dotenv: true
+    dotenv: true,
   });
   return config;
 }

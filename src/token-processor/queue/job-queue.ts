@@ -44,40 +44,43 @@ export class JobQueue {
   private readonly queue: PQueue;
   private readonly db: PgStore;
 
-  constructor(args: {
-    db: PgStore
-  }) {
+  constructor(args: { db: PgStore }) {
     this.db = args.db;
     this.queue = new PQueue({
       concurrency: ENV.JOB_QUEUE_CONCURRENCY_LIMIT,
-      autoStart: false
+      autoStart: false,
     });
     // Every time the queue is empty, fill it back up again.
-    this.queue.on('idle', () => this.replenishEmptyQueue());
+    this.queue.on(
+      'idle',
+      () =>
+        void this.replenishEmptyQueue().catch(error =>
+          console.error(`JobQueue unable to replenish queue`, error)
+        )
+    );
   }
 
   /**
    * Loads a job into the queue for execution. The `DbJob` row will be marked as `'queued'` while it
    * waits for processing. A `Job` subclass will be instantiated depending on the type of job this
    * row describes.
-   * @param job A row from the `jobs` DB table that needs processing
+   * @param job - A row from the `jobs` DB table that needs processing
    */
-  add(job: DbJob): void {
-    if ((this.queue.size + this.queue.pending) >= ENV.JOB_QUEUE_SIZE_LIMIT) {
+  async add(job: DbJob): Promise<void> {
+    if (this.queue.size + this.queue.pending >= ENV.JOB_QUEUE_SIZE_LIMIT) {
       // To avoid backpressure, we won't add this job to the queue. It will be processed later when
       // the empty queue gets replenished with pending jobs.
       return;
     }
-    this.db.updateJobStatus({ id: job.id, status: DbJobStatus.queued })
-      .then(() => {
-        this.queue.add(async () => {
-          if (job.token_id) {
-            await (new ProcessTokenJob({ db: this.db, job: job })).work();
-          } else if (job.smart_contract_id) {
-            await (new ProcessSmartContractJob({ db: this.db, job: job })).work();
-          }
-        });
+    await this.db.updateJobStatus({ id: job.id, status: DbJobStatus.queued }).then(async () => {
+      await this.queue.add(async () => {
+        if (job.token_id) {
+          await new ProcessTokenJob({ db: this.db, job: job }).work();
+        } else if (job.smart_contract_id) {
+          await new ProcessSmartContractJob({ db: this.db, job: job }).work();
+        }
       });
+    });
   }
 
   /**
@@ -110,7 +113,7 @@ export class JobQueue {
     } else {
       console.info(`JobQueue replenishing empty queue`);
       for (const job of jobs) {
-        this.add(job);
+        await this.add(job);
       }
       this.queue.start();
     }

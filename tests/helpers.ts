@@ -9,18 +9,18 @@ export async function cycleMigrations() {
     port: ENV.PGPORT,
     user: ENV.PGUSER,
     password: ENV.PGPASSWORD,
-    database: ENV.PGDATABASE
+    database: ENV.PGDATABASE,
   };
   await ley.down({
     all: true,
     dir: 'migrations',
     driver: 'postgres',
-    config: config
+    config: config,
   });
   await ley.up({
     dir: 'migrations',
     driver: 'postgres',
-    config: config
+    config: config,
   });
 }
 
@@ -33,7 +33,7 @@ export async function startTestApiServer(db: PgStore) {
       } else {
         resolve();
       }
-    })
+    });
   });
   return fastify;
 }

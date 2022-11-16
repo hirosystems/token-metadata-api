@@ -1,4 +1,12 @@
-import { BufferCV, ClarityAbi, ClarityAbiFunction, ClarityType, hexToCV, ListCV, OptionalCV, TupleCV, UIntCV } from '@stacks/transactions';
+import {
+  BufferCV,
+  ClarityAbi,
+  ClarityAbiFunction,
+  ClarityType,
+  hexToCV,
+  TupleCV,
+  UIntCV,
+} from '@stacks/transactions';
 import { BlockchainDbContractLog } from '../../pg/blockchain-api/pg-blockchain-api-store';
 import { DbSipNumber } from '../../pg/types';
 
@@ -135,24 +143,20 @@ const SftTraitFunctions: ClarityAbiFunction[] = [
     access: 'read_only',
     args: [
       { type: 'uint128', name: 'token-id' },
-      { type: 'principal', name: 'address' }
+      { type: 'principal', name: 'address' },
     ],
     outputs: { type: { response: { ok: 'uint128', error: 'uint128' } } },
   },
   {
     name: 'get-overall-balance',
     access: 'read_only',
-    args: [
-      { type: 'principal', name: 'address' }
-    ],
+    args: [{ type: 'principal', name: 'address' }],
     outputs: { type: { response: { ok: 'uint128', error: 'uint128' } } },
   },
   {
     name: 'get-total-supply',
     access: 'read_only',
-    args: [
-      { type: 'uint128', name: 'token-id' }
-    ],
+    args: [{ type: 'uint128', name: 'token-id' }],
     outputs: { type: { response: { ok: 'uint128', error: 'uint128' } } },
   },
   {
@@ -164,17 +168,13 @@ const SftTraitFunctions: ClarityAbiFunction[] = [
   {
     name: 'get-decimals',
     access: 'read_only',
-    args: [
-      { type: 'uint128', name: 'token-id' }
-    ],
+    args: [{ type: 'uint128', name: 'token-id' }],
     outputs: { type: { response: { ok: 'uint128', error: 'uint128' } } },
   },
   {
     name: 'get-token-uri',
     access: 'read_only',
-    args: [
-      { type: 'uint128', name: 'token-id' }
-    ],
+    args: [{ type: 'uint128', name: 'token-id' }],
     outputs: {
       type: {
         response: {
@@ -208,12 +208,12 @@ const SftTraitFunctions: ClarityAbiFunction[] = [
       { type: { buffer: { length: 34 } }, name: 'memo' },
     ],
     outputs: { type: { response: { ok: 'bool', error: 'uint128' } } },
-  }
+  },
 ];
 
 /**
  * Detects which token SIP the given contract conforms to, if any.
- * @param abi Contract abi
+ * @param abi - Contract abi
  * @returns SIP or false
  */
 export function getSmartContractSip(abi: ClarityAbi): DbSipNumber | false {
@@ -255,15 +255,15 @@ export type TokenMetadataUpdateNotification = {
   token_class: string;
   contract_id: string;
   token_ids?: number[];
-}
+};
 
 /**
  * Takes in a contract log entry and returns a metadata update notification object if valid.
- * @param log Contract log entry
+ * @param log - Contract log entry
  */
 export function getContractLogMetadataUpdateNotification(
   log: BlockchainDbContractLog
-  ): TokenMetadataUpdateNotification | false {
+): TokenMetadataUpdateNotification | false {
   try {
     // Validate that we have the correct SIP-019 payload structure.
     const value = hexToCV(log.value) as TupleCV;

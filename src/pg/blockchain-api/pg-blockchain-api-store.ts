@@ -26,17 +26,17 @@ export class PgBlockchainApiStore {
       port: ENV.BLOCKCHAIN_API_PGPORT,
       user: ENV.BLOCKCHAIN_API_PGUSER,
       password: ENV.BLOCKCHAIN_API_PGPASSWORD,
-      database: ENV.BLOCKCHAIN_API_PGDATABASE
-    });    
+      database: ENV.BLOCKCHAIN_API_PGDATABASE,
+    });
   }
 
   async close() {
     await this.sql.end();
   }
 
-  async getSmartContractsCursor(
-    args: { afterBlockHeight: number }
-  ): Promise<AsyncIterable<BlockchainDbSmartContract[]>> {
+  getSmartContractsCursor(args: {
+    afterBlockHeight: number;
+  }): AsyncIterable<BlockchainDbSmartContract[]> {
     return this.sql<BlockchainDbSmartContract[]>`
       SELECT DISTINCT ON (contract_id) contract_id, tx_id, block_height, microblock_sequence, abi
       FROM smart_contracts
@@ -49,9 +49,9 @@ export class PgBlockchainApiStore {
     `.cursor();
   }
 
-  async getContractLogsCursor(
-    args: { afterBlockHeight: number }
-  ): Promise<AsyncIterable<BlockchainDbContractLog[]>> {
+  getContractLogsCursor(args: {
+    afterBlockHeight: number;
+  }): AsyncIterable<BlockchainDbContractLog[]> {
     return this.sql<BlockchainDbContractLog[]>`
       SELECT l.contract_identifier, l.value, t.sender_address
       FROM txs AS t 
