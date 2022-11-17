@@ -19,7 +19,7 @@ describe('ProcessTokenJob', () => {
 
   beforeEach(async () => {
     ENV.PGDATABASE = 'postgres';
-    db = new PgStore();
+    db = await PgStore.connect();
     await cycleMigrations();
   });
 

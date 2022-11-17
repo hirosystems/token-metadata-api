@@ -9,7 +9,7 @@ describe('Status routes', () => {
 
   beforeAll(async () => {
     ENV.PGDATABASE = 'postgres';
-    db = new PgStore();
+    db = await PgStore.connect();
     fastify = await startTestApiServer(db);
   });
 

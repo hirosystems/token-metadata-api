@@ -16,21 +16,30 @@ import {
   DbMetadataProperty,
   DbMetadataLocaleBundle,
 } from './types';
+import { connectPostgres, PgSqlClient } from './postgres-tools';
 
 /**
  * Connects and queries the Token Metadata Service's local postgres DB.
  */
 export class PgStore {
-  readonly sql: postgres.Sql<any>;
+  readonly sql: PgSqlClient;
 
-  constructor() {
-    this.sql = postgres({
-      host: ENV.PGHOST,
-      port: ENV.PGPORT,
-      user: ENV.PGUSER,
-      password: ENV.PGPASSWORD,
-      database: ENV.PGDATABASE,
+  constructor(sql: PgSqlClient) {
+    this.sql = sql;
+  }
+
+  static async connect(): Promise<PgStore> {
+    const sql = await connectPostgres({
+      usageName: 'tms-pg-store',
+      connectionArgs: {
+        host: ENV.PGHOST,
+        port: ENV.PGPORT,
+        user: ENV.PGUSER,
+        password: ENV.PGPASSWORD,
+        database: ENV.PGDATABASE,
+      },
     });
+    return new PgStore(sql);
   }
 
   async close() {

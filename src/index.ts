@@ -6,17 +6,18 @@ import { startApiServer } from './api/init';
 import { BlockchainSmartContractMonitor } from './token-processor/blockchain-api/blockchain-smart-contract-monitor';
 import { TokenProcessorMetrics } from './token-processor/token-processor-metrics';
 
-const db = new PgStore();
-const apiDb = new PgBlockchainApiStore();
-const jobQueue = new JobQueue({ db });
-const contractImporter = new BlockchainImporter({ db, apiDb });
-const metrics = new TokenProcessorMetrics({ db });
-// const contractMonitor = new BlockchainSmartContractMonitor({
-//   db: pgStore,
-//   apiDb: pgBlockchainStore
-// });
-
 async function initApp() {
+  // TODO: Migrate-up
+  const db = await PgStore.connect();
+  const apiDb = await PgBlockchainApiStore.connect();
+  const jobQueue = new JobQueue({ db });
+  const contractImporter = new BlockchainImporter({ db, apiDb });
+  const metrics = new TokenProcessorMetrics({ db });
+  // const contractMonitor = new BlockchainSmartContractMonitor({
+  //   db: pgStore,
+  //   apiDb: pgBlockchainStore
+  // });
+
   // Take all smart contracts from the Blockchain API starting from what we already have.
   // This will fill up our job queue.
   await contractImporter.import();

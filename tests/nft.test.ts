@@ -18,7 +18,7 @@ describe('NFT routes', () => {
 
   beforeEach(async () => {
     ENV.PGDATABASE = 'postgres';
-    db = new PgStore();
+    db = await PgStore.connect();
     await cycleMigrations();
     fastify = await startTestApiServer(db);
   });
