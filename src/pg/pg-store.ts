@@ -1,4 +1,3 @@
-import * as postgres from 'postgres';
 import { TokenMetadataUpdateNotification } from '../token-processor/util/sip-validation';
 import { ENV } from '../env';
 import {
@@ -16,18 +15,13 @@ import {
   DbMetadataProperty,
   DbMetadataLocaleBundle,
 } from './types';
-import { connectPostgres, PgSqlClient } from './postgres-tools';
+import { connectPostgres } from './postgres-tools';
+import { BasePgStore } from './postgres-tools/base-pg-store';
 
 /**
  * Connects and queries the Token Metadata Service's local postgres DB.
  */
-export class PgStore {
-  readonly sql: PgSqlClient;
-
-  constructor(sql: PgSqlClient) {
-    this.sql = sql;
-  }
-
+export class PgStore extends BasePgStore {
   static async connect(): Promise<PgStore> {
     const sql = await connectPostgres({
       usageName: 'tms-pg-store',
@@ -40,10 +34,6 @@ export class PgStore {
       },
     });
     return new PgStore(sql);
-  }
-
-  async close() {
-    await this.sql.end();
   }
 
   async insertAndEnqueueSmartContract(args: { values: DbSmartContractInsert }): Promise<DbJob> {
@@ -114,7 +104,7 @@ export class PgStore {
         type: args.type,
       });
     }
-    return this.getInsertAndEnqueueTokensCursorInternal(tokenValues, this.sql);
+    return this.getInsertAndEnqueueTokensCursorInternal(tokenValues);
   }
 
   async getToken(args: { id: number }): Promise<DbToken | undefined> {
@@ -131,7 +121,7 @@ export class PgStore {
     contractPrincipal: string;
     locale?: string;
   }): Promise<DbTokenMetadataLocaleBundle | undefined> {
-    return await this.sql.begin(async sql => {
+    return await this.sqlTransaction(async sql => {
       const tokenIdRes = await sql<{ id: number }[]>`
         SELECT tokens.id FROM tokens
         INNER JOIN smart_contracts ON tokens.smart_contract_id = smart_contracts.id
@@ -141,10 +131,10 @@ export class PgStore {
       if (tokenIdRes.count === 0) {
         return undefined;
       }
-      if (args.locale && !(await this.isTokenLocaleAvailable(sql, tokenIdRes[0].id, args.locale))) {
+      if (args.locale && !(await this.isTokenLocaleAvailable(tokenIdRes[0].id, args.locale))) {
         return undefined;
       }
-      return await this.getTokenMetadataBundle(sql, tokenIdRes[0].id, args.locale);
+      return await this.getTokenMetadataBundle(tokenIdRes[0].id, args.locale);
     });
   }
 
@@ -153,7 +143,7 @@ export class PgStore {
     tokenNumber: number;
     locale?: string;
   }): Promise<DbTokenMetadataLocaleBundle | undefined> {
-    return await this.sql.begin(async sql => {
+    return await this.sqlTransaction(async sql => {
       const tokenIdRes = await sql<{ id: number }[]>`
         SELECT tokens.id
         FROM tokens
@@ -165,10 +155,10 @@ export class PgStore {
       if (tokenIdRes.count === 0) {
         return undefined;
       }
-      if (args.locale && !(await this.isTokenLocaleAvailable(sql, tokenIdRes[0].id, args.locale))) {
+      if (args.locale && !(await this.isTokenLocaleAvailable(tokenIdRes[0].id, args.locale))) {
         return undefined;
       }
-      return await this.getTokenMetadataBundle(sql, tokenIdRes[0].id, args.locale);
+      return await this.getTokenMetadataBundle(tokenIdRes[0].id, args.locale);
     });
   }
 
@@ -182,7 +172,7 @@ export class PgStore {
     id: number;
     values: DbProcessedTokenUpdateBundle;
   }): Promise<void> {
-    await this.sql.begin(async sql => {
+    await this.sqlWriteTransaction(async sql => {
       // Update token and clear old metadata (this will cascade into all properties and attributes)
       await sql`
         UPDATE tokens SET ${sql(args.values.token)}, updated_at = NOW() WHERE id = ${args.id}
@@ -255,7 +245,7 @@ export class PgStore {
   async enqueueTokenMetadataUpdateNotification(args: {
     notification: TokenMetadataUpdateNotification;
   }): Promise<void> {
-    await this.sql.begin(async sql => {
+    await this.sqlWriteTransaction(async sql => {
       // First, make sure we have the specified contract.
       const contractResult = await sql<{ id: number }[]>`
         SELECT id FROM smart_contracts WHERE principal = ${args.notification.contract_id}
@@ -281,20 +271,17 @@ export class PgStore {
             token_number: i,
             type: DbTokenType.nft,
           }));
-          this.getInsertAndEnqueueTokensCursorInternal(insertValues, sql);
+          this.getInsertAndEnqueueTokensCursorInternal(insertValues);
         }
       } else if (args.notification.token_class === 'ft') {
         // FIXME: Enqueue the only token for FTs.
-        this.getInsertAndEnqueueTokensCursorInternal(
-          [
-            {
-              smart_contract_id: contractId,
-              token_number: 1,
-              type: DbTokenType.ft,
-            },
-          ],
-          sql
-        );
+        this.getInsertAndEnqueueTokensCursorInternal([
+          {
+            smart_contract_id: contractId,
+            token_number: 1,
+            type: DbTokenType.ft,
+          },
+        ]);
       }
     });
   }
@@ -341,10 +328,9 @@ export class PgStore {
   }
 
   private getInsertAndEnqueueTokensCursorInternal(
-    tokenValues: DbTokenInsert[],
-    sql: postgres.Sql<any>
+    tokenValues: DbTokenInsert[]
   ): AsyncIterable<DbJob[]> {
-    return sql<DbJob[]>`
+    return this.sql<DbJob[]>`
       WITH token_inserts AS (
         INSERT INTO tokens ${this.sql(tokenValues)}
         ON CONFLICT ON CONSTRAINT tokens_smart_contract_id_token_number_unique DO
@@ -364,12 +350,8 @@ export class PgStore {
     `.cursor();
   }
 
-  private async isTokenLocaleAvailable(
-    sql: postgres.TransactionSql<any>,
-    tokenId: number,
-    locale: string
-  ): Promise<boolean> {
-    const tokenLocale = await sql<{ id: number }[]>`
+  private async isTokenLocaleAvailable(tokenId: number, locale: string): Promise<boolean> {
+    const tokenLocale = await this.sql<{ id: number }[]>`
       SELECT id FROM metadata
       WHERE token_id = ${tokenId}
       AND l10n_locale = ${locale}
@@ -378,11 +360,10 @@ export class PgStore {
   }
 
   private async getTokenMetadataBundle(
-    sql: postgres.TransactionSql<any>,
     tokenId: number,
     locale?: string
   ): Promise<DbTokenMetadataLocaleBundle | undefined> {
-    const tokenRes = await sql<DbToken[]>`
+    const tokenRes = await this.sql<DbToken[]>`
       SELECT * FROM tokens WHERE id = ${tokenId}
     `;
     if (tokenRes.count === 0) {
@@ -394,16 +375,16 @@ export class PgStore {
       return undefined;
     }
     let localeBundle: DbMetadataLocaleBundle | undefined;
-    const metadataRes = await sql<DbMetadata[]>`
+    const metadataRes = await this.sql<DbMetadata[]>`
       SELECT * FROM metadata
       WHERE token_id = ${token.id}
-      AND ${locale ? sql`l10n_locale = ${locale}` : sql`l10n_default = TRUE`}
+      AND ${locale ? this.sql`l10n_locale = ${locale}` : this.sql`l10n_default = TRUE`}
     `;
     if (metadataRes.count > 0) {
-      const attributes = await sql<DbMetadataAttribute[]>`
+      const attributes = await this.sql<DbMetadataAttribute[]>`
         SELECT * FROM metadata_attributes WHERE metadata_id = ${metadataRes[0].id}
       `;
-      const properties = await sql<DbMetadataProperty[]>`
+      const properties = await this.sql<DbMetadataProperty[]>`
         SELECT * FROM metadata_properties WHERE metadata_id = ${metadataRes[0].id}
       `;
       localeBundle = {

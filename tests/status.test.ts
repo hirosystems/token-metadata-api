@@ -7,17 +7,14 @@ describe('Status routes', () => {
   let db: PgStore;
   let fastify: TestFastifyServer;
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     ENV.PGDATABASE = 'postgres';
     db = await PgStore.connect();
     fastify = await startTestApiServer(db);
-  });
-
-  beforeEach(async () => {
     await cycleMigrations();
   });
 
-  afterAll(async () => {
+  afterEach(async () => {
     await fastify.close();
     await db.close();
   });
