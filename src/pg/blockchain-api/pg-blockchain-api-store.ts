@@ -1,5 +1,6 @@
-import * as postgres from 'postgres';
 import { ENV } from '../../env';
+import { connectPostgres, PgSqlClient } from '../postgres-tools';
+import { BasePgStore } from '../postgres-tools/base-pg-store';
 
 export interface BlockchainDbSmartContract {
   contract_id: string;
@@ -17,21 +18,19 @@ export interface BlockchainDbContractLog {
 /**
  * Connects and queries the Stacks Blockchain API postgres DB.
  */
-export class PgBlockchainApiStore {
-  readonly sql: postgres.Sql<any>;
-
-  constructor() {
-    this.sql = postgres({
-      host: ENV.BLOCKCHAIN_API_PGHOST,
-      port: ENV.BLOCKCHAIN_API_PGPORT,
-      user: ENV.BLOCKCHAIN_API_PGUSER,
-      password: ENV.BLOCKCHAIN_API_PGPASSWORD,
-      database: ENV.BLOCKCHAIN_API_PGDATABASE,
+export class PgBlockchainApiStore extends BasePgStore {
+  static async connect() {
+    const sql = await connectPostgres({
+      usageName: 'tms-blockchain-api',
+      connectionArgs: {
+        host: ENV.BLOCKCHAIN_API_PGHOST,
+        port: ENV.BLOCKCHAIN_API_PGPORT,
+        user: ENV.BLOCKCHAIN_API_PGUSER,
+        password: ENV.BLOCKCHAIN_API_PGPASSWORD,
+        database: ENV.BLOCKCHAIN_API_PGDATABASE,
+      },
     });
-  }
-
-  async close() {
-    await this.sql.end();
+    return new PgBlockchainApiStore(sql);
   }
 
   getSmartContractsCursor(args: {

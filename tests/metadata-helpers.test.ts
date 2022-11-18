@@ -1,8 +1,6 @@
 import { MockAgent, setGlobalDispatcher } from 'undici';
 import { ENV } from '../src/env';
-import { DbToken, DbTokenType } from '../src/pg/types';
 import {
-  fetchAllMetadataLocalesFromBaseUri,
   getMetadataFromUri,
   performSizeAndTimeLimitedMetadataFetch,
 } from '../src/token-processor/util/metadata-helpers';

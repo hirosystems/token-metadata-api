@@ -21,8 +21,9 @@ describe('BlockchainImporter', () => {
 
   beforeEach(async () => {
     ENV.PGDATABASE = 'postgres';
-    db = new PgStore();
-    apiDb = new PgBlockchainApiStore();
+    ENV.BLOCKCHAIN_API_PGDATABASE = 'postgres';
+    db = await PgStore.connect();
+    apiDb = await PgBlockchainApiStore.connect();
     importer = new TestBlockchainImporter({ db, apiDb });
     await cycleMigrations();
   });

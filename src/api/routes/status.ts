@@ -8,6 +8,7 @@ export const StatusRoutes: FastifyPluginCallback<
   Server,
   TypeBoxTypeProvider
 > = (fastify, options, done) => {
+  // TODO: Add a job-queue etag cache handler.
   fastify.get(
     '/',
     {
@@ -23,31 +24,33 @@ export const StatusRoutes: FastifyPluginCallback<
       },
     },
     async (request, reply) => {
-      // TODO: Use a single SQL transaction.
-      const smartContracts: Record<string, number> = {};
-      const contractCounts = await fastify.db.getSmartContractCounts();
-      for (const row of contractCounts) {
-        smartContracts[row.sip] = row.count;
-      }
+      const result = await fastify.db.sqlTransaction(async sql => {
+        const smartContracts: Record<string, number> = {};
+        const contractCounts = await fastify.db.getSmartContractCounts();
+        for (const row of contractCounts) {
+          smartContracts[row.sip] = row.count;
+        }
 
-      const tokens: Record<string, number> = {};
-      const tokenCounts = await fastify.db.getTokenCounts();
-      for (const row of tokenCounts) {
-        tokens[row.type] = row.count;
-      }
+        const tokens: Record<string, number> = {};
+        const tokenCounts = await fastify.db.getTokenCounts();
+        for (const row of tokenCounts) {
+          tokens[row.type] = row.count;
+        }
 
-      const queue: Record<string, number> = {};
-      const jobCounts = await fastify.db.getJobStatusCounts();
-      for (const row of jobCounts) {
-        queue[row.status] = row.count;
-      }
+        const queue: Record<string, number> = {};
+        const jobCounts = await fastify.db.getJobStatusCounts();
+        for (const row of jobCounts) {
+          queue[row.status] = row.count;
+        }
 
-      await reply.send({
-        status: 'ready',
-        tokens: tokenCounts.length ? tokens : undefined,
-        token_contracts: contractCounts.length ? smartContracts : undefined,
-        job_queue: jobCounts.length ? queue : undefined,
+        return {
+          status: 'ready',
+          tokens: tokenCounts.length ? tokens : undefined,
+          token_contracts: contractCounts.length ? smartContracts : undefined,
+          job_queue: jobCounts.length ? queue : undefined,
+        };
       });
+      await reply.send(result);
     }
   );
   done();
