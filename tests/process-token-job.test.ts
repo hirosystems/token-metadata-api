@@ -19,8 +19,12 @@ describe('ProcessTokenJob', () => {
 
   beforeEach(async () => {
     ENV.PGDATABASE = 'postgres';
-    db = await PgStore.connect();
+    db = await PgStore.connect({ skipMigrations: true });
     await cycleMigrations();
+  });
+
+  afterEach(async () => {
+    await db.close();
   });
 
   describe('FT', () => {
@@ -502,9 +506,5 @@ describe('ProcessTokenJob', () => {
       });
       expect(bundle?.metadataLocale).toBeUndefined();
     });
-  });
-
-  afterEach(async () => {
-    await db.close();
   });
 });
