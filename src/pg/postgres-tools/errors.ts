@@ -37,6 +37,8 @@ export function isPgConnectionError(error: any): string | false {
       return 'Postgres connection terminating due to unexpected postmaster exit';
     } else if (msg.includes('getaddrinfo eai_again')) {
       return 'Postgres connection failed due to a DNS lookup error';
+    } else if (msg.includes('terminating connection due to administrator command')) {
+      return 'Postgres connection closed due to administrator command';
     }
   }
   return false;

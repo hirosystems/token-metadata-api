@@ -63,6 +63,11 @@ export class BasePgStore {
     });
   }
 
+  /**
+   * Start a SQL write transaction. See `sqlTransaction`.
+   * @param callback - Callback with a scoped SQL client
+   * @returns Transaction results
+   */
   async sqlWriteTransaction<T>(
     callback: (sql: PgSqlClient) => T | Promise<T>
   ): Promise<UnwrapPromiseArray<T>> {

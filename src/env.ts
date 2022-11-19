@@ -18,8 +18,6 @@ interface Env {
   STACKS_NODE_RPC_HOST: string;
   STACKS_NODE_RPC_PORT: number;
 
-  METADATA_STRICT_MODE: boolean;
-  METADATA_MAX_RETRIES: number;
   /**
    * The max number of immediate attempts that will be made to retrieve metadata from external URIs
    * before declaring the failure as a non-retryable error.
@@ -32,8 +30,10 @@ interface Env {
    */
   METADATA_MAX_PAYLOAD_BYTE_SIZE: number;
 
+  JOB_QUEUE_STRICT_MODE: boolean;
   JOB_QUEUE_CONCURRENCY_LIMIT: number;
   JOB_QUEUE_SIZE_LIMIT: number;
+  JOB_QUEUE_MAX_RETRIES: number;
 }
 
 export function getEnvVars(): Env {
@@ -109,11 +109,11 @@ export function getEnvVars(): Env {
         minimum: 0,
         maximum: 65535,
       },
-      METADATA_STRICT_MODE: {
+      JOB_QUEUE_STRICT_MODE: {
         type: 'boolean',
         default: true,
       },
-      METADATA_MAX_RETRIES: {
+      JOB_QUEUE_MAX_RETRIES: {
         type: 'number',
         default: 5,
       },

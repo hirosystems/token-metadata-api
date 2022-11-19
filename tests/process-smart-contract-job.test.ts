@@ -11,8 +11,12 @@ describe('ProcessSmartContractJob', () => {
 
   beforeEach(async () => {
     ENV.PGDATABASE = 'postgres';
-    db = await PgStore.connect();
+    db = await PgStore.connect({ skipMigrations: true });
     await cycleMigrations();
+  });
+
+  afterEach(async () => {
+    await db.close();
   });
 
   test('enqueues 1 token per FT contract', async () => {
@@ -63,9 +67,5 @@ describe('ProcessSmartContractJob', () => {
     expect(tokens.count).toBe(5);
     expect(tokens[0].type).toBe(DbTokenType.nft);
     expect(tokens[0].smart_contract_id).toBe(1);
-  });
-
-  afterEach(async () => {
-    await db.close();
   });
 });

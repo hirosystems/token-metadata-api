@@ -1,7 +1,7 @@
-import { Client, getGlobalDispatcher, request } from 'undici';
+import { request } from 'undici';
 import { ClarityType, ClarityValue, cvToHex, hexToCV, UIntCV } from '@stacks/transactions';
-import { RetryableTokenMetadataError } from '../util/errors';
 import { ENV } from '../../env';
+import { RetryableJobError } from '../queue/errors';
 
 interface ReadOnlyContractCallSuccessResponse {
   okay: true;
@@ -50,7 +50,7 @@ export class StacksNodeRpcClient {
     try {
       return BigInt(uintVal.value.toString());
     } catch (error) {
-      throw new RetryableTokenMetadataError(`Invalid uint value '${uintVal.value}'`);
+      throw new RetryableJobError(`Invalid uint value '${uintVal.value}'`);
     }
   }
 
@@ -81,12 +81,12 @@ export class StacksNodeRpcClient {
     try {
       result = await this.sendReadOnlyContractCall(functionName, functionArgs);
     } catch (error) {
-      throw new RetryableTokenMetadataError(`Error making read-only contract call: ${error}`);
+      throw new RetryableJobError(`Error making read-only contract call: ${error}`);
     }
     if (!result.okay) {
       // Only runtime errors reported by the Stacks node should be retryable.
       if (result.cause.startsWith('Runtime')) {
-        throw new RetryableTokenMetadataError(
+        throw new RetryableJobError(
           `Runtime error while calling read-only function ${functionName}`
         );
       }
@@ -111,7 +111,7 @@ export class StacksNodeRpcClient {
     if (unwrappedClarityValue.type === ClarityType.UInt) {
       return unwrappedClarityValue;
     }
-    throw new RetryableTokenMetadataError(
+    throw new RetryableJobError(
       `Unexpected Clarity type '${unwrappedClarityValue.type}' while unwrapping uint`
     );
   }
@@ -126,7 +126,7 @@ export class StacksNodeRpcClient {
     } else if (unwrappedClarityValue.type === ClarityType.OptionalNone) {
       return undefined;
     }
-    throw new RetryableTokenMetadataError(
+    throw new RetryableJobError(
       `Unexpected Clarity type '${unwrappedClarityValue.type}' while unwrapping string`
     );
   }
