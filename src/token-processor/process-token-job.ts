@@ -27,7 +27,7 @@ import { stopwatch } from '../pg/postgres-tools/helpers';
  * `TokenQueue`.
  */
 export class ProcessTokenJob extends Job {
-  async work() {
+  async handler(): Promise<void> {
     if (this.job.status !== DbJobStatus.pending || !this.job.token_id) {
       return;
     }

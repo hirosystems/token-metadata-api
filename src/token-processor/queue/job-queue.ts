@@ -65,21 +65,14 @@ export class JobQueue {
       // the empty queue gets replenished with pending jobs.
       return;
     }
-    try {
-      await this.db.updateJobStatus({ id: job.id, status: DbJobStatus.queued });
-      void this.queue.add(async () => {
-        // FIXME: make this tx inside, roll back to pending on recoverable error.
-        await this.db.sqlWriteTransaction(async sql => {
-          if (job.token_id) {
-            await new ProcessTokenJob({ db: this.db, job: job }).work();
-          } else if (job.smart_contract_id) {
-            await new ProcessSmartContractJob({ db: this.db, job: job }).work();
-          }
-        });
-      });
-    } catch (error) {
-      console.error(`JobQueue job add error`, error);
-    }
+    await this.db.updateJobStatus({ id: job.id, status: DbJobStatus.queued });
+    void this.queue.add(async () => {
+      if (job.token_id) {
+        await new ProcessTokenJob({ db: this.db, job: job }).work();
+      } else if (job.smart_contract_id) {
+        await new ProcessSmartContractJob({ db: this.db, job: job }).work();
+      }
+    });
   }
 
   /**
