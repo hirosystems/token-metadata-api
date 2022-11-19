@@ -10,5 +10,9 @@ export abstract class Job {
     this.job = args.job;
   }
 
-  abstract work(): void;
+  protected abstract get handler(): () => void;
+
+  async work(): Promise<void> {
+    //
+  }
 }

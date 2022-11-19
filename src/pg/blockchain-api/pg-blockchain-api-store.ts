@@ -1,5 +1,5 @@
 import { ENV } from '../../env';
-import { connectPostgres, PgSqlClient } from '../postgres-tools';
+import { connectPostgres } from '../postgres-tools';
 import { BasePgStore } from '../postgres-tools/base-pg-store';
 
 export interface BlockchainDbSmartContract {
@@ -37,14 +37,17 @@ export class PgBlockchainApiStore extends BasePgStore {
     afterBlockHeight: number;
   }): AsyncIterable<BlockchainDbSmartContract[]> {
     return this.sql<BlockchainDbSmartContract[]>`
-      SELECT DISTINCT ON (contract_id) contract_id, tx_id, block_height, microblock_sequence, abi
-      FROM smart_contracts
-      WHERE
-        canonical = TRUE
-        AND microblock_canonical = TRUE
-        AND block_height >= ${args.afterBlockHeight}
-        AND abi <> '"null"'
-      ORDER BY contract_id, block_height DESC, microblock_sequence DESC
+      SELECT * FROM (
+        SELECT DISTINCT ON (contract_id) contract_id, tx_id, block_height, microblock_sequence, abi
+        FROM smart_contracts
+        WHERE
+          canonical = TRUE
+          AND microblock_canonical = TRUE
+          AND block_height >= ${args.afterBlockHeight}
+          AND abi <> '"null"'
+        ORDER BY contract_id, block_height DESC, microblock_sequence DESC
+      ) AS contract_list
+      ORDER BY block_height ASC
     `.cursor();
   }
 

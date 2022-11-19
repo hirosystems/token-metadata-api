@@ -1,3 +1,4 @@
+import * as ley from 'ley';
 import { TokenMetadataUpdateNotification } from '../token-processor/util/sip-validation';
 import { ENV } from '../env';
 import {
@@ -22,17 +23,28 @@ import { BasePgStore } from './postgres-tools/base-pg-store';
  * Connects and queries the Token Metadata Service's local postgres DB.
  */
 export class PgStore extends BasePgStore {
-  static async connect(): Promise<PgStore> {
+  static async connect(opts?: { skipMigrations: boolean }): Promise<PgStore> {
+    const pgConfig = {
+      host: ENV.PGHOST,
+      port: ENV.PGPORT,
+      user: ENV.PGUSER,
+      password: ENV.PGPASSWORD,
+      database: ENV.PGDATABASE,
+    };
     const sql = await connectPostgres({
       usageName: 'tms-pg-store',
-      connectionArgs: {
-        host: ENV.PGHOST,
-        port: ENV.PGPORT,
-        user: ENV.PGUSER,
-        password: ENV.PGPASSWORD,
-        database: ENV.PGDATABASE,
+      connectionArgs: pgConfig,
+      connectionConfig: {
+        poolMax: 25,
       },
     });
+    if (opts?.skipMigrations !== true) {
+      await ley.up({
+        dir: 'migrations',
+        driver: 'postgres',
+        config: pgConfig,
+      });
+    }
     return new PgStore(sql);
   }
 

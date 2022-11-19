@@ -7,10 +7,9 @@ import { BlockchainSmartContractMonitor } from './token-processor/blockchain-api
 import { TokenProcessorMetrics } from './token-processor/token-processor-metrics';
 
 async function initApp() {
-  // TODO: Migrate-up
-  const db = await PgStore.connect();
+  const db = await PgStore.connect({ skipMigrations: false });
   const apiDb = await PgBlockchainApiStore.connect();
-  const jobQueue = new JobQueue({ db });
+
   const contractImporter = new BlockchainImporter({ db, apiDb });
   const metrics = new TokenProcessorMetrics({ db });
   // const contractMonitor = new BlockchainSmartContractMonitor({
@@ -24,8 +23,10 @@ async function initApp() {
   // Listen for new ones that may come, including SIP-019 notifications.
   // contractMonitor.start();
 
-  // Start the queue and API endpoints.
-  // jobQueue.start();
+  // Start the job queue.
+  const jobQueue = new JobQueue({ db });
+  jobQueue.start();
+
   await startApiServer({ db });
 }
 

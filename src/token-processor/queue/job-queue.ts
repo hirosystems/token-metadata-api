@@ -4,6 +4,7 @@ import { DbJob, DbJobStatus } from '../../pg/types';
 import { ENV } from '../../env';
 import { ProcessSmartContractJob } from '../process-smart-contract-job';
 import { ProcessTokenJob } from '../process-token-job';
+import { timeout } from '../../pg/postgres-tools/helpers';
 
 export enum TokenMetadataProcessingMode {
   /**
@@ -50,14 +51,6 @@ export class JobQueue {
       concurrency: ENV.JOB_QUEUE_CONCURRENCY_LIMIT,
       autoStart: false,
     });
-    // Every time the queue is empty, fill it back up again.
-    this.queue.on(
-      'idle',
-      () =>
-        void this.replenishEmptyQueue().catch(error =>
-          console.error(`JobQueue unable to replenish queue`, error)
-        )
-    );
   }
 
   /**
@@ -72,15 +65,21 @@ export class JobQueue {
       // the empty queue gets replenished with pending jobs.
       return;
     }
-    await this.db.updateJobStatus({ id: job.id, status: DbJobStatus.queued }).then(async () => {
-      await this.queue.add(async () => {
-        if (job.token_id) {
-          await new ProcessTokenJob({ db: this.db, job: job }).work();
-        } else if (job.smart_contract_id) {
-          await new ProcessSmartContractJob({ db: this.db, job: job }).work();
-        }
+    try {
+      await this.db.updateJobStatus({ id: job.id, status: DbJobStatus.queued });
+      void this.queue.add(async () => {
+        // FIXME: make this tx inside, roll back to pending on recoverable error.
+        await this.db.sqlWriteTransaction(async sql => {
+          if (job.token_id) {
+            await new ProcessTokenJob({ db: this.db, job: job }).work();
+          } else if (job.smart_contract_id) {
+            await new ProcessSmartContractJob({ db: this.db, job: job }).work();
+          }
+        });
       });
-    });
+    } catch (error) {
+      console.error(`JobQueue job add error`, error);
+    }
   }
 
   /**
@@ -88,7 +87,9 @@ export class JobQueue {
    * begin.
    */
   start() {
+    console.log(`JobQueue starting queue...`);
     this.queue.start();
+    void this.runQueueLoop();
   }
 
   /**
@@ -98,24 +99,26 @@ export class JobQueue {
     this.queue.removeListener('idle');
     this.queue.pause();
     this.queue.clear();
+    console.log(`JobQueue closed queue`);
   }
 
   /**
-   * Replenishes the queue by taking rows from the `jobs` table that are marked `'pending'` and
-   * pushing them for execution.
+   * Infinite loop that replenishes the queue by taking rows from the `jobs` table that are marked
+   * `'pending'` and pushing them for execution. Once the queue is idle, it grabs more jobs for
+   * processing, repeating this cycle until the jobs table is completely processed.
    */
-  private async replenishEmptyQueue() {
-    this.queue.pause();
-    const jobs = await this.db.getPendingJobBatch({ limit: ENV.JOB_QUEUE_SIZE_LIMIT });
-    if (jobs.length === 0) {
-      console.info(`JobQueue has no more work to do`);
-      // FIXME: When to restart?
-    } else {
-      console.info(`JobQueue replenishing empty queue`);
-      for (const job of jobs) {
-        await this.add(job);
+  private async runQueueLoop() {
+    while (!this.queue.isPaused) {
+      const jobs = await this.db.getPendingJobBatch({ limit: ENV.JOB_QUEUE_SIZE_LIMIT });
+      if (jobs.length > 0) {
+        for (const job of jobs) {
+          await this.add(job);
+        }
+      } else {
+        // Wait a few seconds before checking for more jobs.
+        await timeout(5_000);
       }
-      this.queue.start();
+      await this.queue.onEmpty();
     }
   }
 }

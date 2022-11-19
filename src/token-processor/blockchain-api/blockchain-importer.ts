@@ -4,6 +4,8 @@ import {
   PgBlockchainApiStore,
 } from '../../pg/blockchain-api/pg-blockchain-api-store';
 import { PgStore } from '../../pg/pg-store';
+import { isPgConnectionError } from '../../pg/postgres-tools/errors';
+import { timeout } from '../../pg/postgres-tools/helpers';
 import {
   getContractLogMetadataUpdateNotification,
   getSmartContractSip,
@@ -23,13 +25,29 @@ export class BlockchainImporter {
   }
 
   async import() {
-    const afterBlockHeight = (await this.db.getSmartContractsMaxBlockHeight()) ?? 1;
-    await this.importSmartContracts(afterBlockHeight);
-    // If this is not the initial import, we should get all the token metadata update notifications
-    // that happened while we were away so we may refresh tokens from contracts that we had already
-    // imported before.
-    if (afterBlockHeight > 1) {
-      await this.importTokenMetadataUpdateNotifications(afterBlockHeight);
+    let importFinished = false;
+    while (!importFinished) {
+      try {
+        const afterBlockHeight = (await this.db.getSmartContractsMaxBlockHeight()) ?? 1;
+        await this.importSmartContracts(afterBlockHeight);
+        // If this is not the initial import, we should get all the token metadata update notifications
+        // that happened while we were away so we may refresh tokens from contracts that we had already
+        // imported before.
+        if (afterBlockHeight > 1) {
+          // await this.importTokenMetadataUpdateNotifications(afterBlockHeight);
+        }
+        importFinished = true;
+      } catch (error) {
+        if (isPgConnectionError(error)) {
+          console.error(
+            `BlockchainImporter encountered a PG connection error during import, retrying...`,
+            error
+          );
+          await timeout(100);
+        } else {
+          throw error;
+        }
+      }
     }
   }
 
@@ -57,7 +75,6 @@ export class BlockchainImporter {
     if (!sip) {
       return; // Not a token contract.
     }
-    console.info(`BlockchainImporter detected token contract (${sip}): ${contract.contract_id}`);
     await this.db.insertAndEnqueueSmartContract({
       values: {
         principal: contract.contract_id,
@@ -67,6 +84,7 @@ export class BlockchainImporter {
         block_height: contract.block_height,
       },
     });
+    console.info(`BlockchainImporter detected token contract (${sip}): ${contract.contract_id}`);
   }
 
   /**

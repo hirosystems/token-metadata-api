@@ -4,7 +4,7 @@ import {
   TransactionVersion,
   uintCV,
 } from '@stacks/transactions';
-import { getTokenMetadataProcessingMode, stopwatch } from './util/helpers';
+import { getTokenMetadataProcessingMode } from './util/helpers';
 import { StacksNodeRpcClient } from './stacks-node/stacks-node-rpc-client';
 import {
   DbJobStatus,
@@ -19,6 +19,7 @@ import { Job } from './queue/job';
 import { TokenMetadataProcessingMode } from './queue/job-queue';
 import { ENV } from '../env';
 import { fetchAllMetadataLocalesFromBaseUri, getTokenSpecificUri } from './util/metadata-helpers';
+import { stopwatch } from '../pg/postgres-tools/helpers';
 
 /**
  * Downloads, parses and indexes metadata info for a single token in the Stacks blockchain by
