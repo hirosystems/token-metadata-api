@@ -9,7 +9,7 @@ import {
 } from '../../pg/types';
 import { ENV } from '../../env';
 import { TextDecoder } from 'util';
-import { MetadataSizeExceededError, MetadataTimeoutError } from './errors';
+import { MetadataParseError, MetadataSizeExceededError, MetadataTimeoutError } from './errors';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
 import { Static, Type } from '@sinclair/typebox';
 
@@ -238,7 +238,7 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
   if (new URL(token_uri).protocol === 'data:') {
     const dataUrl = parseDataUrl(token_uri);
     if (!dataUrl) {
-      throw new Error(`Data URL could not be parsed: ${token_uri}`);
+      throw new MetadataParseError(`Data URL could not be parsed: ${token_uri}`);
     }
     let content: string;
     // If media type is omitted it should default to percent-encoded `text/plain;charset=US-ASCII`
@@ -258,9 +258,9 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
       if (RawMetadataCType.Check(result)) {
         return result;
       }
-      throw new Error(`Invalid raw metadata JSON schema from Data URL`);
+      throw new MetadataParseError(`Invalid raw metadata JSON schema from Data URL`);
     } catch (error) {
-      throw new Error(`Data URL could not be parsed as JSON: ${token_uri}`);
+      throw new MetadataParseError(`Data URL could not be parsed as JSON: ${token_uri}`);
     }
   }
   const httpUrl = getFetchableUrl(token_uri);
@@ -289,9 +289,9 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
     if (RawMetadataCType.Check(result)) {
       return result;
     }
-    throw new Error(`Invalid raw metadata JSON schema from ${httpUrl.toString()}`);
+    throw new MetadataParseError(`Invalid raw metadata JSON schema from ${httpUrl.toString()}`);
   }
-  throw new Error(`Unable to fetch metadata from ${httpUrl.toString()}`);
+  throw new MetadataParseError(`Unable to fetch metadata from ${httpUrl.toString()}`);
 }
 
 function getImageUrl(uri: string): string {
@@ -300,10 +300,10 @@ function getImageUrl(uri: string): string {
     // const dataUrl = ParseDataUrl(uri);
     const dataUrl = parseDataUrl(uri);
     if (!dataUrl) {
-      throw new Error(`Data URL could not be parsed: ${uri}`);
+      throw new MetadataParseError(`Data URL could not be parsed: ${uri}`);
     }
     if (!dataUrl.mediaType?.startsWith('image/')) {
-      throw new Error(`Token image is a Data URL with a non-image media type: ${uri}`);
+      throw new MetadataParseError(`Token image is a Data URL with a non-image media type: ${uri}`);
     }
     return uri;
   }
@@ -330,7 +330,7 @@ function getFetchableUrl(uri: string): URL {
   if (parsedUri.protocol === 'ipns:')
     return new URL(`${PUBLIC_IPFS}/${parsedUri.host}${parsedUri.pathname}`);
 
-  throw new Error(`Unsupported uri protocol: ${uri}`);
+  throw new MetadataParseError(`Unsupported uri protocol: ${uri}`);
 }
 
 function parseDataUrl(

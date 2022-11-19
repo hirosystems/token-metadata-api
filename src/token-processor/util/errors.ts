@@ -15,3 +15,12 @@ export class MetadataTimeoutError extends Error {
     this.name = this.constructor.name;
   }
 }
+
+/** Thrown when there is a parse error that prevented metadata processing */
+export class MetadataParseError extends Error {
+  constructor(message: string) {
+    super();
+    this.message = message;
+    this.name = this.constructor.name;
+  }
+}
