@@ -51,6 +51,7 @@ export abstract class Job {
         processingFinished = true;
       })
       .catch(async error => {
+        // TODO: What should we do if it's a postgres connection error?
         if (error instanceof RetryableJobError) {
           const retries = await this.db.increaseJobRetryCount({ id: this.job.id });
           if (
