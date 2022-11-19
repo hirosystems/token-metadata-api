@@ -6,16 +6,6 @@ import { ProcessSmartContractJob } from '../process-smart-contract-job';
 import { ProcessTokenJob } from '../process-token-job';
 import { timeout } from '../../pg/postgres-tools/helpers';
 
-export enum TokenMetadataProcessingMode {
-  /**
-   * If a recoverable processing error occurs, we'll try again until the max retry attempt is
-   * reached. See `.env`
-   **/
-  default,
-  /** If a recoverable processing error occurs, we'll try again indefinitely. */
-  strict,
-}
-
 /**
  * A priority queue that organizes all necessary work for contract ingestion and token metadata
  * processing.
