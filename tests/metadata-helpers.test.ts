@@ -1,6 +1,10 @@
 import { MockAgent, setGlobalDispatcher } from 'undici';
 import { ENV } from '../src/env';
 import {
+  MetadataSizeExceededError,
+  MetadataTimeoutError,
+} from '../src/token-processor/util/errors';
+import {
   getMetadataFromUri,
   performSizeAndTimeLimitedMetadataFetch,
 } from '../src/token-processor/util/metadata-helpers';
@@ -40,7 +44,7 @@ describe('Metadata Helpers', () => {
     setGlobalDispatcher(agent);
 
     await expect(performSizeAndTimeLimitedMetadataFetch(url)).rejects.toThrow(
-      /Fetch size limit exceeded/
+      MetadataSizeExceededError
     );
   });
 
@@ -61,9 +65,7 @@ describe('Metadata Helpers', () => {
       .delay(150);
     setGlobalDispatcher(agent);
 
-    await expect(performSizeAndTimeLimitedMetadataFetch(url)).rejects.toThrow(
-      /Time limit exceeded/
-    );
+    await expect(performSizeAndTimeLimitedMetadataFetch(url)).rejects.toThrow(MetadataTimeoutError);
     ENV.METADATA_FETCH_TIMEOUT_MS = prevTimeout;
   });
 
