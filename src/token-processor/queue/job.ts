@@ -6,7 +6,8 @@ import { RetryableJobError } from './errors';
 import { getJobQueueProcessingMode, JobQueueProcessingMode } from './helpers';
 
 /**
- * A job
+ * An abstract class for a job that will be processed by `JobQueue`. It only contains logic for
+ * handling job work SQL transactions and errors that may or may not be retried.
  */
 export abstract class Job {
   protected readonly db: PgStore;
@@ -17,6 +18,9 @@ export abstract class Job {
     this.job = args.job;
   }
 
+  /**
+   * A human readable description of the work this job performs.
+   */
   abstract description(): string;
 
   /**

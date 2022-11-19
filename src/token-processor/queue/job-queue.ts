@@ -21,8 +21,7 @@ import { timeout } from '../../pg/postgres-tools/helpers';
  *    corresponding `Job` objects into memory for processing, marking those rows now as `'queued'`.
  * 2. It executes each loaded job to completion concurrently. Depending on success or failure, the
  *    job row is marked as either `'done'` or `'failed'`.
- * 3. Once all loaded jobs are done (and the queue is now idle), it goes back to step 1. If there
- *    are no more jobs to be processed, however, the queue is paused.
+ * 3. Once all loaded jobs are done (and the queue is now empty), it goes back to step 1.
  *
  * There are two env vars that can help you tune how the queue performs:
  * * `ENV.JOB_QUEUE_SIZE_LIMIT`: The in-memory size of the queue, i.e. the number of pending jobs
