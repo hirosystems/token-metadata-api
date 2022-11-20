@@ -78,7 +78,6 @@ export class JobQueue {
    * Shuts down the queue.
    */
   close() {
-    this.queue.removeListener('idle');
     this.queue.pause();
     this.queue.clear();
     console.log(`JobQueue closed queue`);
