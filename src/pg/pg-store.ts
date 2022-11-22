@@ -243,9 +243,28 @@ export class PgStore extends BasePgStore {
     return this.sql<DbJob[]>`
       SELECT * FROM jobs
       WHERE status = 'pending'
-      ORDER BY updated_at ASC
+      ORDER BY COALESCE(updated_at, created_at) ASC
       LIMIT ${args.limit}
     `;
+  }
+
+  /**
+   * Gets jobs marked as `queued` in the database.
+   * @returns `DbJob[]`
+   */
+  async getQueuedJobs(): Promise<DbJob[]> {
+    return this.sql<DbJob[]>`
+      SELECT * FROM jobs
+      WHERE status = 'queued'
+      ORDER BY updated_at ASC
+    `;
+  }
+
+  async getJob(args: { id: number }): Promise<DbJob | undefined> {
+    const result = await this.sql<DbJob[]>`SELECT * FROM jobs WHERE id = ${args.id}`;
+    if (result.count) {
+      return result[0];
+    }
   }
 
   /**

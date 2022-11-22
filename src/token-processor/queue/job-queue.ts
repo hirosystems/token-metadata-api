@@ -43,28 +43,6 @@ export class JobQueue {
   }
 
   /**
-   * Loads a job into the queue for execution. The `DbJob` row will be marked as `'queued'` while it
-   * waits for processing. A `Job` subclass will be instantiated depending on the type of job this
-   * row describes.
-   * @param job - A row from the `jobs` DB table that needs processing
-   */
-  async add(job: DbJob): Promise<void> {
-    if (this.queue.size + this.queue.pending >= ENV.JOB_QUEUE_SIZE_LIMIT) {
-      // To avoid backpressure, we won't add this job to the queue. It will be processed later when
-      // the empty queue gets replenished with pending jobs.
-      return;
-    }
-    await this.db.updateJobStatus({ id: job.id, status: DbJobStatus.queued });
-    void this.queue.add(async () => {
-      if (job.token_id) {
-        await new ProcessTokenJob({ db: this.db, job: job }).work();
-      } else if (job.smart_contract_id) {
-        await new ProcessSmartContractJob({ db: this.db, job: job }).work();
-      }
-    });
-  }
-
-  /**
    * Starts executing queue jobs. Jobs had to be previously loaded via `add()` for processing to
    * begin.
    */
@@ -84,22 +62,70 @@ export class JobQueue {
   }
 
   /**
+   * Loads a job into the queue for execution. The `DbJob` row will be marked as `'queued'` while it
+   * waits for processing. A `Job` subclass will be instantiated depending on the type of job this
+   * row describes.
+   * @param job - A row from the `jobs` DB table that needs processing
+   */
+  protected async add(job: DbJob): Promise<void> {
+    if (this.queue.size + this.queue.pending >= ENV.JOB_QUEUE_SIZE_LIMIT) {
+      // To avoid backpressure, we won't add this job to the queue. It will be processed later when
+      // the empty queue gets replenished with pending jobs.
+      return;
+    }
+    await this.db.updateJobStatus({ id: job.id, status: DbJobStatus.queued });
+    void this.queue.add(async () => {
+      if (job.token_id) {
+        await new ProcessTokenJob({ db: this.db, job: job }).work();
+      } else if (job.smart_contract_id) {
+        await new ProcessSmartContractJob({ db: this.db, job: job }).work();
+      }
+    });
+  }
+
+  /**
+   * Loads a job batch from the DB into the queue. Called by `runQueueLoop` when the queue is empty.
+   * @returns Total added jobs
+   */
+  protected async addJobBatch(): Promise<number> {
+    // If the queue is empty but we still have jobs set as `queued`, it means those jobs failed to
+    // run or there was a postgres error that couldn't otherwise mark them as completed. We'll try
+    // to get them re-processed now before moving on to the rest of the queue.
+    const queued = await this.db.getQueuedJobs();
+    if (queued.length > 0) {
+      for (const job of queued) {
+        await this.add(job);
+      }
+      return queued.length;
+    }
+    // Get `pending` jobs and enqueue.
+    const jobs = await this.db.getPendingJobBatch({ limit: ENV.JOB_QUEUE_SIZE_LIMIT });
+    if (jobs.length > 0) {
+      for (const job of jobs) {
+        await this.add(job);
+      }
+      return jobs.length;
+    }
+    return 0;
+  }
+
+  /**
    * Infinite loop that replenishes the queue by taking rows from the `jobs` table that are marked
    * `'pending'` and pushing them for execution. Once the queue is idle, it grabs more jobs for
    * processing, repeating this cycle until the jobs table is completely processed.
    */
   private async runQueueLoop() {
     while (!this.queue.isPaused) {
-      const jobs = await this.db.getPendingJobBatch({ limit: ENV.JOB_QUEUE_SIZE_LIMIT });
-      if (jobs.length > 0) {
-        for (const job of jobs) {
-          await this.add(job);
+      try {
+        const loadedJobs = await this.addJobBatch();
+        if (loadedJobs === 0) {
+          await timeout(5_000);
         }
-      } else {
-        // Wait a few seconds before checking for more jobs.
-        await timeout(5_000);
+        await this.queue.onEmpty();
+      } catch (error) {
+        console.error(`JobQueue loop error`, error);
+        await timeout(1_000);
       }
-      await this.queue.onEmpty();
     }
   }
 }
