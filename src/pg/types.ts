@@ -104,6 +104,7 @@ export type DbMetadataInsert = {
   l10n_default: boolean | null;
   description: string | null;
   image: string | null;
+  cached_image: string | null;
 };
 
 export type DbMetadata = {
@@ -116,6 +117,7 @@ export type DbMetadata = {
   l10n_default?: boolean;
   description?: string;
   image?: string;
+  cached_image?: string;
 };
 
 export type DbMetadataAttributeInsert = {
