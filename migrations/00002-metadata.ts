@@ -11,6 +11,7 @@ export const up = async (sql: Sql<any>) => {
     l10n_default        BOOLEAN,
     description         TEXT,
     image               TEXT,
+    cached_image        TEXT,
 
     CONSTRAINT metadata_token_id_fk FOREIGN KEY(token_id) REFERENCES tokens(id) ON DELETE CASCADE,
     CONSTRAINT metadata_token_id_l10n_locale_unique UNIQUE(token_id, l10n_locale)

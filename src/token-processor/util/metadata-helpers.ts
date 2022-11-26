@@ -1,4 +1,6 @@
 import * as querystring from 'querystring';
+import * as child_process from 'child_process';
+import * as path from 'path';
 import { fetch } from 'undici';
 import {
   DbMetadataAttributeInsert,
@@ -56,6 +58,8 @@ type RawMetadataLocale = {
   default: boolean;
   uri: string;
 };
+
+const PUBLIC_IPFS = 'https://ipfs.io';
 
 /**
  * Fetches all the localized metadata JSONs for a token. First, it downloads the default metadata
@@ -116,10 +120,10 @@ export function getTokenSpecificUri(uri: string, tokenNumber: number, locale?: s
   return uri.replace('{id}', tokenNumber.toString()).replace('{locale}', locale ?? '');
 }
 
-function parseMetadataForInsertion(
+async function parseMetadataForInsertion(
   rawMetadataLocales: RawMetadataLocale[],
   token: DbToken
-): DbMetadataLocaleInsertBundle[] {
+): Promise<DbMetadataLocaleInsertBundle[]> {
   // Keep the default because we may need to fall back into its data.
   let defaultInsert: DbMetadataLocaleInsertBundle | undefined;
   const inserts: DbMetadataLocaleInsertBundle[] = [];
@@ -131,13 +135,21 @@ function parseMetadataForInsertion(
       // SIP-016 requires at least `sip` and `name` to be defined.
       continue;
     }
+    // Process image URL with `ENV.METADATA_IMAGE_CACHE_PROCESSOR`.
+    const image = metadata.image ?? defaultInsert?.metadata.image ?? null;
+    let cachedImage: string | null = null;
+    if (image) {
+      const normalizedUrl = getImageUrl(image);
+      cachedImage = await processImageUrl(normalizedUrl);
+    }
     // Localized values override defaults.
     const metadataInsert: DbMetadataInsert = {
       sip: sip,
       token_id: token.id,
       name: name,
       description: metadata.description ?? defaultInsert?.metadata.description ?? null,
-      image: metadata.image ?? defaultInsert?.metadata.image ?? null, // TODO: CDN
+      image: image,
+      cached_image: cachedImage,
       l10n_default: raw.default,
       l10n_locale: raw.locale ?? null,
       l10n_uri: raw.uri,
@@ -311,7 +323,48 @@ function getImageUrl(uri: string): string {
   return fetchableUrl.toString();
 }
 
-const PUBLIC_IPFS = 'https://ipfs.io';
+/**
+ * If an external image processor script is configured, then it will process the given image URL for the purpose
+ * of caching on a CDN (or whatever else it may be created to do). The script is expected to return a new URL
+ * for the image.
+ * If the script is not configured, then the original URL is returned immediately.
+ * If a data-uri is passed, it is also immediately returned without being passed to the script.
+ */
+async function processImageUrl(imgUrl: string): Promise<string> {
+  const imageCacheProcessor = ENV.METADATA_IMAGE_CACHE_PROCESSOR;
+  if (!imageCacheProcessor) {
+    return imgUrl;
+  }
+  if (imgUrl.startsWith('data:')) {
+    return imgUrl;
+  }
+  const repoDir = path.dirname(__dirname);
+  const { code, stdout, stderr } = await new Promise<{
+    code: number;
+    stdout: string;
+    stderr: string;
+  }>((resolve, reject) => {
+    const cp = child_process.spawn(imageCacheProcessor, [imgUrl], { cwd: repoDir });
+    let stdout = '';
+    let stderr = '';
+    cp.stdout.on('data', data => (stdout += data));
+    cp.stderr.on('data', data => (stderr += data));
+    cp.on('close', code => resolve({ code: code ?? 0, stdout, stderr }));
+    cp.on('error', error => reject(error));
+  });
+  if (code !== 0 && stderr) {
+    console.warn(`METADATA_IMAGE_CACHE_PROCESSOR error: ${stderr}`);
+  }
+  const result = stdout.trim();
+  try {
+    const url = new URL(result);
+    return url.toString();
+  } catch (error) {
+    throw new Error(
+      `Image processing script returned an invalid url for ${imgUrl}: ${result}, stderr: ${stderr}`
+    );
+  }
+}
 
 /**
  * Helper method for creating http/s url for supported protocols.
