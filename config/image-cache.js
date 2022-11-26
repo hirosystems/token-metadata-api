@@ -1,4 +1,4 @@
-#!/usr/bin/env node 
+#!/usr/bin/env node
 const imgUrl = process.argv[2];
 const encodedUrl = encodeURIComponent(imgUrl);
 const [imgixDomain, imgixToken] = [process.env['IMGIX_DOMAIN'], process.env['IMGIX_TOKEN']];
