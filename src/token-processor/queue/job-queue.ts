@@ -53,12 +53,13 @@ export class JobQueue {
   }
 
   /**
-   * Shuts down the queue.
+   * Shuts down the queue by clearing it and waiting for its current work to be complete.
    */
-  close() {
-    this.queue.pause();
+  async close() {
+    console.log(`JobQueue closing, waiting on ${this.queue.pending} jobs to finish...`);
     this.queue.clear();
-    console.log(`JobQueue closed queue`);
+    this.queue.pause();
+    await this.queue.onIdle();
   }
 
   /**
@@ -121,7 +122,7 @@ export class JobQueue {
         if (loadedJobs === 0) {
           await timeout(5_000);
         }
-        await this.queue.onEmpty();
+        await this.queue.onIdle();
       } catch (error) {
         console.error(`JobQueue loop error`, error);
         await timeout(1_000);

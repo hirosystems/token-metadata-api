@@ -59,4 +59,5 @@ export async function startApiServer(args: { db: PgStore }) {
     }
   });
   console.info(`API listening on ${ENV.API_HOST}:${ENV.API_PORT}`);
+  return fastify;
 }
