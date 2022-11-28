@@ -18,6 +18,7 @@ import {
 } from './types';
 import { connectPostgres } from './postgres-tools';
 import { BasePgStore } from './postgres-tools/base-pg-store';
+import { TokenLocaleNotFoundError, TokenNotFoundError, TokenNotProcessedError } from './errors';
 
 /**
  * Connects and queries the Token Metadata Service's local postgres DB.
@@ -134,19 +135,18 @@ export class PgStore extends BasePgStore {
   async getFtMetadataBundle(args: {
     contractPrincipal: string;
     locale?: string;
-  }): Promise<DbTokenMetadataLocaleBundle | undefined> {
+  }): Promise<DbTokenMetadataLocaleBundle> {
     return await this.sqlTransaction(async sql => {
       const tokenIdRes = await sql<{ id: number }[]>`
         SELECT tokens.id FROM tokens
         INNER JOIN smart_contracts ON tokens.smart_contract_id = smart_contracts.id
         WHERE smart_contracts.principal = ${args.contractPrincipal}
-          AND tokens.updated_at IS NOT NULL
       `;
       if (tokenIdRes.count === 0) {
-        return undefined;
+        throw new TokenNotFoundError();
       }
       if (args.locale && !(await this.isTokenLocaleAvailable(tokenIdRes[0].id, args.locale))) {
-        return undefined;
+        throw new TokenLocaleNotFoundError();
       }
       return await this.getTokenMetadataBundle(tokenIdRes[0].id, args.locale);
     });
@@ -156,7 +156,7 @@ export class PgStore extends BasePgStore {
     contractPrincipal: string;
     tokenNumber: number;
     locale?: string;
-  }): Promise<DbTokenMetadataLocaleBundle | undefined> {
+  }): Promise<DbTokenMetadataLocaleBundle> {
     return await this.sqlTransaction(async sql => {
       const tokenIdRes = await sql<{ id: number }[]>`
         SELECT tokens.id
@@ -164,13 +164,12 @@ export class PgStore extends BasePgStore {
         INNER JOIN smart_contracts ON tokens.smart_contract_id = smart_contracts.id
         WHERE smart_contracts.principal = ${args.contractPrincipal}
           AND tokens.token_number = ${args.tokenNumber}
-          AND tokens.updated_at IS NOT NULL
       `;
       if (tokenIdRes.count === 0) {
-        return undefined;
+        throw new TokenNotFoundError();
       }
       if (args.locale && !(await this.isTokenLocaleAvailable(tokenIdRes[0].id, args.locale))) {
-        return undefined;
+        throw new TokenLocaleNotFoundError();
       }
       return await this.getTokenMetadataBundle(tokenIdRes[0].id, args.locale);
     });
@@ -400,17 +399,16 @@ export class PgStore extends BasePgStore {
   private async getTokenMetadataBundle(
     tokenId: number,
     locale?: string
-  ): Promise<DbTokenMetadataLocaleBundle | undefined> {
+  ): Promise<DbTokenMetadataLocaleBundle> {
     const tokenRes = await this.sql<DbToken[]>`
       SELECT * FROM tokens WHERE id = ${tokenId}
     `;
     if (tokenRes.count === 0) {
-      return undefined;
+      throw new TokenNotFoundError();
     }
     const token = tokenRes[0];
     if (!token.updated_at) {
-      // No updated date means this token hasn't been processed once.
-      return undefined;
+      throw new TokenNotProcessedError();
     }
     let localeBundle: DbMetadataLocaleBundle | undefined;
     const metadataRes = await this.sql<DbMetadata[]>`
