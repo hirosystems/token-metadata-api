@@ -30,12 +30,15 @@ export class BasePgStore {
   }
   private readonly _sql: PgSqlClient;
 
+  public isClosed = false;
+
   constructor(sql: PgSqlClient) {
     this._sql = sql;
   }
 
   async close() {
     await this._sql.end();
+    this.isClosed = true;
   }
 
   /**

@@ -57,7 +57,7 @@ export class PgStore extends BasePgStore {
       )
       INSERT INTO jobs (smart_contract_id)
         (SELECT id AS smart_contract_id FROM smart_contract_inserts)
-      ON CONFLICT ON CONSTRAINT jobs_token_id_smart_contract_id_unique DO
+      ON CONFLICT (smart_contract_id) WHERE token_id IS NULL DO
         UPDATE SET updated_at = NOW(), status = 'pending'
       RETURNING *
     `;
@@ -375,7 +375,7 @@ export class PgStore extends BasePgStore {
         RETURNING id
       )
       INSERT INTO jobs (token_id) (SELECT id AS token_id FROM token_inserts)
-      ON CONFLICT ON CONSTRAINT jobs_token_id_smart_contract_id_unique DO
+      ON CONFLICT (token_id) WHERE smart_contract_id IS NULL DO
         UPDATE SET updated_at = NOW(), status = 'pending'
       RETURNING *
     `.cursor();

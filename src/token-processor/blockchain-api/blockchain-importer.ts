@@ -6,10 +6,18 @@ import {
 import { PgStore } from '../../pg/pg-store';
 import { isPgConnectionError } from '../../pg/postgres-tools/errors';
 import { timeout } from '../../pg/postgres-tools/helpers';
+import { waiter, Waiter } from '../util/helpers';
 import {
   getContractLogMetadataUpdateNotification,
   getSmartContractSip,
 } from '../util/sip-validation';
+
+export class SmartContractImportInterruptedError extends Error {
+  constructor() {
+    super();
+    this.name = this.constructor.name;
+  }
+}
 
 /**
  * Imports token contracts and SIP-019 token metadata update notifications from the Stacks
@@ -18,15 +26,27 @@ import {
 export class BlockchainImporter {
   private readonly db: PgStore;
   private readonly apiDb: PgBlockchainApiStore;
+  private importInterruptWaiter: Waiter<void>;
+  private importInterrupted = false;
+  private importFinished = false;
 
   constructor(args: { db: PgStore; apiDb: PgBlockchainApiStore }) {
     this.db = args.db;
     this.apiDb = args.apiDb;
+    this.importInterruptWaiter = waiter();
+  }
+
+  async close() {
+    if (this.importFinished) {
+      return;
+    }
+    // Force the cursor to stop and wait.
+    this.importInterrupted = true;
+    await this.importInterruptWaiter;
   }
 
   async import() {
-    let importFinished = false;
-    while (!importFinished) {
+    while (!this.importFinished) {
       try {
         const afterBlockHeight = (await this.db.getSmartContractsMaxBlockHeight()) ?? 1;
         await this.importSmartContracts(afterBlockHeight);
@@ -36,7 +56,7 @@ export class BlockchainImporter {
         if (afterBlockHeight > 1) {
           // await this.importTokenMetadataUpdateNotifications(afterBlockHeight);
         }
-        importFinished = true;
+        this.importFinished = true;
       } catch (error) {
         if (isPgConnectionError(error)) {
           console.error(
@@ -44,6 +64,9 @@ export class BlockchainImporter {
             error
           );
           await timeout(100);
+        } else if (error instanceof SmartContractImportInterruptedError) {
+          this.importInterruptWaiter.finish();
+          throw error;
         } else {
           throw error;
         }
@@ -64,6 +87,11 @@ export class BlockchainImporter {
     const cursor = this.apiDb.getSmartContractsCursor({ afterBlockHeight });
     for await (const rows of cursor) {
       for (const row of rows) {
+        if (this.importInterrupted) {
+          // We've received a SIGINT, so stop the import and throw an error so we don't proceed with
+          // booting the rest of the service.
+          throw new SmartContractImportInterruptedError();
+        }
         await this.doImportSmartContract(row);
       }
     }

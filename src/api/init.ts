@@ -1,9 +1,8 @@
-import Fastify, { FastifyBaseLogger, FastifyInstance } from 'fastify';
+import Fastify from 'fastify';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { FtRoutes } from './routes/ft';
 import { NftRoutes } from './routes/nft';
 import { PgStore } from '../pg/pg-store';
-import { ENV } from '../env';
 import FastifyCors from '@fastify/cors';
 import FastifySwagger from '@fastify/swagger';
 import { StatusRoutes } from './routes/status';
@@ -47,17 +46,5 @@ export async function buildApiServer(args: { db: PgStore }) {
   await fastify.register(NftRoutes);
   await fastify.register(StatusRoutes);
 
-  return fastify;
-}
-
-export async function startApiServer(args: { db: PgStore }) {
-  const fastify = await buildApiServer({ db: args.db });
-  fastify.listen({ host: ENV.API_HOST, port: ENV.API_PORT }, (err, address) => {
-    if (err) {
-      fastify.log.error(err);
-      // process.exit(1)
-    }
-  });
-  console.info(`API listening on ${ENV.API_HOST}:${ENV.API_PORT}`);
   return fastify;
 }
