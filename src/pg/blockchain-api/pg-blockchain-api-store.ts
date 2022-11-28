@@ -29,6 +29,11 @@ export class PgBlockchainApiStore extends BasePgStore {
         password: ENV.BLOCKCHAIN_API_PGPASSWORD,
         database: ENV.BLOCKCHAIN_API_PGDATABASE,
       },
+      connectionConfig: {
+        poolMax: ENV.BLOCKCHAIN_API_PG_CONNECTION_POOL_MAX,
+        idleTimeout: ENV.BLOCKCHAIN_API_PG_IDLE_TIMEOUT,
+        maxLifetime: ENV.BLOCKCHAIN_API_PG_MAX_LIFETIME,
+      },
     });
     return new PgBlockchainApiStore(sql);
   }

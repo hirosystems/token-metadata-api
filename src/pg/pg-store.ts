@@ -35,7 +35,9 @@ export class PgStore extends BasePgStore {
       usageName: 'tms-pg-store',
       connectionArgs: pgConfig,
       connectionConfig: {
-        poolMax: 25,
+        poolMax: ENV.PG_CONNECTION_POOL_MAX,
+        idleTimeout: ENV.PG_IDLE_TIMEOUT,
+        maxLifetime: ENV.PG_MAX_LIFETIME,
       },
     });
     if (opts?.skipMigrations !== true) {

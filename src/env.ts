@@ -9,11 +9,22 @@ interface Env {
   PGUSER: string;
   PGPASSWORD: string;
   PGDATABASE: string;
+  /**
+   * Limit to how many concurrent connections can be created, defaults to 10. Make sure this number
+   * is greater than `JOB_QUEUE_CONCURRENCY_LIMIT`.
+   */
+  PG_CONNECTION_POOL_MAX: number;
+  PG_IDLE_TIMEOUT: number;
+  PG_MAX_LIFETIME: number;
+
   BLOCKCHAIN_API_PGHOST: string;
   BLOCKCHAIN_API_PGPORT: number;
   BLOCKCHAIN_API_PGUSER: string;
   BLOCKCHAIN_API_PGPASSWORD: string;
   BLOCKCHAIN_API_PGDATABASE: string;
+  BLOCKCHAIN_API_PG_CONNECTION_POOL_MAX: number;
+  BLOCKCHAIN_API_PG_IDLE_TIMEOUT: number;
+  BLOCKCHAIN_API_PG_MAX_LIFETIME: number;
 
   STACKS_NODE_RPC_HOST: string;
   STACKS_NODE_RPC_PORT: number;
@@ -30,7 +41,8 @@ interface Env {
    */
   METADATA_MAX_PAYLOAD_BYTE_SIZE: number;
   /**
-   * Script to handle image URLs during token metadata processing.
+   * Configure a script to handle image URLs during token metadata processing. Must be an executable
+   * script that accepts the URL as the first program argument and outputs a result URL to stdout.
    */
   METADATA_IMAGE_CACHE_PROCESSOR: string;
 
@@ -87,6 +99,18 @@ export function getEnvVars(): Env {
       PGDATABASE: {
         type: 'string',
       },
+      PG_CONNECTION_POOL_MAX: {
+        type: 'number',
+        default: 10,
+      },
+      PG_IDLE_TIMEOUT: {
+        type: 'number',
+        default: 30,
+      },
+      PG_MAX_LIFETIME: {
+        type: 'number',
+        default: 60,
+      },
       BLOCKCHAIN_API_PGHOST: {
         type: 'string',
       },
@@ -104,6 +128,18 @@ export function getEnvVars(): Env {
       },
       BLOCKCHAIN_API_PGDATABASE: {
         type: 'string',
+      },
+      BLOCKCHAIN_API_PG_CONNECTION_POOL_MAX: {
+        type: 'number',
+        default: 10,
+      },
+      BLOCKCHAIN_API_PG_IDLE_TIMEOUT: {
+        type: 'number',
+        default: 30,
+      },
+      BLOCKCHAIN_API_PG_MAX_LIFETIME: {
+        type: 'number',
+        default: 60,
       },
       STACKS_NODE_RPC_HOST: {
         type: 'string',
