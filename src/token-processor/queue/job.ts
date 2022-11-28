@@ -42,48 +42,44 @@ export abstract class Job {
     // decision here about what to do in each case. If we choose to retry, this queue entry will
     // simply not be marked as `processed = true` so it can be picked up by the queue at a later
     // time.
-    await this.db
-      .sqlWriteTransaction(async sql => {
+    try {
+      await this.db.sqlWriteTransaction(async sql => {
         await this.handler();
         processingFinished = true;
-      })
-      .catch(async error => {
-        if (error instanceof RetryableJobError) {
-          const retries = await this.db.increaseJobRetryCount({ id: this.job.id });
-          if (
-            getJobQueueProcessingMode() === JobQueueProcessingMode.strict ||
-            retries <= ENV.JOB_QUEUE_MAX_RETRIES
-          ) {
-            console.info(
-              `Job ${this.description()} recoverable error, trying again later: ${error.message}`
-            );
-            await this.db.updateJobStatus({ id: this.job.id, status: DbJobStatus.pending });
-          } else {
-            console.warn(
-              `Job ${this.description()} max retries reached, giving up: ${error.message}`
-            );
-            processingFinished = true;
-            finishedWithError = true;
-          }
+      });
+    } catch (error) {
+      if (error instanceof RetryableJobError) {
+        const retries = await this.db.increaseJobRetryCount({ id: this.job.id });
+        if (
+          getJobQueueProcessingMode() === JobQueueProcessingMode.strict ||
+          retries <= ENV.JOB_QUEUE_MAX_RETRIES
+        ) {
+          console.info(
+            `Job ${this.description()} recoverable error, trying again later: ${error.message}`
+          );
+          await this.db.updateJobStatus({ id: this.job.id, status: DbJobStatus.pending });
         } else {
-          // Something more serious happened, mark this token as failed.
-          console.error(`Job error: ${error.message}`);
+          console.warn(
+            `Job ${this.description()} max retries reached, giving up: ${error.message}`
+          );
           processingFinished = true;
           finishedWithError = true;
         }
-      })
-      .finally(() => {
-        if (processingFinished) {
-          const status = finishedWithError ? DbJobStatus.failed : DbJobStatus.done;
-          void this.db
-            .updateJobStatus({
-              id: this.job.id,
-              status: status,
-            })
-            .then(() => {
-              console.info(`Job ${this.description()} ${status} in ${sw.getElapsed()}ms`);
-            });
-        }
-      });
+      } else {
+        // Something more serious happened, mark this token as failed.
+        console.error(`Job error: ${error}`);
+        processingFinished = true;
+        finishedWithError = true;
+      }
+    } finally {
+      if (processingFinished) {
+        const status = finishedWithError ? DbJobStatus.failed : DbJobStatus.done;
+        await this.db.updateJobStatus({
+          id: this.job.id,
+          status: status,
+        });
+        console.info(`Job ${this.description()} ${status} in ${sw.getElapsed()}ms`);
+      }
+    }
   }
 }
