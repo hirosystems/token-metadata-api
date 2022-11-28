@@ -19,8 +19,6 @@ async function initApp() {
     new TokenProcessorMetrics({ db });
   }
 
-  // Take all smart contracts from the Blockchain API starting from what we already have.
-  // This will fill up our job queue.
   const contractImporter = new BlockchainImporter({ db, apiDb });
   registerShutdownConfig({
     name: 'Contract Importer',
@@ -30,14 +28,12 @@ async function initApp() {
     },
   });
 
-  // Listen for new ones that may come, including SIP-019 notifications.
   // const contractMonitor = new BlockchainSmartContractMonitor({
   //   db: pgStore,
   //   apiDb: pgBlockchainStore
   // });
   // contractMonitor.start();
 
-  // Start the job queue.
   const jobQueue = new JobQueue({ db });
   registerShutdownConfig({
     name: 'Job Queue',
@@ -47,7 +43,6 @@ async function initApp() {
     },
   });
 
-  // Start API server.
   const apiServer = await buildApiServer({ db });
   registerShutdownConfig({
     name: 'API Server',
@@ -72,6 +67,7 @@ async function initApp() {
     },
   });
 
+  // Start services in order.
   await contractImporter.import();
   jobQueue.start();
   await apiServer.listen({ host: ENV.API_HOST, port: ENV.API_PORT });
@@ -84,6 +80,7 @@ initApp()
   })
   .catch(error => {
     if (error instanceof SmartContractImportInterruptedError) {
+      // SIGINT/SIGTERM while contract importer was running, ignore.
       return;
     }
     console.error(`App failed to start`, error);
