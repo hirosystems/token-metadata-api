@@ -57,7 +57,7 @@ export class PgStore extends BasePgStore {
       )
       INSERT INTO jobs (smart_contract_id)
         (SELECT id AS smart_contract_id FROM smart_contract_inserts)
-      ON CONFLICT ON CONSTRAINT jobs_token_id_smart_contract_id_unique DO
+      ON CONFLICT (smart_contract_id) WHERE token_id IS NULL DO
         UPDATE SET updated_at = NOW(), status = 'pending'
       RETURNING *
     `;
@@ -252,10 +252,15 @@ export class PgStore extends BasePgStore {
    * Gets jobs marked as `queued` in the database.
    * @returns `DbJob[]`
    */
-  async getQueuedJobs(): Promise<DbJob[]> {
+  async getQueuedJobs(args: { excludingIds: number[] }): Promise<DbJob[]> {
     return this.sql<DbJob[]>`
       SELECT * FROM jobs
       WHERE status = 'queued'
+      ${
+        args.excludingIds.length
+          ? this.sql`AND id NOT IN ${this.sql(args.excludingIds)}`
+          : this.sql``
+      }
       ORDER BY updated_at ASC
     `;
   }
@@ -375,7 +380,7 @@ export class PgStore extends BasePgStore {
         RETURNING id
       )
       INSERT INTO jobs (token_id) (SELECT id AS token_id FROM token_inserts)
-      ON CONFLICT ON CONSTRAINT jobs_token_id_smart_contract_id_unique DO
+      ON CONFLICT (token_id) WHERE smart_contract_id IS NULL DO
         UPDATE SET updated_at = NOW(), status = 'pending'
       RETURNING *
     `.cursor();
