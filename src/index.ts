@@ -37,7 +37,7 @@ async function initApp() {
   const jobQueue = new JobQueue({ db });
   registerShutdownConfig({
     name: 'Job Queue',
-    forceKillable: false, // TODO: Make true
+    forceKillable: false,
     handler: async () => {
       await jobQueue.close();
     },

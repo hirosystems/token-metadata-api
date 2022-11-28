@@ -410,7 +410,7 @@ export class PgStore extends BasePgStore {
     if (!token.updated_at) {
       throw new TokenNotProcessedError();
     }
-    let metadataLocale: DbMetadataLocaleBundle | undefined;
+    let localeBundle: DbMetadataLocaleBundle | undefined;
     const metadataRes = await this.sql<DbMetadata[]>`
       SELECT * FROM metadata
       WHERE token_id = ${token.id}
@@ -423,7 +423,7 @@ export class PgStore extends BasePgStore {
       const properties = await this.sql<DbMetadataProperty[]>`
         SELECT * FROM metadata_properties WHERE metadata_id = ${metadataRes[0].id}
       `;
-      metadataLocale = {
+      localeBundle = {
         metadata: metadataRes[0],
         attributes: attributes,
         properties: properties,
@@ -431,7 +431,7 @@ export class PgStore extends BasePgStore {
     }
     return {
       token: token,
-      metadataLocale: metadataLocale,
+      metadataLocale: localeBundle,
     };
   }
 }
