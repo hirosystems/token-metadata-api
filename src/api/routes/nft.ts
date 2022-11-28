@@ -2,14 +2,10 @@ import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { FastifyPluginCallback } from 'fastify';
 import { Server } from 'http';
-import {
-  SmartContractPrincipal,
-  Metadata,
-  TokenNotFoundResponse,
-  TokenQuerystringParams,
-} from '../types';
+import { SmartContractPrincipal, Metadata, TokenQuerystringParams } from '../types';
 import { handleTokenCache } from '../util/cache';
 import { parseMetadataLocaleBundle } from '../util/helpers';
+import { generateTokenErrorResponse, TokenErrorResponseSchema } from '../util/errors';
 
 export const NftRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTypeProvider> = (
   fastify,
@@ -32,24 +28,24 @@ export const NftRoutes: FastifyPluginCallback<Record<never, never>, Server, Type
             token_uri: Type.Optional(Type.String({ format: 'uri' })),
             metadata: Type.Optional(Metadata),
           }),
-          404: TokenNotFoundResponse,
+          ...TokenErrorResponseSchema,
         },
       },
     },
     async (request, reply) => {
-      const metadataBundle = await fastify.db.getNftMetadataBundle({
-        contractPrincipal: request.params.principal,
-        tokenNumber: request.params.token_id,
-        locale: request.query.locale,
-      });
-      if (!metadataBundle) {
-        await reply.code(404).send({ error: 'Token not found' });
-        return;
+      try {
+        const metadataBundle = await fastify.db.getNftMetadataBundle({
+          contractPrincipal: request.params.principal,
+          tokenNumber: request.params.token_id,
+          locale: request.query.locale,
+        });
+        await reply.send({
+          token_uri: metadataBundle?.token?.uri ?? undefined,
+          metadata: parseMetadataLocaleBundle(metadataBundle?.metadataLocale),
+        });
+      } catch (error) {
+        await generateTokenErrorResponse(error, reply);
       }
-      await reply.send({
-        token_uri: metadataBundle?.token?.uri ?? undefined,
-        metadata: parseMetadataLocaleBundle(metadataBundle?.metadataLocale),
-      });
     }
   );
   done();

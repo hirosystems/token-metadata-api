@@ -41,4 +41,9 @@ export type MetadataType = Static<typeof Metadata>;
 export const TokenNotFoundResponse = Type.Object({
   error: Type.Literal('Token not found'),
 });
-export type TokenNotFoundResponseType = Static<typeof TokenNotFoundResponse>;
+export const TokenNotProcessedResponse = Type.Object({
+  error: Type.Literal('Token metadata fetch in progress'),
+});
+export const TokenLocaleNotFoundResponse = Type.Object({
+  error: Type.Literal('Locale not found'),
+});
