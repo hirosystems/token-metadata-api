@@ -3,7 +3,7 @@ import { PgStore } from '../src/pg/pg-store';
 import { DbSipNumber, DbSmartContractInsert, DbTokenType } from '../src/pg/types';
 import { cycleMigrations, startTestApiServer, TestFastifyServer } from './helpers';
 
-describe('NFT routes', () => {
+describe('FT routes', () => {
   let db: PgStore;
   let fastify: TestFastifyServer;
 
@@ -22,7 +22,7 @@ describe('NFT routes', () => {
   const enqueueToken = async () => {
     const values: DbSmartContractInsert = {
       principal: 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
-      sip: DbSipNumber.sip009,
+      sip: DbSipNumber.sip010,
       abi: '"some"',
       tx_id: '0x123456',
       block_height: 1,
@@ -31,7 +31,7 @@ describe('NFT routes', () => {
     const cursor = db.getInsertAndEnqueueTokensCursor({
       smart_contract_id: 1,
       token_count: 1,
-      type: DbTokenType.nft,
+      type: DbTokenType.ft,
     });
     for await (const [job] of cursor) {
       // tokenJob = job;
@@ -41,7 +41,7 @@ describe('NFT routes', () => {
   test('token not found', async () => {
     const response = await fastify.inject({
       method: 'GET',
-      url: '/nft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1',
+      url: '/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
     });
     expect(response.statusCode).toBe(404);
     expect(response.json()).toStrictEqual({ error: 'Token not found' });
@@ -51,7 +51,7 @@ describe('NFT routes', () => {
     await enqueueToken();
     const response = await fastify.inject({
       method: 'GET',
-      url: '/nft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1',
+      url: '/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
     });
     expect(response.statusCode).toBe(422);
     expect(response.json()).toStrictEqual({ error: 'Token metadata fetch in progress' });
@@ -64,8 +64,8 @@ describe('NFT routes', () => {
       values: {
         token: {
           name: 'hello-world',
-          symbol: null,
-          decimals: null,
+          symbol: 'HELLO',
+          decimals: 6,
           total_supply: 1,
           uri: 'http://test.com/uri.json',
         },
@@ -88,7 +88,7 @@ describe('NFT routes', () => {
     });
     const response = await fastify.inject({
       method: 'GET',
-      url: '/nft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1?locale=es',
+      url: '/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world?locale=es',
     });
     expect(response.statusCode).toBe(422);
     expect(response.json()).toStrictEqual({ error: 'Locale not found' });
@@ -101,8 +101,8 @@ describe('NFT routes', () => {
       values: {
         token: {
           name: 'hello-world',
-          symbol: null,
-          decimals: null,
+          symbol: 'HELLO',
+          decimals: 6,
           total_supply: 1,
           uri: 'http://test.com/uri.json',
         },
@@ -110,9 +110,15 @@ describe('NFT routes', () => {
     });
     const response = await fastify.inject({
       method: 'GET',
-      url: '/nft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1',
+      url: '/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
     });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toStrictEqual({ token_uri: 'http://test.com/uri.json' });
+    expect(response.json()).toStrictEqual({
+      decimals: 6,
+      name: 'hello-world',
+      symbol: 'HELLO',
+      token_uri: 'http://test.com/uri.json',
+      total_supply: 1,
+    });
   });
 });
