@@ -44,9 +44,6 @@ export abstract class Job {
     // time.
     await this.db
       .sqlWriteTransaction(async sql => {
-        if (this.job.status !== DbJobStatus.queued) {
-          return;
-        }
         await this.handler();
         processingFinished = true;
       })

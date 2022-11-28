@@ -252,10 +252,15 @@ export class PgStore extends BasePgStore {
    * Gets jobs marked as `queued` in the database.
    * @returns `DbJob[]`
    */
-  async getQueuedJobs(): Promise<DbJob[]> {
+  async getQueuedJobs(args: { excludingIds: number[] }): Promise<DbJob[]> {
     return this.sql<DbJob[]>`
       SELECT * FROM jobs
       WHERE status = 'queued'
+      ${
+        args.excludingIds.length
+          ? this.sql`AND id NOT IN ${this.sql(args.excludingIds)}`
+          : this.sql``
+      }
       ORDER BY updated_at ASC
     `;
   }

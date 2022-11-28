@@ -33,6 +33,8 @@ import { timeout } from '../../pg/postgres-tools/helpers';
 export class JobQueue {
   private readonly queue: PQueue;
   private readonly db: PgStore;
+  /** IDs of jobs currently being processed by the queue. */
+  private jobIds: Set<number>;
 
   constructor(args: { db: PgStore }) {
     this.db = args.db;
@@ -40,6 +42,7 @@ export class JobQueue {
       concurrency: ENV.JOB_QUEUE_CONCURRENCY_LIMIT,
       autoStart: false,
     });
+    this.jobIds = new Set();
   }
 
   /**
@@ -70,10 +73,14 @@ export class JobQueue {
    */
   protected async add(job: DbJob): Promise<void> {
     if (this.queue.size + this.queue.pending >= ENV.JOB_QUEUE_SIZE_LIMIT) {
-      // To avoid backpressure, we won't add this job to the queue. It will be processed later when
+      // To avoid memory errors, we won't add this job to the queue. It will be processed later when
       // the empty queue gets replenished with pending jobs.
       return;
     }
+    if (this.jobIds.has(job.id)) {
+      return;
+    }
+    this.jobIds.add(job.id);
     await this.db.updateJobStatus({ id: job.id, status: DbJobStatus.queued });
     void this.queue.add(async () => {
       if (job.token_id) {
@@ -81,6 +88,7 @@ export class JobQueue {
       } else if (job.smart_contract_id) {
         await new ProcessSmartContractJob({ db: this.db, job: job }).work();
       }
+      this.jobIds.delete(job.id);
     });
   }
 
@@ -92,7 +100,7 @@ export class JobQueue {
     // If the queue is empty but we still have jobs set as `queued`, it means those jobs failed to
     // run or there was a postgres error that couldn't otherwise mark them as completed. We'll try
     // to get them re-processed now before moving on to the rest of the queue.
-    const queued = await this.db.getQueuedJobs();
+    const queued = await this.db.getQueuedJobs({ excludingIds: Array.from(this.jobIds) });
     if (queued.length > 0) {
       for (const job of queued) {
         await this.add(job);
