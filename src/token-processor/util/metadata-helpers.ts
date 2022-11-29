@@ -59,7 +59,10 @@ type RawMetadataLocale = {
   uri: string;
 };
 
-const PUBLIC_IPFS = 'https://ipfs.io';
+enum PublicStorageGateways {
+  ipfs = 'https://ipfs.io',
+  arweave = 'https://arweave.net',
+}
 
 /**
  * Fetches all the localized metadata JSONs for a token. First, it downloads the default metadata
@@ -368,21 +371,25 @@ async function processImageUrl(imgUrl: string): Promise<string> {
 
 /**
  * Helper method for creating http/s url for supported protocols.
- * URLs with `http` or `https` protocols are returned as-is.
- * URLs with `ipfs` or `ipns` protocols are returned with as an `https` url
- * using a public IPFS gateway.
+ * * URLs with `http` or `https` protocols are returned as-is.
+ * * URLs with `ipfs` or `ipns` protocols are returned with as an `https` url using a public IPFS
+ *   gateway.
+ * * URLs with `ar` protocols are returned as `https` using a public Arweave gateway.
  * @param uri - URL to convert
  * @returns Fetchable URL
  */
-function getFetchableUrl(uri: string): URL {
+export function getFetchableUrl(uri: string): URL {
   const parsedUri = new URL(uri);
   if (parsedUri.protocol === 'http:' || parsedUri.protocol === 'https:') return parsedUri;
-  if (parsedUri.protocol === 'ipfs:')
-    return new URL(`${PUBLIC_IPFS}/${parsedUri.host}${parsedUri.pathname}`);
-
-  if (parsedUri.protocol === 'ipns:')
-    return new URL(`${PUBLIC_IPFS}/${parsedUri.host}${parsedUri.pathname}`);
-
+  if (parsedUri.protocol === 'ipfs:') {
+    return new URL(`${PublicStorageGateways.ipfs}/${parsedUri.host}${parsedUri.pathname}`);
+  }
+  if (parsedUri.protocol === 'ipns:') {
+    return new URL(`${PublicStorageGateways.ipfs}/${parsedUri.host}${parsedUri.pathname}`);
+  }
+  if (parsedUri.protocol === 'ar:') {
+    return new URL(`${PublicStorageGateways.arweave}/${parsedUri.host}${parsedUri.pathname}`);
+  }
   throw new MetadataParseError(`Unsupported uri protocol: ${uri}`);
 }
 
