@@ -25,6 +25,9 @@ const RawMetadata = Type.Object(
     attributes: Type.Optional(Type.Any()),
     properties: Type.Optional(Type.Any()),
     localization: Type.Optional(Type.Any()),
+    // Properties below are not SIP-016 compliant.
+    imageUrl: Type.Optional(Type.String()),
+    image_url: Type.Optional(Type.String()),
   },
   { additionalProperties: true }
 );
@@ -147,7 +150,12 @@ async function parseMetadataForInsertion(
       continue;
     }
     // Process image URL with `ENV.METADATA_IMAGE_CACHE_PROCESSOR`.
-    const image = metadata.image ?? defaultInsert?.metadata.image ?? null;
+    const image =
+      metadata.image ??
+      metadata.imageUrl ??
+      metadata.image_url ??
+      defaultInsert?.metadata.image ??
+      null;
     let cachedImage: string | null = null;
     if (image) {
       const normalizedUrl = getImageUrl(image);
