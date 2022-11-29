@@ -120,7 +120,15 @@ export async function fetchAllMetadataLocalesFromBaseUri(
  * @returns token specific uri string
  */
 export function getTokenSpecificUri(uri: string, tokenNumber: number, locale?: string): string {
-  return uri.replace('{id}', tokenNumber.toString()).replace('{locale}', locale ?? '');
+  const tokenNumStr = tokenNumber.toString();
+  const localeStr = locale ?? '';
+  return (
+    uri
+      .replaceAll('{id}', tokenNumStr)
+      .replaceAll('{locale}', localeStr)
+      // Patterns below are not SIP-016 compliant.
+      .replaceAll('$TOKEN_ID', tokenNumStr)
+  );
 }
 
 async function parseMetadataForInsertion(
