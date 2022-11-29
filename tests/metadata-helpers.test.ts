@@ -7,6 +7,7 @@ import {
 import {
   getFetchableUrl,
   getMetadataFromUri,
+  getTokenSpecificUri,
   performSizeAndTimeLimitedMetadataFetch,
 } from '../src/token-processor/util/metadata-helpers';
 
@@ -141,6 +142,23 @@ describe('Metadata Helpers', () => {
     const ipfs = 'ipfs://ipfs/QmPAg1mjxcEQPPtqsLoEcauVedaeMH81WXDPvPx3VC5zUz';
     expect(getFetchableUrl(ipfs).toString()).toBe(
       'https://ipfs.io/ipfs/QmPAg1mjxcEQPPtqsLoEcauVedaeMH81WXDPvPx3VC5zUz'
+    );
+  });
+
+  test('replace URI string tokens', () => {
+    const uri1 =
+      'https://ipfs.io/ipfs/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn/$TOKEN_ID.json';
+    expect(getTokenSpecificUri(uri1, 7)).toBe(
+      'https://ipfs.io/ipfs/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn/7.json'
+    );
+    const uri2 = 'https://ipfs.io/ipfs/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn/{id}.json';
+    expect(getTokenSpecificUri(uri2, 7)).toBe(
+      'https://ipfs.io/ipfs/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn/7.json'
+    );
+    const uri3 =
+      'https://ipfs.io/ipfs/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn/{id}-{locale}.json';
+    expect(getTokenSpecificUri(uri3, 7, 'es')).toBe(
+      'https://ipfs.io/ipfs/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn/7-es.json'
     );
   });
 });

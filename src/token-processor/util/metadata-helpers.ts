@@ -25,6 +25,9 @@ const RawMetadata = Type.Object(
     attributes: Type.Optional(Type.Any()),
     properties: Type.Optional(Type.Any()),
     localization: Type.Optional(Type.Any()),
+    // Properties below are not SIP-016 compliant.
+    imageUrl: Type.Optional(Type.String()),
+    image_url: Type.Optional(Type.String()),
   },
   { additionalProperties: true }
 );
@@ -120,7 +123,15 @@ export async function fetchAllMetadataLocalesFromBaseUri(
  * @returns token specific uri string
  */
 export function getTokenSpecificUri(uri: string, tokenNumber: number, locale?: string): string {
-  return uri.replace('{id}', tokenNumber.toString()).replace('{locale}', locale ?? '');
+  const tokenNumStr = tokenNumber.toString();
+  const localeStr = locale ?? '';
+  return (
+    uri
+      .replaceAll('{id}', tokenNumStr)
+      .replaceAll('{locale}', localeStr)
+      // Patterns below are not SIP-016 compliant.
+      .replaceAll('$TOKEN_ID', tokenNumStr)
+  );
 }
 
 async function parseMetadataForInsertion(
@@ -139,7 +150,12 @@ async function parseMetadataForInsertion(
       continue;
     }
     // Process image URL with `ENV.METADATA_IMAGE_CACHE_PROCESSOR`.
-    const image = metadata.image ?? defaultInsert?.metadata.image ?? null;
+    const image =
+      metadata.image ??
+      metadata.imageUrl ??
+      metadata.image_url ??
+      defaultInsert?.metadata.image ??
+      null;
     let cachedImage: string | null = null;
     if (image) {
       const normalizedUrl = getImageUrl(image);
