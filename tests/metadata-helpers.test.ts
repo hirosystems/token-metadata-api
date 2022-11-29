@@ -5,6 +5,7 @@ import {
   MetadataTimeoutError,
 } from '../src/token-processor/util/errors';
 import {
+  getFetchableUrl,
   getMetadataFromUri,
   performSizeAndTimeLimitedMetadataFetch,
 } from '../src/token-processor/util/metadata-helpers';
@@ -130,5 +131,16 @@ describe('Metadata Helpers', () => {
       expect(attributes[0].trait_type).toBe('Background');
       expect(attributes[0].value).toBe('MM1 Orange');
     }
+  });
+
+  test('get fetchable URLs', () => {
+    const arweave = 'ar://II4z2ziYyqG7-kWDa98lWGfjxRdYOx9Zdld9P_I_kzE/9731.json';
+    expect(getFetchableUrl(arweave).toString()).toBe(
+      'https://arweave.net/II4z2ziYyqG7-kWDa98lWGfjxRdYOx9Zdld9P_I_kzE/9731.json'
+    );
+    const ipfs = 'ipfs://ipfs/QmPAg1mjxcEQPPtqsLoEcauVedaeMH81WXDPvPx3VC5zUz';
+    expect(getFetchableUrl(ipfs).toString()).toBe(
+      'https://ipfs.io/ipfs/QmPAg1mjxcEQPPtqsLoEcauVedaeMH81WXDPvPx3VC5zUz'
+    );
   });
 });
