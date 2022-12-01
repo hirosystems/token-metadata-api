@@ -56,20 +56,37 @@ export class PgBlockchainApiStore extends BasePgStore {
     `.cursor();
   }
 
-  getContractLogsCursor(args: {
-    afterBlockHeight: number;
-  }): AsyncIterable<BlockchainDbContractLog[]> {
-    return this.sql<BlockchainDbContractLog[]>`
-      SELECT l.contract_identifier, l.value, t.sender_address
-      FROM txs AS t 
-      INNER JOIN contract_logs AS l ON l.tx_id = t.tx_id
-      WHERE
-        t.type_id = 2
-        AND t.canonical = TRUE
-        AND t.microblock_canonical = TRUE
-        AND t.block_height >= ${args.afterBlockHeight}
-        AND l.topic = 'print'
-      ORDER BY t.block_height DESC
-    `.cursor();
+  async getSmartContract(args: {
+    contractId: string;
+  }): Promise<BlockchainDbSmartContract | undefined> {
+    const result = await this.sql<BlockchainDbSmartContract[]>`
+      SELECT contract_id, tx_id, block_height, microblock_sequence, abi
+      FROM smart_contracts
+      WHERE contract_id = ${args.contractId}
+      ORDER BY abi != 'null' DESC, canonical DESC, microblock_canonical DESC, block_height DESC
+      LIMIT 1
+    `;
+    if (result.count) {
+      return result[0];
+    }
+  }
+
+  async getSmartContractLog(args: {
+    txId: string;
+    eventIndex: number;
+  }): Promise<BlockchainDbContractLog | undefined> {
+    const result = await this.sql<BlockchainDbContractLog[]>`
+      SELECT contract_identifier, value, sender_address
+      FROM contract_logs
+      WHERE canonical = TRUE
+        AND microblock_canonical = true
+        AND tx_id = ${args.txId}
+        AND event_index = ${args.eventIndex}
+      ORDER BY block_height DESC, microblock_sequence DESC, tx_index DESC, event_index DESC
+      LIMIT 1
+    `;
+    if (result.count) {
+      return result[0];
+    }
   }
 }

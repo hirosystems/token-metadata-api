@@ -292,33 +292,26 @@ export class PgStore extends BasePgStore {
       }
       const contractId = contractResult[0].id;
 
-      if (args.notification.token_class === 'nft') {
-        if (!args.notification.token_ids) {
-          // If this is an NFT update and no token ids were specified, simply re-queue the complete
-          // contract to refresh all tokens.
+      switch (args.notification.token_class) {
+        case 'nft':
+          const tokenIds = args.notification.token_ids ?? [];
+          await sql`
+            UPDATE jobs
+            SET status = 'pending', updated_at = NOW()
+            WHERE token_id IN (
+              SELECT id FROM tokens
+              WHERE smart_contract_id = ${contractId}
+              ${tokenIds.length ? sql`AND token_number IN ${sql(tokenIds)}` : sql``}
+            )
+          `;
+          break;
+        case 'ft':
           await sql`
             UPDATE jobs
             SET status = 'pending', updated_at = NOW()
             WHERE smart_contract_id = ${contractId}
           `;
-        } else {
-          // FIXME: Enqueue each specified token id otherwise.
-          const insertValues: DbTokenInsert[] = args.notification.token_ids.map(i => ({
-            smart_contract_id: contractId,
-            token_number: i,
-            type: DbTokenType.nft,
-          }));
-          this.getInsertAndEnqueueTokensCursorInternal(insertValues);
-        }
-      } else if (args.notification.token_class === 'ft') {
-        // FIXME: Enqueue the only token for FTs.
-        this.getInsertAndEnqueueTokensCursorInternal([
-          {
-            smart_contract_id: contractId,
-            token_number: 1,
-            type: DbTokenType.ft,
-          },
-        ]);
+          break;
       }
     });
   }
