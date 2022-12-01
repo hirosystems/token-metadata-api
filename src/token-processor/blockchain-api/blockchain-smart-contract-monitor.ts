@@ -117,7 +117,9 @@ export class BlockchainSmartContractMonitor {
     }
     await this.db.enqueueTokenMetadataUpdateNotification({ notification });
     console.info(
-      `BlockchainSmartContractMonitor detected SIP-019 notification for ${notification.contract_id} ${notification.token_ids}`
+      `BlockchainSmartContractMonitor detected SIP-019 notification for ${
+        notification.contract_id
+      } ${notification.token_ids ?? []}`
     );
   }
 }

@@ -253,8 +253,10 @@ function findFunction(fun: ClarityAbiFunction, functionList: ClarityAbiFunction[
   return found !== undefined;
 }
 
+type TokenClass = 'ft' | 'nft' | 'sft';
+
 export type TokenMetadataUpdateNotification = {
-  token_class: string;
+  token_class: TokenClass;
   contract_id: string;
   token_ids?: number[];
 };
@@ -315,7 +317,7 @@ export function getContractLogMetadataUpdateNotification(
     }
 
     return {
-      token_class: tokenClass,
+      token_class: tokenClass as TokenClass,
       contract_id: contractId,
       token_ids: tokenIds,
     };
