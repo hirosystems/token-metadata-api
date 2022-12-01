@@ -17,11 +17,11 @@ const PgNotificationCType = TypeCompiler.Compile(PgNotification);
 
 const PgSmartContractPayload = Type.Object({ contractId: Type.String() });
 const PgSmartContractPayloadCType = TypeCompiler.Compile(PgSmartContractPayload);
-type PgSmartContractPayloadType = Static<typeof PgSmartContractPayload>;
+export type PgSmartContractPayloadType = Static<typeof PgSmartContractPayload>;
 
 const PgSmartContractLogPayload = Type.Object({ txId: Type.String(), eventIndex: Type.Integer() });
 const PgSmartContractPayloadLogCType = TypeCompiler.Compile(PgSmartContractLogPayload);
-type PgSmartContractPayloadLogType = Static<typeof PgSmartContractLogPayload>;
+export type PgSmartContractPayloadLogType = Static<typeof PgSmartContractLogPayload>;
 
 /**
  * Listens for postgres notifications emitted from the API database when new contracts are deployed
@@ -63,12 +63,20 @@ export class BlockchainSmartContractMonitor {
       switch (messageJson.type) {
         case 'smartContractUpdate':
           if (PgSmartContractPayloadCType.Check(messageJson.payload)) {
-            await this.handleSmartContract(messageJson.payload);
+            try {
+              await this.handleSmartContract(messageJson.payload);
+            } catch (error) {
+              console.error(`BlockchainSmartContractMonitor error handling contract deploy`, error);
+            }
           }
           break;
         case 'smartContractLogUpdate':
           if (PgSmartContractPayloadLogCType.Check(messageJson.payload)) {
-            await this.handleSmartContractLog(messageJson.payload);
+            try {
+              await this.handleSmartContractLog(messageJson.payload);
+            } catch (error) {
+              console.error(`BlockchainSmartContractMonitor error handling contract log`, error);
+            }
           }
           break;
         default:
@@ -77,7 +85,7 @@ export class BlockchainSmartContractMonitor {
     }
   }
 
-  private async handleSmartContract(payload: PgSmartContractPayloadType) {
+  protected async handleSmartContract(payload: PgSmartContractPayloadType) {
     const contract = await this.apiDb.getSmartContract({ ...payload });
     if (!contract) {
       return;
@@ -98,7 +106,7 @@ export class BlockchainSmartContractMonitor {
     console.info(`BlockchainSmartContractMonitor detected (${sip}): ${contract.contract_id}`);
   }
 
-  private async handleSmartContractLog(payload: PgSmartContractPayloadLogType) {
+  protected async handleSmartContractLog(payload: PgSmartContractPayloadLogType) {
     const event = await this.apiDb.getSmartContractLog({ ...payload });
     if (!event) {
       return;

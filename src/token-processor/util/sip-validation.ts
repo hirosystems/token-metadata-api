@@ -218,9 +218,9 @@ const SftTraitFunctions: ClarityAbiFunction[] = [
  * @param abi - Contract abi
  * @returns SIP or false
  */
-export function getSmartContractSip(abi: ClarityAbi): DbSipNumber | false {
+export function getSmartContractSip(abi: ClarityAbi): DbSipNumber | undefined {
   if (!abi) {
-    return false;
+    return;
   }
   // TODO: Will stacks.js support SFTs?
   if (abiContains(abi, SftTraitFunctions)) {
@@ -232,7 +232,7 @@ export function getSmartContractSip(abi: ClarityAbi): DbSipNumber | false {
   if (abi.fungible_tokens.length > 0 && abiContains(abi, FtTraitFunctions)) {
     return DbSipNumber.sip010;
   }
-  return false;
+  return;
 }
 
 function abiContains(abi: ClarityAbi, standardFunction: ClarityAbiFunction[]): boolean {
