@@ -3,10 +3,12 @@ import {
   ClarityAbi,
   ClarityAbiFunction,
   ClarityType,
+  ClarityValue,
   hexToCV,
   TupleCV,
   UIntCV,
 } from '@stacks/transactions';
+import { principalToString } from '@stacks/transactions/dist/clarity/types/principalCV';
 import { BlockchainDbContractLog } from '../../pg/blockchain-api/pg-blockchain-api-store';
 import { DbSipNumber } from '../../pg/types';
 
@@ -263,19 +265,34 @@ export type TokenMetadataUpdateNotification = {
  */
 export function getContractLogMetadataUpdateNotification(
   log: BlockchainDbContractLog
-): TokenMetadataUpdateNotification | false {
+): TokenMetadataUpdateNotification | undefined {
+  const stringFromValue = (value: ClarityValue): string => {
+    switch (value.type) {
+      case ClarityType.Buffer:
+        return value.buffer.toString('utf8');
+      case ClarityType.StringASCII:
+      case ClarityType.StringUTF8:
+        return value.data;
+      case ClarityType.PrincipalContract:
+      case ClarityType.PrincipalStandard:
+        return principalToString(value);
+      default:
+        throw new Error('Invalid clarity value');
+    }
+  };
+
   try {
     // Validate that we have the correct SIP-019 payload structure.
     const value = hexToCV(log.value) as TupleCV;
-    const notification = (value.data.notification as BufferCV).buffer.toString('utf8');
+    const notification = stringFromValue(value.data.notification);
     if (notification !== 'token-metadata-update') {
-      return false;
+      return;
     }
     const payload = value.data.payload as TupleCV;
-    const contractId = (payload.data['contract-id'] as BufferCV).buffer.toString('utf8');
-    const tokenClass = (payload.data['token-class'] as BufferCV).buffer.toString('utf8');
+    const contractId = stringFromValue(payload.data['contract-id']);
+    const tokenClass = stringFromValue(payload.data['token-class']);
     if (!['ft', 'nft'].includes(tokenClass)) {
-      return false;
+      return;
     }
 
     // From SIP-019:
@@ -285,7 +302,7 @@ export function getContractLogMetadataUpdateNotification(
     // notification's payload.contract-id (i.e., the STX address that sent the transaction which
     // emits the notification should match the owner of the token contract being updated).
     if (contractId !== log.contract_identifier && log.sender_address !== contractId.split('.')[0]) {
-      return false;
+      return;
     }
 
     // Only NFT notifications provide token ids.
@@ -303,6 +320,6 @@ export function getContractLogMetadataUpdateNotification(
       token_ids: tokenIds,
     };
   } catch (error) {
-    return false;
+    return;
   }
 }

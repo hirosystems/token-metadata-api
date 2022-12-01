@@ -28,11 +28,14 @@ async function initApp() {
     },
   });
 
-  // const contractMonitor = new BlockchainSmartContractMonitor({
-  //   db: pgStore,
-  //   apiDb: pgBlockchainStore
-  // });
-  // contractMonitor.start();
+  const contractMonitor = new BlockchainSmartContractMonitor({ db, apiDb });
+  registerShutdownConfig({
+    name: 'Contract Monitor',
+    forceKillable: false,
+    handler: async () => {
+      await contractMonitor.stop();
+    },
+  });
 
   const jobQueue = new JobQueue({ db });
   registerShutdownConfig({
@@ -70,6 +73,7 @@ async function initApp() {
   // Start services in order.
   await contractImporter.import();
   jobQueue.start();
+  await contractMonitor.start();
   await apiServer.listen({ host: ENV.API_HOST, port: ENV.API_PORT });
 }
 

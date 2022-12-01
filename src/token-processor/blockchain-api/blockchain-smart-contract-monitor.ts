@@ -1,9 +1,33 @@
 import * as postgres from 'postgres';
 import { PgStore } from '../../pg/pg-store';
 import { PgBlockchainApiStore } from '../../pg/blockchain-api/pg-blockchain-api-store';
-import { getSmartContractSip } from '../util/sip-validation';
+import {
+  getContractLogMetadataUpdateNotification,
+  getSmartContractSip,
+} from '../util/sip-validation';
 import { ClarityAbi } from '@stacks/transactions';
+import { Static, Type } from '@sinclair/typebox';
+import { TypeCompiler } from '@sinclair/typebox/compiler';
 
+const PgNotification = Type.Object({
+  type: Type.String(),
+  payload: Type.Object({}, { additionalProperties: true }),
+});
+const PgNotificationCType = TypeCompiler.Compile(PgNotification);
+
+const PgSmartContractPayload = Type.Object({ contractId: Type.String() });
+const PgSmartContractPayloadCType = TypeCompiler.Compile(PgSmartContractPayload);
+type PgSmartContractPayloadType = Static<typeof PgSmartContractPayload>;
+
+const PgSmartContractLogPayload = Type.Object({ txId: Type.String(), eventIndex: Type.Integer() });
+const PgSmartContractPayloadLogCType = TypeCompiler.Compile(PgSmartContractLogPayload);
+type PgSmartContractPayloadLogType = Static<typeof PgSmartContractLogPayload>;
+
+/**
+ * Listens for postgres notifications emitted from the API database when new contracts are deployed
+ * or contract logs are registered. It will analyze each of them to determine if they're new token
+ * contracts that need indexing or SIP-019 notifications that call for a token metadata refresh.
+ */
 export class BlockchainSmartContractMonitor {
   private readonly db: PgStore;
   private readonly apiDb: PgBlockchainApiStore;
@@ -19,10 +43,10 @@ export class BlockchainSmartContractMonitor {
       this.listener = await this.apiDb.sql.listen(
         'stacks-api-pg-notifier',
         message => void this.handleMessage(message),
-        () => console.info(`PgBlockchainSmartContractMonitor connected`)
+        () => console.info(`BlockchainSmartContractMonitor connected`)
       );
     } catch (error) {
-      console.error(`PgBlockchainSmartContractMonitor unable to connect`, error);
+      console.error(`BlockchainSmartContractMonitor unable to connect`, error);
       throw error;
     }
   }
@@ -30,56 +54,62 @@ export class BlockchainSmartContractMonitor {
   async stop() {
     await this.listener
       ?.unlisten()
-      .then(() => console.info(`PgBlockchainSmartContractMonitor connection closed`));
+      .then(() => console.info(`BlockchainSmartContractMonitor connection closed`));
   }
 
   private async handleMessage(message: string) {
     const messageJson = JSON.parse(message);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    switch (messageJson.type) {
-      case 'smartContractUpdate':
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        await this.handleSmartContract(messageJson.payload);
-        break;
-      case 'smartContractLogUpdate':
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        this.handleSmartContractLog(messageJson.payload);
-        break;
-      default:
-        break;
+    if (PgNotificationCType.Check(messageJson)) {
+      switch (messageJson.type) {
+        case 'smartContractUpdate':
+          if (PgSmartContractPayloadCType.Check(messageJson.payload)) {
+            await this.handleSmartContract(messageJson.payload);
+          }
+          break;
+        case 'smartContractLogUpdate':
+          if (PgSmartContractPayloadLogCType.Check(messageJson.payload)) {
+            await this.handleSmartContractLog(messageJson.payload);
+          }
+          break;
+        default:
+          break;
+      }
     }
   }
 
-  private async handleSmartContract(payload: any) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    const sip = getSmartContractSip(payload.abi as ClarityAbi);
+  private async handleSmartContract(payload: PgSmartContractPayloadType) {
+    const contract = await this.apiDb.getSmartContract({ ...payload });
+    if (!contract) {
+      return;
+    }
+    const sip = getSmartContractSip(contract.abi as ClarityAbi);
     if (!sip) {
       return; // Not a token contract.
     }
     await this.db.insertAndEnqueueSmartContract({
       values: {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        principal: payload.contract_id,
+        principal: contract.contract_id,
         sip: sip,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        abi: JSON.stringify(payload.abi),
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        tx_id: payload.tx_id,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        block_height: payload.block_height,
+        abi: JSON.stringify(contract.abi),
+        tx_id: contract.tx_id,
+        block_height: contract.block_height,
       },
     });
-    console.info(
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      `BlockchainSmartContractMonitor detected (${sip}): ${payload.contract_id as string}`
-    );
+    console.info(`BlockchainSmartContractMonitor detected (${sip}): ${contract.contract_id}`);
   }
 
-  private handleSmartContractLog(payload: any) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    if (payload.topic !== 'print' && payload.value.notification !== 'token-metadata-update') {
+  private async handleSmartContractLog(payload: PgSmartContractPayloadLogType) {
+    const event = await this.apiDb.getSmartContractLog({ ...payload });
+    if (!event) {
       return;
     }
-    // const
+    const notification = getContractLogMetadataUpdateNotification(event);
+    if (!notification) {
+      return; // Not a valid SIP-019 notification.
+    }
+    await this.db.enqueueTokenMetadataUpdateNotification({ notification });
+    console.info(
+      `BlockchainSmartContractMonitor detected SIP-019 notification for ${notification.contract_id} ${notification.token_ids}`
+    );
   }
 }
