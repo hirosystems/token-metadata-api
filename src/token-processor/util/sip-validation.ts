@@ -309,7 +309,7 @@ export function getContractLogMetadataUpdateNotification(
     let tokenIds: number[] | undefined;
     if (tokenClass === 'nft') {
       const tokenIdList = payload.data['token-ids'];
-      if (tokenIdList.type === ClarityType.List) {
+      if (tokenIdList && tokenIdList.type === ClarityType.List) {
         tokenIds = tokenIdList.list.map(i => Number((i as UIntCV).value));
       }
     }
