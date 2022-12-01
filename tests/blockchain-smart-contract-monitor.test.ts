@@ -6,10 +6,7 @@ import {
 } from '../src/pg/blockchain-api/pg-blockchain-api-store';
 import { PgStore } from '../src/pg/pg-store';
 import { DbSipNumber } from '../src/pg/types';
-import {
-  BlockchainSmartContractMonitor,
-  PgSmartContractPayloadType,
-} from '../src/token-processor/blockchain-api/blockchain-smart-contract-monitor';
+import { BlockchainSmartContractMonitor } from '../src/token-processor/blockchain-api/blockchain-smart-contract-monitor';
 import { cycleMigrations } from './helpers';
 
 const NftAbi = {
@@ -177,8 +174,8 @@ class TestPgBlockchainApiStore extends PgBlockchainApiStore {
 }
 
 class TestBlockchainMonitor extends BlockchainSmartContractMonitor {
-  public async testHandleSmartContract(payload: PgSmartContractPayloadType) {
-    return this.handleSmartContract(payload);
+  public async testHandleMessage(message: string) {
+    return this.handleMessage(message);
   }
 }
 
@@ -204,9 +201,14 @@ describe('BlockchainSmartContractMonitor', () => {
     };
     const apiDb = new TestPgBlockchainApiStore(contract);
     const monitor = new TestBlockchainMonitor({ db, apiDb });
-    await monitor.testHandleSmartContract({
-      contractId: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft',
-    });
+    await monitor.testHandleMessage(
+      JSON.stringify({
+        type: 'smartContractUpdate',
+        payload: {
+          contractId: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft',
+        },
+      })
+    );
 
     const dbContract = await db.getSmartContract({ id: 1 });
     expect(dbContract?.sip).toBe(DbSipNumber.sip009);
@@ -226,9 +228,14 @@ describe('BlockchainSmartContractMonitor', () => {
     };
     const apiDb = new TestPgBlockchainApiStore(contract);
     const monitor = new TestBlockchainMonitor({ db, apiDb });
-    await monitor.testHandleSmartContract({
-      contractId: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft',
-    });
+    await monitor.testHandleMessage(
+      JSON.stringify({
+        type: 'smartContractUpdate',
+        payload: {
+          contractId: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft',
+        },
+      })
+    );
 
     const dbContract = await db.getSmartContract({ id: 1 });
     expect(dbContract).toBeUndefined();

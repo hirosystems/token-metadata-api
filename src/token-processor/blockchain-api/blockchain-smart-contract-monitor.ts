@@ -17,11 +17,11 @@ const PgNotificationCType = TypeCompiler.Compile(PgNotification);
 
 const PgSmartContractPayload = Type.Object({ contractId: Type.String() });
 const PgSmartContractPayloadCType = TypeCompiler.Compile(PgSmartContractPayload);
-export type PgSmartContractPayloadType = Static<typeof PgSmartContractPayload>;
+type PgSmartContractPayloadType = Static<typeof PgSmartContractPayload>;
 
 const PgSmartContractLogPayload = Type.Object({ txId: Type.String(), eventIndex: Type.Integer() });
 const PgSmartContractPayloadLogCType = TypeCompiler.Compile(PgSmartContractLogPayload);
-export type PgSmartContractPayloadLogType = Static<typeof PgSmartContractLogPayload>;
+type PgSmartContractPayloadLogType = Static<typeof PgSmartContractLogPayload>;
 
 /**
  * Listens for postgres notifications emitted from the API database when new contracts are deployed
@@ -57,7 +57,7 @@ export class BlockchainSmartContractMonitor {
       .then(() => console.info(`BlockchainSmartContractMonitor connection closed`));
   }
 
-  private async handleMessage(message: string) {
+  protected async handleMessage(message: string) {
     const messageJson = JSON.parse(message);
     if (PgNotificationCType.Check(messageJson)) {
       switch (messageJson.type) {
@@ -85,7 +85,7 @@ export class BlockchainSmartContractMonitor {
     }
   }
 
-  protected async handleSmartContract(payload: PgSmartContractPayloadType) {
+  private async handleSmartContract(payload: PgSmartContractPayloadType) {
     const contract = await this.apiDb.getSmartContract({ ...payload });
     if (!contract) {
       return;
@@ -106,7 +106,7 @@ export class BlockchainSmartContractMonitor {
     console.info(`BlockchainSmartContractMonitor detected (${sip}): ${contract.contract_id}`);
   }
 
-  protected async handleSmartContractLog(payload: PgSmartContractPayloadLogType) {
+  private async handleSmartContractLog(payload: PgSmartContractPayloadLogType) {
     const event = await this.apiDb.getSmartContractLog({ ...payload });
     if (!event) {
       return;
