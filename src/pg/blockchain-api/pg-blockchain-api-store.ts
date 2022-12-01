@@ -56,23 +56,6 @@ export class PgBlockchainApiStore extends BasePgStore {
     `.cursor();
   }
 
-  getContractLogsCursor(args: {
-    afterBlockHeight: number;
-  }): AsyncIterable<BlockchainDbContractLog[]> {
-    return this.sql<BlockchainDbContractLog[]>`
-      SELECT l.contract_identifier, l.value, t.sender_address
-      FROM txs AS t 
-      INNER JOIN contract_logs AS l ON l.tx_id = t.tx_id
-      WHERE
-        t.type_id = 2
-        AND t.canonical = TRUE
-        AND t.microblock_canonical = TRUE
-        AND t.block_height >= ${args.afterBlockHeight}
-        AND l.topic = 'print'
-      ORDER BY t.block_height DESC
-    `.cursor();
-  }
-
   async getSmartContract(args: {
     contractId: string;
   }): Promise<BlockchainDbSmartContract | undefined> {

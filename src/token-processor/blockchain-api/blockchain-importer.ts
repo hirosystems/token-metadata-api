@@ -50,12 +50,6 @@ export class BlockchainImporter {
       try {
         const afterBlockHeight = (await this.db.getSmartContractsMaxBlockHeight()) ?? 1;
         await this.importSmartContracts(afterBlockHeight);
-        // If this is not the initial import, we should get all the token metadata update notifications
-        // that happened while we were away so we may refresh tokens from contracts that we had already
-        // imported before.
-        if (afterBlockHeight > 1) {
-          // await this.importTokenMetadataUpdateNotifications(afterBlockHeight);
-        }
         this.importFinished = true;
       } catch (error) {
         if (isPgConnectionError(error)) {
@@ -113,35 +107,5 @@ export class BlockchainImporter {
       },
     });
     console.info(`BlockchainImporter detected token contract (${sip}): ${contract.contract_id}`);
-  }
-
-  /**
-   * Scans the `contract_logs` table on the Stacks Blockchain API database looking for SIP-019
-   * notifications we might have missed since the last service run. If found, enqueue those tokens
-   * for processing.
-   * @param afterBlockHeight - Minimum block height
-   */
-  private async importTokenMetadataUpdateNotifications(afterBlockHeight: number) {
-    console.info(
-      `BlockchainImporter token metadata notification import starting at block height ${afterBlockHeight}`
-    );
-    const cursor = this.apiDb.getContractLogsCursor({ afterBlockHeight });
-    for await (const rows of cursor) {
-      for (const row of rows) {
-        const notification = getContractLogMetadataUpdateNotification(row);
-        if (!notification) {
-          continue; // Not a valid SIP-019 notification.
-        }
-        console.info(
-          `BlockchainImporter detected metadata update notification for: ${notification.contract_id}`
-        );
-        try {
-          await this.db.enqueueTokenMetadataUpdateNotification({ notification });
-        } catch (error) {
-          console.error(`BlockchainImporter unable to update metadata from notification`, error);
-        }
-      }
-    }
-    console.info(`BlockchainImporter token metadata notification import finished`);
   }
 }
