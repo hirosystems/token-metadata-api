@@ -53,7 +53,7 @@ interface Env {
 
   /**
    * Base URL for a public gateway which will provide access to all IPFS resources. Defaults to
-   * `https://cloudflare-ipfs.com`.
+   * `https://cloudflare-ipfs.com/ipfs`.
    */
   PUBLIC_GATEWAY_IPFS: string;
   /**
