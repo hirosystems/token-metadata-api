@@ -67,7 +67,7 @@ export abstract class Job {
         }
       } else {
         // Something more serious happened, mark this token as failed.
-        console.error(`Job error: ${error}`);
+        console.error(`Job ${this.description()}: ${error}`);
         processingFinished = true;
         finishedWithError = true;
       }
