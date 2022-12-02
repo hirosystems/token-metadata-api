@@ -62,11 +62,6 @@ type RawMetadataLocale = {
   uri: string;
 };
 
-enum PublicStorageGateways {
-  ipfs = 'https://ipfs.io',
-  arweave = 'https://arweave.net',
-}
-
 /**
  * Fetches all the localized metadata JSONs for a token. First, it downloads the default metadata
  * JSON and parses it looking for other localizations. If those are found, each of them is then
@@ -398,13 +393,14 @@ export function getFetchableUrl(uri: string): URL {
   const parsedUri = new URL(uri);
   if (parsedUri.protocol === 'http:' || parsedUri.protocol === 'https:') return parsedUri;
   if (parsedUri.protocol === 'ipfs:') {
-    return new URL(`${PublicStorageGateways.ipfs}/${parsedUri.host}${parsedUri.pathname}`);
+    const host = parsedUri.host === 'ipfs' ? 'ipfs' : `ipfs/${parsedUri.host}`;
+    return new URL(`${ENV.PUBLIC_GATEWAY_IPFS}/${host}${parsedUri.pathname}`);
   }
   if (parsedUri.protocol === 'ipns:') {
-    return new URL(`${PublicStorageGateways.ipfs}/${parsedUri.host}${parsedUri.pathname}`);
+    return new URL(`${ENV.PUBLIC_GATEWAY_IPFS}/${parsedUri.host}${parsedUri.pathname}`);
   }
   if (parsedUri.protocol === 'ar:') {
-    return new URL(`${PublicStorageGateways.arweave}/${parsedUri.host}${parsedUri.pathname}`);
+    return new URL(`${ENV.PUBLIC_GATEWAY_ARWEAVE}/${parsedUri.host}${parsedUri.pathname}`);
   }
   throw new MetadataParseError(`Unsupported uri protocol: ${uri}`);
 }

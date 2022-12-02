@@ -50,6 +50,17 @@ interface Env {
   JOB_QUEUE_CONCURRENCY_LIMIT: number;
   JOB_QUEUE_SIZE_LIMIT: number;
   JOB_QUEUE_MAX_RETRIES: number;
+
+  /**
+   * Base URL for a public gateway which will provide access to all IPFS resources. Defaults to
+   * `https://cloudflare-ipfs.com`.
+   */
+  PUBLIC_GATEWAY_IPFS: string;
+  /**
+   * Base URL for a public gateway which will provide access to all Arweave resources. Defaults to
+   * `https://arweave.net`.
+   */
+  PUBLIC_GATEWAY_ARWEAVE: string;
 }
 
 export function getEnvVars(): Env {
@@ -70,6 +81,8 @@ export function getEnvVars(): Env {
       'BLOCKCHAIN_API_PGDATABASE',
       'STACKS_NODE_RPC_HOST',
       'STACKS_NODE_RPC_PORT',
+      'PUBLIC_GATEWAY_IPFS',
+      'PUBLIC_GATEWAY_ARWEAVE',
     ],
     properties: {
       API_HOST: {
@@ -175,6 +188,14 @@ export function getEnvVars(): Env {
       JOB_QUEUE_SIZE_LIMIT: {
         type: 'number',
         default: 200,
+      },
+      PUBLIC_GATEWAY_IPFS: {
+        type: 'string',
+        default: 'https://cloudflare-ipfs.com',
+      },
+      PUBLIC_GATEWAY_ARWEAVE: {
+        type: 'string',
+        default: 'https://arweave.net',
       },
     },
   };
