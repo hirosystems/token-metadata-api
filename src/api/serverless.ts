@@ -1,6 +1,9 @@
+import * as dotenv from 'dotenv';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import Fastify from 'fastify';
 import { Api } from './init';
+
+dotenv.config();
 
 const fastify = Fastify({
   trustProxy: true,
@@ -8,8 +11,9 @@ const fastify = Fastify({
   maxParamLength: 1048576, // 1MB
 }).withTypeProvider<TypeBoxTypeProvider>();
 
+void fastify.register(Api);
+
 export default async (req: any, res: any) => {
-  await fastify.register(Api);
   await fastify.ready();
   fastify.server.emit('request', req, res);
 };
