@@ -35,6 +35,7 @@ export class JobQueue {
   private readonly db: PgStore;
   /** IDs of jobs currently being processed by the queue. */
   private jobIds: Set<number>;
+  private isRunning = false;
 
   constructor(args: { db: PgStore }) {
     this.db = args.db;
@@ -51,18 +52,19 @@ export class JobQueue {
    */
   start() {
     console.log(`JobQueue starting queue...`);
+    this.isRunning = true;
     this.queue.start();
     void this.runQueueLoop();
   }
 
   /**
-   * Shuts down the queue by clearing it and waiting for its current work to be complete.
+   * Shuts down the queue and waits for its current work to be complete.
    */
   async close() {
     console.log(`JobQueue closing, waiting on ${this.queue.pending} jobs to finish...`);
-    this.queue.clear();
-    this.queue.pause();
+    this.isRunning = false;
     await this.queue.onIdle();
+    this.queue.pause();
   }
 
   /**
@@ -72,12 +74,11 @@ export class JobQueue {
    * @param job - A row from the `jobs` DB table that needs processing
    */
   protected async add(job: DbJob): Promise<void> {
-    if (this.queue.size + this.queue.pending >= ENV.JOB_QUEUE_SIZE_LIMIT) {
-      // To avoid memory errors, we won't add this job to the queue. It will be processed later when
-      // the empty queue gets replenished with pending jobs.
-      return;
-    }
-    if (this.jobIds.has(job.id)) {
+    if (
+      !this.isRunning ||
+      this.jobIds.has(job.id) ||
+      this.queue.size + this.queue.pending >= ENV.JOB_QUEUE_SIZE_LIMIT
+    ) {
       return;
     }
     this.jobIds.add(job.id);
@@ -124,7 +125,7 @@ export class JobQueue {
    * processing, repeating this cycle until the jobs table is completely processed.
    */
   private async runQueueLoop() {
-    while (!this.queue.isPaused) {
+    while (this.isRunning) {
       try {
         const loadedJobs = await this.addJobBatch();
         if (loadedJobs === 0) {
