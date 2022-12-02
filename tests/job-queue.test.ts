@@ -5,11 +5,14 @@ import { JobQueue } from '../src/token-processor/queue/job-queue';
 import { cycleMigrations } from './helpers';
 
 class TestJobQueue extends JobQueue {
+  constructor(args: { db: PgStore }) {
+    super(args);
+    this['isRunning'] = true; // Simulate a running queue.
+  }
   async testAdd(job: DbJob): Promise<void> {
     return this.add(job);
   }
   async testAddJobBatch(): Promise<number> {
-    this['isRunning'] = true; // Simulate a running queue.
     return this.addJobBatch();
   }
 }
