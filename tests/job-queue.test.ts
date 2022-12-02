@@ -9,6 +9,7 @@ class TestJobQueue extends JobQueue {
     return this.add(job);
   }
   async testAddJobBatch(): Promise<number> {
+    this['isRunning'] = true; // Simulate a running queue.
     return this.addJobBatch();
   }
 }
