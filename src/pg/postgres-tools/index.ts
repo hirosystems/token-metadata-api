@@ -1,4 +1,5 @@
 import * as postgres from 'postgres';
+import { logger } from '../../logger';
 import { isPgConnectionError } from './errors';
 import { stopwatch, timeout } from './helpers';
 import { PG_TYPE_MAPPINGS } from './types';
@@ -58,12 +59,12 @@ export async function connectPostgres({
         const timeElapsed = initTimer.getElapsed();
         if (timeElapsed - lastElapsedLog > 2000) {
           lastElapsedLog = timeElapsed;
-          console.error(`Pg connection failed: ${error}, retrying..`);
+          logger.error(`Pg connection failed: ${error}, retrying..`);
         }
         connectionError = error;
         await timeout(100);
       } else {
-        console.error('Cannot connect to pg', error);
+        logger.error('Cannot connect to pg', error);
         throw error;
       }
     } finally {

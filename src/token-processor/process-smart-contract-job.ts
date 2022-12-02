@@ -3,6 +3,7 @@ import {
   makeRandomPrivKey,
   TransactionVersion,
 } from '@stacks/transactions';
+import { logger } from '../logger';
 import { DbSipNumber, DbSmartContract } from '../pg/types';
 import { Job } from './queue/job';
 import { StacksNodeRpcClient } from './stacks-node/stacks-node-rpc-client';
@@ -66,7 +67,7 @@ export class ProcessSmartContractJob extends Job {
       return;
     }
     await this.db.updateSmartContractTokenCount({ id: contract.id, count: tokenCount });
-    console.info(
+    logger.info(
       `ProcessSmartContractJob enqueueing ${tokenCount} tokens for ${this.description()}`
     );
     const cursor = this.db.getInsertAndEnqueueTokensCursor({

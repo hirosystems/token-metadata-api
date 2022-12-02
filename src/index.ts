@@ -10,6 +10,7 @@ import { BlockchainSmartContractMonitor } from './token-processor/blockchain-api
 import { TokenProcessorMetrics } from './token-processor/token-processor-metrics';
 import { registerShutdownConfig } from './shutdown-handler';
 import { ENV } from './env';
+import { logger } from './logger';
 
 async function initApp() {
   const db = await PgStore.connect({ skipMigrations: false });
@@ -80,13 +81,13 @@ async function initApp() {
 registerShutdownConfig();
 initApp()
   .then(() => {
-    console.info('App initialized');
+    logger.info('App initialized');
   })
   .catch(error => {
     if (error instanceof SmartContractImportInterruptedError) {
       // SIGINT/SIGTERM while contract importer was running, ignore.
       return;
     }
-    console.error(`App failed to start`, error);
+    logger.error(`App failed to start`, error);
     process.exit(1);
   });
