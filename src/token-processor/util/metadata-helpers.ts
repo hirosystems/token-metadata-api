@@ -393,7 +393,8 @@ export function getFetchableUrl(uri: string): URL {
   const parsedUri = new URL(uri);
   if (parsedUri.protocol === 'http:' || parsedUri.protocol === 'https:') return parsedUri;
   if (parsedUri.protocol === 'ipfs:') {
-    return new URL(`${ENV.PUBLIC_GATEWAY_IPFS}/${parsedUri.host}${parsedUri.pathname}`);
+    const host = parsedUri.host === 'ipfs' ? 'ipfs' : `ipfs/${parsedUri.host}`;
+    return new URL(`${ENV.PUBLIC_GATEWAY_IPFS}/${host}${parsedUri.pathname}`);
   }
   if (parsedUri.protocol === 'ipns:') {
     return new URL(`${ENV.PUBLIC_GATEWAY_IPFS}/${parsedUri.host}${parsedUri.pathname}`);

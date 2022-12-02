@@ -53,7 +53,7 @@ interface Env {
 
   /**
    * Base URL for a public gateway which will provide access to all IPFS resources. Defaults to
-   * `https://cloudflare-ipfs.com/ipfs`.
+   * `https://cloudflare-ipfs.com`.
    */
   PUBLIC_GATEWAY_IPFS: string;
   /**
@@ -191,7 +191,7 @@ export function getEnvVars(): Env {
       },
       PUBLIC_GATEWAY_IPFS: {
         type: 'string',
-        default: 'https://cloudflare-ipfs.com/ipfs',
+        default: 'https://cloudflare-ipfs.com',
       },
       PUBLIC_GATEWAY_ARWEAVE: {
         type: 'string',
