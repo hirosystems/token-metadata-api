@@ -1,4 +1,5 @@
 import { ClarityAbi } from '@stacks/transactions';
+import { logger } from '../../logger';
 import {
   BlockchainDbSmartContract,
   PgBlockchainApiStore,
@@ -50,7 +51,7 @@ export class BlockchainImporter {
         this.importFinished = true;
       } catch (error) {
         if (isPgConnectionError(error)) {
-          console.error(
+          logger.error(
             `BlockchainImporter encountered a PG connection error during import, retrying...`,
             error
           );
@@ -72,7 +73,7 @@ export class BlockchainImporter {
    * @param afterBlockHeight - Minimum block height
    */
   private async importSmartContracts(afterBlockHeight: number) {
-    console.info(
+    logger.info(
       `BlockchainImporter smart contract import starting at block height ${afterBlockHeight}`
     );
     const cursor = this.apiDb.getSmartContractsCursor({ afterBlockHeight });
@@ -86,7 +87,7 @@ export class BlockchainImporter {
         await this.doImportSmartContract(row);
       }
     }
-    console.info(`BlockchainImporter smart contract import finished`);
+    logger.info(`BlockchainImporter smart contract import finished`);
   }
 
   protected async doImportSmartContract(contract: BlockchainDbSmartContract): Promise<void> {
@@ -103,6 +104,6 @@ export class BlockchainImporter {
         block_height: contract.block_height,
       },
     });
-    console.info(`BlockchainImporter detected token contract (${sip}): ${contract.contract_id}`);
+    logger.info(`BlockchainImporter detected token contract (${sip}): ${contract.contract_id}`);
   }
 }

@@ -1,5 +1,7 @@
 // TODO: Move this file to a shared library with the Stacks API
 
+import { logger } from './logger';
+
 const SHUTDOWN_SIGNALS = ['SIGINT', 'SIGTERM'] as const;
 
 type ShutdownHandler = () => void | PromiseLike<void>;
@@ -61,13 +63,13 @@ async function startShutdown() {
   let errorEncountered = false;
   for (const config of shutdownConfigs) {
     try {
-      console.info(`Closing ${config.name}...`);
+      logger.info(`Closing ${config.name}...`);
       const gracefulShutdown = await resolveOrTimeout(
         Promise.resolve(config.handler()),
         timeoutMs,
         !config.forceKillable,
         () =>
-          console.error(
+          logger.error(
             `${config.name} is taking longer than expected to shutdown, possibly hanging indefinitely`
           )
       );
@@ -75,21 +77,21 @@ async function startShutdown() {
         if (config.forceKillable && config.forceKillHandler) {
           await Promise.resolve(config.forceKillHandler());
         }
-        console.error(
+        logger.error(
           `${config.name} was force killed after taking longer than ${timeoutMs}ms to shutdown`
         );
       } else {
-        console.info(`${config.name} closed`);
+        logger.info(`${config.name} closed`);
       }
     } catch (error) {
       errorEncountered = true;
-      console.error(`Error running ${config.name} shutdown handler`, error);
+      logger.error(`Error running ${config.name} shutdown handler`, error);
     }
   }
   if (errorEncountered) {
     process.exit(1);
   } else {
-    console.info('App shutdown successful.');
+    logger.info('App shutdown successful.');
     process.exit();
   }
 }
@@ -103,22 +105,22 @@ function registerShutdownSignals() {
 
   SHUTDOWN_SIGNALS.forEach(sig => {
     process.once(sig, () => {
-      console.info(`Shutting down... received signal: ${sig}`);
+      logger.info(`Shutting down... received signal: ${sig}`);
       void startShutdown();
     });
   });
   process.once('unhandledRejection', error => {
-    console.error(`unhandledRejection ${(error as any)?.message ?? error}`, error as Error);
-    console.error(`Shutting down... received unhandledRejection.`);
+    logger.error(`unhandledRejection ${(error as any)?.message ?? error}`, error as Error);
+    logger.error(`Shutting down... received unhandledRejection.`);
     void startShutdown();
   });
   process.once('uncaughtException', error => {
-    console.error(`Received uncaughtException: ${error}`, error);
-    console.error(`Shutting down... received uncaughtException.`);
+    logger.error(`Received uncaughtException: ${error}`, error);
+    logger.error(`Shutting down... received uncaughtException.`);
     void startShutdown();
   });
   process.once('beforeExit', () => {
-    console.error(`Shutting down... received beforeExit.`);
+    logger.error(`Shutting down... received beforeExit.`);
     void startShutdown();
   });
 }

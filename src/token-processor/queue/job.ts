@@ -1,4 +1,5 @@
 import { ENV } from '../../env';
+import { logger } from '../../logger';
 import { PgStore } from '../../pg/pg-store';
 import { stopwatch } from '../../pg/postgres-tools/helpers';
 import { DbJob, DbJobStatus } from '../../pg/types';
@@ -54,7 +55,7 @@ export abstract class Job {
           getJobQueueProcessingMode() === JobQueueProcessingMode.strict ||
           retries <= ENV.JOB_QUEUE_MAX_RETRIES
         ) {
-          console.info(
+          logger.info(
             `Job ${this.description()} recoverable error, trying again later: ${error.message}`
           );
           await this.db.updateJobStatus({ id: this.job.id, status: DbJobStatus.pending });
@@ -67,7 +68,7 @@ export abstract class Job {
         }
       } else {
         // Something more serious happened, mark this token as failed.
-        console.error(`Job ERROR ${this.description()}: ${error}`);
+        logger.error(`Job ${this.description()}: ${error}`);
         processingFinished = true;
         finishedWithError = true;
       }
@@ -78,7 +79,7 @@ export abstract class Job {
           id: this.job.id,
           status: status,
         });
-        console.info(`Job ${this.description()} ${status} in ${sw.getElapsed()}ms`);
+        logger.info(`Job ${this.description()} ${status} in ${sw.getElapsed()}ms`);
       }
     }
   }

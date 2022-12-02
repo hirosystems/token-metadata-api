@@ -8,6 +8,7 @@ import {
 import { ClarityAbi } from '@stacks/transactions';
 import { Static, Type } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
+import { logger } from '../../logger';
 
 const PgNotification = Type.Object({
   type: Type.String(),
@@ -43,10 +44,10 @@ export class BlockchainSmartContractMonitor {
       this.listener = await this.apiDb.sql.listen(
         'stacks-api-pg-notifier',
         message => void this.handleMessage(message),
-        () => console.info(`BlockchainSmartContractMonitor connected`)
+        () => logger.info(`BlockchainSmartContractMonitor connected`)
       );
     } catch (error) {
-      console.error(`BlockchainSmartContractMonitor unable to connect`, error);
+      logger.error(`BlockchainSmartContractMonitor unable to connect`, error);
       throw error;
     }
   }
@@ -54,7 +55,7 @@ export class BlockchainSmartContractMonitor {
   async stop() {
     await this.listener
       ?.unlisten()
-      .then(() => console.info(`BlockchainSmartContractMonitor connection closed`));
+      .then(() => logger.info(`BlockchainSmartContractMonitor connection closed`));
   }
 
   protected async handleMessage(message: string) {
@@ -66,7 +67,7 @@ export class BlockchainSmartContractMonitor {
             try {
               await this.handleSmartContract(messageJson.payload);
             } catch (error) {
-              console.error(`BlockchainSmartContractMonitor error handling contract deploy`, error);
+              logger.error(`BlockchainSmartContractMonitor error handling contract deploy`, error);
             }
           }
           break;
@@ -75,7 +76,7 @@ export class BlockchainSmartContractMonitor {
             try {
               await this.handleSmartContractLog(messageJson.payload);
             } catch (error) {
-              console.error(`BlockchainSmartContractMonitor error handling contract log`, error);
+              logger.error(`BlockchainSmartContractMonitor error handling contract log`, error);
             }
           }
           break;
@@ -103,7 +104,7 @@ export class BlockchainSmartContractMonitor {
         block_height: contract.block_height,
       },
     });
-    console.info(`BlockchainSmartContractMonitor detected (${sip}): ${contract.contract_id}`);
+    logger.info(`BlockchainSmartContractMonitor detected (${sip}): ${contract.contract_id}`);
   }
 
   private async handleSmartContractLog(payload: PgSmartContractPayloadLogType) {
@@ -116,7 +117,7 @@ export class BlockchainSmartContractMonitor {
       return; // Not a valid SIP-019 notification.
     }
     await this.db.enqueueTokenMetadataUpdateNotification({ notification });
-    console.info(
+    logger.info(
       `BlockchainSmartContractMonitor detected SIP-019 notification for ${
         notification.contract_id
       } ${notification.token_ids ?? []}`

@@ -15,6 +15,7 @@ import {
 import { Job } from './queue/job';
 import { fetchAllMetadataLocalesFromBaseUri, getTokenSpecificUri } from './util/metadata-helpers';
 import { PgNumeric } from '../pg/postgres-tools/types';
+import { logger } from '../logger';
 
 /**
  * Downloads, parses and indexes metadata info for a single token in the Stacks blockchain by
@@ -46,7 +47,7 @@ export class ProcessTokenJob extends Job {
       contractPrincipal: contract.principal,
       senderAddress: senderAddress,
     });
-    console.info(`ProcessTokenJob processing ${this.description()}`);
+    logger.info(`ProcessTokenJob processing ${this.description()}`);
     switch (token.type) {
       case DbTokenType.ft:
         await this.handleFt(client, token);

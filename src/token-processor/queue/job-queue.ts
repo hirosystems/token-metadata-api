@@ -5,6 +5,7 @@ import { ENV } from '../../env';
 import { ProcessSmartContractJob } from '../process-smart-contract-job';
 import { ProcessTokenJob } from '../process-token-job';
 import { timeout } from '../../pg/postgres-tools/helpers';
+import { logger } from '../../logger';
 
 /**
  * A priority queue that organizes all necessary work for contract ingestion and token metadata
@@ -133,7 +134,7 @@ export class JobQueue {
         }
         await this.queue.onIdle();
       } catch (error) {
-        console.error(`JobQueue loop error`, error);
+        logger.error(`JobQueue loop error`, error);
         await timeout(1_000);
       }
     }
