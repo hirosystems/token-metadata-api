@@ -27,7 +27,7 @@ export const FtRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeB
             name: Type.Optional(Type.String()),
             symbol: Type.Optional(Type.String()),
             decimals: Type.Optional(Type.Integer()),
-            total_supply: Type.Optional(Type.Integer()),
+            total_supply: Type.Optional(Type.String()),
             token_uri: Type.Optional(Type.String({ format: 'uri' })),
             metadata: Type.Optional(Metadata),
           }),
@@ -45,7 +45,7 @@ export const FtRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeB
           name: metadataBundle?.token?.name ?? undefined,
           symbol: metadataBundle?.token?.symbol ?? undefined,
           decimals: metadataBundle?.token?.decimals ?? undefined,
-          total_supply: metadataBundle?.token?.total_supply ?? undefined,
+          total_supply: metadataBundle?.token?.total_supply?.toString() ?? undefined,
           token_uri: metadataBundle?.token?.uri ?? undefined,
           metadata: parseMetadataLocaleBundle(metadataBundle?.metadataLocale),
         });

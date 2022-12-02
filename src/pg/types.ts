@@ -1,3 +1,5 @@
+import { PgNumeric } from './postgres-tools/types';
+
 export enum DbSipNumber {
   /** Non-Fungible Tokens */
   sip009 = 'sip-009',
@@ -54,7 +56,7 @@ export type DbToken = {
   uri?: string;
   name?: string;
   decimals?: number;
-  total_supply?: number;
+  total_supply?: bigint;
   symbol?: string;
   created_at: string;
   updated_at?: string;
@@ -79,7 +81,7 @@ export type DbFtInsert = {
   name: string | null;
   symbol: string | null;
   decimals: number | null;
-  total_supply: number | null;
+  total_supply: PgNumeric | null;
   uri: string | null;
 };
 

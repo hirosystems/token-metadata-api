@@ -11,7 +11,7 @@ export const up = async (sql: Sql<any>) => {
     name                  TEXT,
     symbol                TEXT,
     decimals              INT,
-    total_supply          INT,
+    total_supply          NUMERIC,
     created_at            TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at            TIMESTAMP,
 

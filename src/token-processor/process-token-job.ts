@@ -14,6 +14,7 @@ import {
 } from '../pg/types';
 import { Job } from './queue/job';
 import { fetchAllMetadataLocalesFromBaseUri, getTokenSpecificUri } from './util/metadata-helpers';
+import { PgNumeric } from '../pg/postgres-tools/types';
 
 /**
  * Downloads, parses and indexes metadata info for a single token in the Stacks blockchain by
@@ -84,10 +85,10 @@ export class ProcessTokenJob extends Job {
       fDecimals = Number(decimals.toString());
     }
 
-    let fTotalSupply: number | undefined;
+    let fTotalSupply: PgNumeric | undefined;
     const totalSupply = await client.readUIntFromContract('get-total-supply');
     if (totalSupply) {
-      fTotalSupply = Number(totalSupply.toString());
+      fTotalSupply = totalSupply.toString();
     }
 
     let metadataLocales: DbMetadataLocaleInsertBundle[] | undefined;
