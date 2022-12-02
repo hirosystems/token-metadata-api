@@ -7,10 +7,7 @@ import { PgStore } from '../../pg/pg-store';
 import { isPgConnectionError } from '../../pg/postgres-tools/errors';
 import { timeout } from '../../pg/postgres-tools/helpers';
 import { waiter, Waiter } from '../util/helpers';
-import {
-  getContractLogMetadataUpdateNotification,
-  getSmartContractSip,
-} from '../util/sip-validation';
+import { getSmartContractSip } from '../util/sip-validation';
 
 export class SmartContractImportInterruptedError extends Error {
   constructor() {

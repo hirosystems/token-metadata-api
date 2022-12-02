@@ -129,7 +129,11 @@ export class PgStore extends BasePgStore {
     if (result.count === 0) {
       return undefined;
     }
-    return result[0];
+    const token = result[0];
+    return {
+      ...token,
+      total_supply: token.total_supply ? BigInt(token.total_supply.toString()) : undefined,
+    };
   }
 
   async getFtMetadataBundle(args: {

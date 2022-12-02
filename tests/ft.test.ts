@@ -118,7 +118,7 @@ describe('FT routes', () => {
       name: 'hello-world',
       symbol: 'HELLO',
       token_uri: 'http://test.com/uri.json',
-      total_supply: 1,
+      total_supply: '1',
     });
   });
 });

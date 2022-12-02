@@ -98,7 +98,7 @@ describe('ProcessTokenJob', () => {
         })
         .reply(200, {
           okay: true,
-          result: cvToHex(uintCV(600)),
+          result: cvToHex(uintCV(1997500000000)),
         });
       setGlobalDispatcher(agent);
 
@@ -110,7 +110,7 @@ describe('ProcessTokenJob', () => {
       expect(token?.name).toBe('FooToken');
       expect(token?.symbol).toBe('FOO');
       expect(token?.decimals).toBe(6);
-      expect(token?.total_supply).toBe(600);
+      expect(token?.total_supply).toBe(1997500000000n);
     });
   });
 
