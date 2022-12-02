@@ -1,7 +1,7 @@
 import * as dotenv from 'dotenv';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import Fastify from 'fastify';
-import { Api } from './init';
+import { Api } from '../src/api/init';
 
 dotenv.config();
 
