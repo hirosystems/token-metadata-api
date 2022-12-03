@@ -3,6 +3,7 @@ import {
   makeRandomPrivKey,
   TransactionVersion,
 } from '@stacks/transactions';
+import { ENV } from '../env';
 import { logger } from '../logger';
 import { DbSipNumber, DbSmartContract } from '../pg/types';
 import { Job } from './queue/job';
@@ -64,6 +65,12 @@ export class ProcessSmartContractJob extends Job {
 
   private async enqueueTokens(contract: DbSmartContract, tokenCount: number): Promise<void> {
     if (tokenCount === 0) {
+      return;
+    }
+    if (tokenCount > ENV.METADATA_MAX_NFT_CONTRACT_TOKEN_COUNT) {
+      logger.warn(
+        `ProcessSmartContractJob max token count exceeded for ${this.description()}: ${tokenCount}`
+      );
       return;
     }
     await this.db.updateSmartContractTokenCount({ id: contract.id, count: tokenCount });

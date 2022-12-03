@@ -41,6 +41,12 @@ interface Env {
    */
   METADATA_MAX_PAYLOAD_BYTE_SIZE: number;
   /**
+   * Upper limit on the number of NFTs a contract may declare. Tune this number to guard against
+   * test contracts that may define a ridiculous amount of tokens which could cause a denial of
+   * service in our token queue. Defaults to 50,000.
+   */
+  METADATA_MAX_NFT_CONTRACT_TOKEN_COUNT: number;
+  /**
    * Configure a script to handle image URLs during token metadata processing. Must be an executable
    * script that accepts the URL as the first program argument and outputs a result URL to stdout.
    */
@@ -177,6 +183,10 @@ export function getEnvVars(): Env {
       METADATA_MAX_PAYLOAD_BYTE_SIZE: {
         type: 'number',
         default: 1_000_000, // 1 MB
+      },
+      METADATA_MAX_NFT_CONTRACT_TOKEN_COUNT: {
+        type: 'number',
+        default: 50_000,
       },
       METADATA_IMAGE_CACHE_PROCESSOR: {
         type: 'string',

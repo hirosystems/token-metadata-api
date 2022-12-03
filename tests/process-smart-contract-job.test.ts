@@ -68,4 +68,34 @@ describe('ProcessSmartContractJob', () => {
     expect(tokens[0].type).toBe(DbTokenType.nft);
     expect(tokens[0].smart_contract_id).toBe(1);
   });
+
+  test('ignores NFT contract that exceeds max token count', async () => {
+    const agent = new MockAgent();
+    agent.disableNetConnect();
+    agent
+      .get(`http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`)
+      .intercept({
+        path: '/v2/contracts/call-read/ABCD/test-nft/get-last-token-id',
+        method: 'POST',
+      })
+      .reply(200, {
+        okay: true,
+        result: cvToHex(uintCV(10000000000)),
+      });
+    setGlobalDispatcher(agent);
+
+    const values: DbSmartContractInsert = {
+      principal: 'ABCD.test-nft',
+      sip: DbSipNumber.sip009,
+      abi: '"some"',
+      tx_id: '0x123456',
+      block_height: 1,
+    };
+    const job = await db.insertAndEnqueueSmartContract({ values });
+    const processor = new ProcessSmartContractJob({ db, job });
+    await processor.work();
+
+    const tokens = await db.sql<DbToken[]>`SELECT * FROM tokens`;
+    expect(tokens.count).toBe(0);
+  });
 });
