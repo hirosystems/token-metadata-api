@@ -14,6 +14,7 @@ import { TextDecoder } from 'util';
 import { MetadataParseError, MetadataSizeExceededError, MetadataTimeoutError } from './errors';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
 import { Static, Type } from '@sinclair/typebox';
+import { logger } from '../../logger';
 
 // Raw metadata object types.
 const RawMetadata = Type.Object(
@@ -367,7 +368,7 @@ async function processImageUrl(imgUrl: string): Promise<string> {
     cp.on('error', error => reject(error));
   });
   if (code !== 0 && stderr) {
-    console.warn(`METADATA_IMAGE_CACHE_PROCESSOR error: ${stderr}`);
+    logger.warn(`METADATA_IMAGE_CACHE_PROCESSOR error: ${stderr}`);
   }
   const result = stdout.trim();
   try {

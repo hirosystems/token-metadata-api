@@ -60,9 +60,7 @@ export abstract class Job {
           );
           await this.db.updateJobStatus({ id: this.job.id, status: DbJobStatus.pending });
         } else {
-          console.warn(
-            `Job ${this.description()} max retries reached, giving up: ${error.message}`
-          );
+          logger.warn(`Job ${this.description()} max retries reached, giving up: ${error.message}`);
           processingFinished = true;
           finishedWithError = true;
         }
