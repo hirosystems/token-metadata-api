@@ -1,4 +1,5 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
+import { logger } from '../../logger';
 
 /**
  * A `Cache-Control` header used for re-validation based caching.
@@ -68,7 +69,7 @@ function parseIfNoneMatchHeader(ifNoneMatchHeaderValue: string | undefined): str
   if (!normalized) {
     // This should never happen unless handling a buggy request with something like `If-None-Match: ""`,
     // or if there's a flaw in the above code. Log warning for now.
-    console.warn(`Normalized If-None-Match header is falsy: ${ifNoneMatchHeaderValue}`);
+    logger.warn(`Normalized If-None-Match header is falsy: ${ifNoneMatchHeaderValue}`);
     return undefined;
   } else if (normalized.includes(',')) {
     // Multiple etag values provided, likely irrelevant extra values added by a proxy/CDN.
