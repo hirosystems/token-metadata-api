@@ -49,9 +49,10 @@ export async function buildApiServer(args: { db: PgStore }) {
   fastify.decorate('db', args.db);
   if (process.env['NODE_ENV'] === 'production') {
     await fastify.register(FastifyMetrics);
-    await fastify.register(FastifyCors);
+  } else if (process.env['NODE_ENV'] === 'development') {
+    await fastify.register(FastifySwagger, ApiSwaggerOptions);
   }
-  await fastify.register(FastifySwagger, ApiSwaggerOptions);
+  await fastify.register(FastifyCors);
   await fastify.register(Api);
 
   return fastify;
