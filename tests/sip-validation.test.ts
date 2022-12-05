@@ -1,4 +1,12 @@
-import { bufferCV, cvToHex, intCV, listCV, tupleCV } from '@stacks/transactions';
+import {
+  bufferCV,
+  cvToHex,
+  intCV,
+  listCV,
+  stringAsciiCV,
+  tupleCV,
+  uintCV,
+} from '@stacks/transactions';
 import { BlockchainDbContractLog } from '../src/pg/blockchain-api/pg-blockchain-api-store';
 import { getContractLogMetadataUpdateNotification } from '../src/token-processor/util/sip-validation';
 
@@ -110,5 +118,34 @@ describe('SIP Validation', () => {
     expect(notification2?.contract_id).toBe(contractId);
     expect(notification2?.token_class).toBe('nft');
     expect(notification2?.token_ids).toStrictEqual([1, 2]);
+  });
+
+  test('SIP-019 notification with update mode', () => {
+    const address = 'SP3XA0MBJ3TD14HRAT0ZP65N933XMG6E6QAS00CTW';
+    const contractId = `${address}.fine-art-exhibition-v1`;
+
+    // Add token IDs
+    const tuple = tupleCV({
+      notification: bufferCV(Buffer.from('token-metadata-update')),
+      payload: tupleCV({
+        'token-class': bufferCV(Buffer.from('nft')),
+        'contract-id': bufferCV(Buffer.from(contractId)),
+        'token-ids': listCV([intCV(1), intCV(2)]),
+        'update-mode': stringAsciiCV('dynamic'),
+        ttl: uintCV(9999),
+      }),
+    });
+    const event: BlockchainDbContractLog = {
+      contract_identifier: contractId,
+      sender_address: address,
+      value: cvToHex(tuple),
+    };
+    const notification = getContractLogMetadataUpdateNotification(event);
+    expect(notification).not.toBeUndefined();
+    expect(notification?.contract_id).toBe(contractId);
+    expect(notification?.token_class).toBe('nft');
+    expect(notification?.token_ids).toStrictEqual([1, 2]);
+    expect(notification?.update_mode).toBe('dynamic');
+    expect(notification?.ttl).toBe(9999n);
   });
 });
