@@ -12,7 +12,7 @@ import {
 } from '../src/pg/types';
 import { ProcessTokenJob } from '../src/token-processor/process-token-job';
 import { ENV } from '../src/env';
-import { cycleMigrations } from './helpers';
+import { cycleMigrations } from '../src/pg/migrations';
 
 describe('ProcessTokenJob', () => {
   let db: PgStore;

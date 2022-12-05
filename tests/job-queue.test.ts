@@ -2,7 +2,7 @@ import { ENV } from '../src/env';
 import { PgStore } from '../src/pg/pg-store';
 import { DbJob, DbJobStatus, DbSipNumber, DbSmartContractInsert } from '../src/pg/types';
 import { JobQueue } from '../src/token-processor/queue/job-queue';
-import { cycleMigrations } from './helpers';
+import { cycleMigrations } from '../src/pg/migrations';
 
 class TestJobQueue extends JobQueue {
   constructor(args: { db: PgStore }) {

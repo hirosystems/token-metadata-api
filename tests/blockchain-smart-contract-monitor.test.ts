@@ -9,7 +9,7 @@ import {
 import { PgStore } from '../src/pg/pg-store';
 import { DbSipNumber, DbSmartContractInsert, DbTokenType } from '../src/pg/types';
 import { BlockchainSmartContractMonitor } from '../src/token-processor/blockchain-api/blockchain-smart-contract-monitor';
-import { cycleMigrations } from './helpers';
+import { cycleMigrations } from '../src/pg/migrations';
 
 const NftAbi = {
   maps: [],

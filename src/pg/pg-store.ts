@@ -1,4 +1,3 @@
-import * as ley from 'ley';
 import { TokenMetadataUpdateNotification } from '../token-processor/util/sip-validation';
 import { ENV } from '../env';
 import {
@@ -19,6 +18,7 @@ import {
 import { connectPostgres } from './postgres-tools';
 import { BasePgStore } from './postgres-tools/base-pg-store';
 import { TokenLocaleNotFoundError, TokenNotFoundError, TokenNotProcessedError } from './errors';
+import { runMigrations } from './migrations';
 
 /**
  * Connects and queries the Token Metadata Service's local postgres DB.
@@ -42,11 +42,7 @@ export class PgStore extends BasePgStore {
       },
     });
     if (opts?.skipMigrations !== true) {
-      await ley.up({
-        dir: 'migrations',
-        driver: 'postgres',
-        config: pgConfig,
-      });
+      await runMigrations('up');
     }
     return new PgStore(sql);
   }

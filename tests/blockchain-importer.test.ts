@@ -1,6 +1,6 @@
 import { ENV } from '../src/env';
 import { PgStore } from '../src/pg/pg-store';
-import { cycleMigrations } from './helpers';
+import { cycleMigrations } from '../src/pg/migrations';
 import { BlockchainImporter } from '../src/token-processor/blockchain-api/blockchain-importer';
 import {
   BlockchainDbSmartContract,

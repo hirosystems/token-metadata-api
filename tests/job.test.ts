@@ -1,9 +1,9 @@
 import { ENV } from '../src/env';
+import { cycleMigrations } from '../src/pg/migrations';
 import { PgStore } from '../src/pg/pg-store';
 import { DbJob, DbSipNumber, DbSmartContractInsert } from '../src/pg/types';
 import { RetryableJobError } from '../src/token-processor/queue/errors';
 import { Job } from '../src/token-processor/queue/job';
-import { cycleMigrations } from './helpers';
 
 class TestRetryableJob extends Job {
   description(): string {

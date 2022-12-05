@@ -4,7 +4,7 @@ import { PgStore } from '../src/pg/pg-store';
 import { DbSipNumber, DbSmartContractInsert, DbToken, DbTokenType } from '../src/pg/types';
 import { ProcessSmartContractJob } from '../src/token-processor/process-smart-contract-job';
 import { ENV } from '../src/env';
-import { cycleMigrations } from './helpers';
+import { cycleMigrations } from '../src/pg/migrations';
 
 describe('ProcessSmartContractJob', () => {
   let db: PgStore;
