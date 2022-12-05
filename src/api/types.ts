@@ -1,31 +1,27 @@
 import { Static, Type } from '@sinclair/typebox';
 
-export const SmartContractPrincipal = Type.RegEx(
-  /[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{28,41}\.[a-zA-Z]([a-zA-Z0-9]|[-_]){0,39}/
-);
-export type SmartContractPrincipalType = Static<typeof SmartContractPrincipal>;
+export const SmartContractRegEx =
+  /[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{28,41}\.[a-zA-Z]([a-zA-Z0-9]|[-_]){0,39}/;
 
 export const TokenQuerystringParams = Type.Object({
-  locale: Type.Optional(Type.String()),
+  locale: Type.Optional(
+    Type.String({ description: 'Metadata localization to retrieve', examples: ['es-MX', 'jp'] })
+  ),
 });
-export type TokenQuerystringParamsType = Static<typeof TokenQuerystringParams>;
 
 export const MetadataAttribute = Type.Object({
   trait_type: Type.String(),
   value: Type.Any(),
   display_type: Type.Optional(Type.String()),
 });
-export type MetadataAttributeType = Static<typeof MetadataAttribute>;
 
 export const MetadataProperties = Type.Record(Type.String(), Type.Any());
-export type MetadataPropertiesType = Static<typeof MetadataProperties>;
 
 export const MetadataLocalization = Type.Object({
   uri: Type.String({ format: 'uri' }),
   default: Type.String(),
   locales: Type.Array(Type.String()),
 });
-export type MetadataLocalizationType = Static<typeof MetadataLocalization>;
 
 export const Metadata = Type.Object({
   sip: Type.Integer(),
