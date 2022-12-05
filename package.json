@@ -15,7 +15,8 @@
     "db-down": "ley -r ts-node/register down --all",
     "db-reset": "ley -r ts-node/register down --all && ley -r ts-node/register up",
     "lint:eslint": "eslint . --ext .js,.jsx,.ts,.tsx -f unix",
-    "lint:prettier": "prettier --check src/**/*.ts tests/**/*.ts migrations/**/*.ts"
+    "lint:prettier": "prettier --check src/**/*.ts tests/**/*.ts migrations/**/*.ts",
+    "generate:openapi": "node -r ts-node/register ./util/openapi-generator.ts"
   },
   "author": "",
   "license": "ISC",
