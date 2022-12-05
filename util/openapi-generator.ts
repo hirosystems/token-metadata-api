@@ -6,7 +6,7 @@ import { mkdirSync, writeFileSync } from 'fs';
 import { Server } from 'http';
 
 /**
- * Generates an `./openapi.yaml` file based on current Swagger definitions.
+ * Generates `openapi.yaml` based on current Swagger definitions.
  */
 export const ApiGenerator: FastifyPluginAsync<
   Record<never, never>,
