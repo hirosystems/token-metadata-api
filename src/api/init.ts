@@ -14,7 +14,7 @@ export const ApiSwaggerOptions: SwaggerOptions = {
     info: {
       title: 'Stacks Token Metadata Service',
       description:
-        'A microservice that indexes metadata for every single Fungible and Non-Fungible Token in the Stacks blockchain and exposes it via REST API endpoints.',
+        'A microservice that indexes metadata for every SIP-009, SIP-010, and SIP-013 Token in the Stacks blockchain and exposes it via REST API endpoints.',
       version: '0.0.1',
     },
     externalDocs: {
@@ -24,7 +24,11 @@ export const ApiSwaggerOptions: SwaggerOptions = {
     tags: [
       {
         name: 'Tokens',
-        description: 'Token metadata',
+        description: 'Token metadata endpoints',
+      },
+      {
+        name: 'Status',
+        description: 'Service status endpoints',
       },
     ],
   },

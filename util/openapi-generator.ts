@@ -2,7 +2,7 @@ import Fastify, { FastifyPluginAsync } from 'fastify';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { Api, ApiSwaggerOptions } from '../src/api/init';
 import FastifySwagger from '@fastify/swagger';
-import { mkdirSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { Server } from 'http';
 
 /**
@@ -15,7 +15,9 @@ export const ApiGenerator: FastifyPluginAsync<
 > = async (fastify, options) => {
   await fastify.register(FastifySwagger, ApiSwaggerOptions);
   await fastify.register(Api);
-  mkdirSync('./tmp');
+  if (!existsSync('./tmp')) {
+    mkdirSync('./tmp');
+  }
   writeFileSync('./tmp/openapi.yaml', fastify.swagger({ yaml: true }));
 };
 
