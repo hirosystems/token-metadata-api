@@ -1,7 +1,8 @@
 import { ENV } from '../src/env';
+import { cycleMigrations } from '../src/pg/migrations';
 import { PgStore } from '../src/pg/pg-store';
 import { DbSipNumber, DbTokenType } from '../src/pg/types';
-import { cycleMigrations, startTestApiServer, TestFastifyServer } from './helpers';
+import { startTestApiServer, TestFastifyServer } from './helpers';
 
 describe('Status routes', () => {
   let db: PgStore;

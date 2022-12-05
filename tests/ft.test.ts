@@ -1,7 +1,8 @@
 import { ENV } from '../src/env';
+import { cycleMigrations } from '../src/pg/migrations';
 import { PgStore } from '../src/pg/pg-store';
 import { DbSipNumber, DbSmartContractInsert, DbTokenType } from '../src/pg/types';
-import { cycleMigrations, startTestApiServer, TestFastifyServer } from './helpers';
+import { startTestApiServer, TestFastifyServer } from './helpers';
 
 describe('FT routes', () => {
   let db: PgStore;
