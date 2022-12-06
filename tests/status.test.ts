@@ -42,14 +42,11 @@ describe('Status routes', () => {
         block_height: 1,
       },
     });
-    const cursor = db.getInsertAndEnqueueTokensCursor({
+    await db.insertAndEnqueueTokens({
       smart_contract_id: 1,
       token_count: 1,
       type: DbTokenType.nft,
     });
-    for await (const [job] of cursor) {
-      // Insertion.
-    }
 
     const response = await fastify.inject({ method: 'GET', url: '/' });
     const json = response.json();

@@ -29,14 +29,11 @@ describe('FT routes', () => {
       block_height: 1,
     };
     await db.insertAndEnqueueSmartContract({ values });
-    const cursor = db.getInsertAndEnqueueTokensCursor({
+    await db.insertAndEnqueueTokens({
       smart_contract_id: 1,
       token_count: 1,
       type: DbTokenType.ft,
     });
-    for await (const [job] of cursor) {
-      // tokenJob = job;
-    }
   };
 
   test('token not found', async () => {
