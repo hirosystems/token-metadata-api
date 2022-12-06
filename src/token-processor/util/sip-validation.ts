@@ -1,5 +1,4 @@
 import {
-  BufferCV,
   ClarityAbi,
   ClarityAbiFunction,
   ClarityType,
@@ -255,10 +254,14 @@ function findFunction(fun: ClarityAbiFunction, functionList: ClarityAbiFunction[
 
 type TokenClass = 'ft' | 'nft' | 'sft';
 
+type MetadataUpdateMode = 'standard' | 'frozen' | 'dynamic';
+
 export type TokenMetadataUpdateNotification = {
   token_class: TokenClass;
   contract_id: string;
+  update_mode: MetadataUpdateMode;
   token_ids?: number[];
+  ttl?: bigint;
 };
 
 /**
@@ -316,10 +319,27 @@ export function getContractLogMetadataUpdateNotification(
       }
     }
 
+    let updateMode: MetadataUpdateMode = 'standard';
+    const updateModeValue = payload.data['update-mode'];
+    if (updateModeValue) {
+      const modeStr = stringFromValue(updateModeValue);
+      if (modeStr as MetadataUpdateMode) {
+        updateMode = modeStr as MetadataUpdateMode;
+      }
+    }
+
+    let ttl: bigint | undefined;
+    const ttlValue = payload.data['ttl'];
+    if (ttlValue && ttlValue.type === ClarityType.UInt) {
+      ttl = ttlValue.value;
+    }
+
     return {
       token_class: tokenClass as TokenClass,
       contract_id: contractId,
       token_ids: tokenIds,
+      update_mode: updateMode,
+      ttl: ttl,
     };
   } catch (error) {
     return;

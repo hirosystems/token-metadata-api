@@ -22,6 +22,12 @@ export enum DbTokenType {
   sft = 'sft',
 }
 
+export enum DbTokenUpdateMode {
+  standard = 'standard',
+  frozen = 'frozen',
+  dynamic = 'dynamic',
+}
+
 export type DbSmartContractInsert = {
   principal: string;
   sip: DbSipNumber;
@@ -53,6 +59,8 @@ export type DbToken = {
   smart_contract_id: number;
   type: DbTokenType;
   token_number: number;
+  update_mode: DbTokenUpdateMode;
+  ttl?: number;
   uri?: string;
   name?: string;
   decimals?: number;

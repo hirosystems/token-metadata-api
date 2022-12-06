@@ -384,4 +384,116 @@ describe('BlockchainSmartContractMonitor', () => {
     const jobs = await db.getPendingJobBatch({ limit: 1 });
     expect(jobs[0]).toBeUndefined();
   });
+
+  test('ignores SIP-019 notification for frozen tokens', async () => {
+    const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
+    const contractId = `${address}.friedger-pool-nft`;
+
+    const values: DbSmartContractInsert = {
+      principal: contractId,
+      sip: DbSipNumber.sip009,
+      abi: '"some"',
+      tx_id: '0x123456',
+      block_height: 1,
+    };
+    await db.insertAndEnqueueSmartContract({ values });
+    const cursor = db.getInsertAndEnqueueTokensCursor({
+      smart_contract_id: 1,
+      token_count: 1,
+      type: DbTokenType.nft,
+    });
+    for await (const [job] of cursor) {
+    }
+    // Mark jobs as done to test
+    await db.sql`UPDATE jobs SET status = 'done' WHERE TRUE`;
+    const jobs1 = await db.getPendingJobBatch({ limit: 10 });
+    expect(jobs1.length).toBe(0);
+
+    // Mark token as frozen.
+    await db.sql`UPDATE tokens SET update_mode = 'frozen' WHERE TRUE`;
+    const token1 = await db.getToken({ id: 1 });
+    expect(token1?.update_mode).toBe('frozen');
+
+    const event: BlockchainDbContractLog = {
+      contract_identifier: contractId,
+      sender_address: address,
+      value: cvToHex(
+        tupleCV({
+          notification: bufferCV(Buffer.from('token-metadata-update')),
+          payload: tupleCV({
+            'token-class': bufferCV(Buffer.from('nft')),
+            'contract-id': bufferCV(Buffer.from(contractId)),
+          }),
+        })
+      ),
+    };
+    const apiDb = new MockPgBlockchainApiStore(undefined, event);
+    const monitor = new TestBlockchainMonitor({ db, apiDb });
+
+    await monitor.testHandleMessage(
+      JSON.stringify({
+        type: 'smartContractLogUpdate',
+        payload: {
+          txId: '0x1234',
+          eventIndex: 1,
+        },
+      })
+    );
+    const jobs2 = await db.getPendingJobBatch({ limit: 10 });
+    expect(jobs2.length).toBe(0); // No tokens queued.
+  });
+
+  test('updates token refresh mode on SIP-019 notification', async () => {
+    const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
+    const contractId = `${address}.friedger-pool-nft`;
+
+    const values: DbSmartContractInsert = {
+      principal: contractId,
+      sip: DbSipNumber.sip009,
+      abi: '"some"',
+      tx_id: '0x123456',
+      block_height: 1,
+    };
+    await db.insertAndEnqueueSmartContract({ values });
+    const cursor = db.getInsertAndEnqueueTokensCursor({
+      smart_contract_id: 1,
+      token_count: 1,
+      type: DbTokenType.nft,
+    });
+    for await (const [job] of cursor) {
+    }
+    // Mark jobs as done to test
+    await db.sql`UPDATE jobs SET status = 'done' WHERE TRUE`;
+    const jobs1 = await db.getPendingJobBatch({ limit: 10 });
+    expect(jobs1.length).toBe(0);
+
+    const event: BlockchainDbContractLog = {
+      contract_identifier: contractId,
+      sender_address: address,
+      value: cvToHex(
+        tupleCV({
+          notification: bufferCV(Buffer.from('token-metadata-update')),
+          payload: tupleCV({
+            'token-class': bufferCV(Buffer.from('nft')),
+            'contract-id': bufferCV(Buffer.from(contractId)),
+            'update-mode': stringUtf8CV('frozen'), // Mark as frozen.
+          }),
+        })
+      ),
+    };
+    const apiDb = new MockPgBlockchainApiStore(undefined, event);
+    const monitor = new TestBlockchainMonitor({ db, apiDb });
+
+    await monitor.testHandleMessage(
+      JSON.stringify({
+        type: 'smartContractLogUpdate',
+        payload: {
+          txId: '0x1234',
+          eventIndex: 1,
+        },
+      })
+    );
+    const token1 = await db.getToken({ id: 1 });
+    expect(token1?.update_mode).toBe('frozen');
+  });
 });

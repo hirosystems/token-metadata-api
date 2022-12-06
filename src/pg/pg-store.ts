@@ -14,6 +14,7 @@ import {
   DbMetadataAttribute,
   DbMetadataProperty,
   DbMetadataLocaleBundle,
+  DbTokenUpdateMode,
 } from './types';
 import { connectPostgres } from './postgres-tools';
 import { BasePgStore } from './postgres-tools/base-pg-store';
@@ -292,25 +293,38 @@ export class PgStore extends BasePgStore {
       }
       const contractId = contractResult[0].id;
 
+      const refreshTokens = async (tokenIds: number[]) => {
+        const tokens = await sql<DbToken[]>`
+          SELECT * FROM tokens
+          WHERE smart_contract_id = ${contractId}
+          ${tokenIds.length ? sql`AND token_number IN ${sql(tokenIds)}` : sql``}
+        `;
+        for (const token of tokens) {
+          if (token.update_mode === DbTokenUpdateMode.frozen) {
+            continue; // Can't refresh frozen tokens.
+          }
+          // Update token mode.
+          await sql`
+            UPDATE tokens
+            SET update_mode = ${args.notification.update_mode},
+              ttl = ${args.notification.ttl ? sql`${args.notification.ttl}` : sql`NULL`}
+            WHERE id = ${token.id}
+          `;
+          // Re-enqueue job.
+          await sql`
+            UPDATE jobs
+            SET status = 'pending', updated_at = NOW()
+            WHERE token_id = ${token.id}
+          `;
+        }
+      };
+
       switch (args.notification.token_class) {
         case 'nft':
-          const tokenIds = args.notification.token_ids ?? [];
-          await sql`
-            UPDATE jobs
-            SET status = 'pending', updated_at = NOW()
-            WHERE token_id IN (
-              SELECT id FROM tokens
-              WHERE smart_contract_id = ${contractId}
-              ${tokenIds.length ? sql`AND token_number IN ${sql(tokenIds)}` : sql``}
-            )
-          `;
+          await refreshTokens(args.notification.token_ids ?? []);
           break;
         case 'ft':
-          await sql`
-            UPDATE jobs
-            SET status = 'pending', updated_at = NOW()
-            WHERE smart_contract_id = ${contractId}
-          `;
+          await refreshTokens([1]);
           break;
       }
     });
