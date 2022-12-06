@@ -266,13 +266,11 @@ describe('BlockchainSmartContractMonitor', () => {
       block_height: 1,
     };
     await db.insertAndEnqueueSmartContract({ values });
-    const cursor = db.getInsertAndEnqueueTokensCursor({
+    await db.insertAndEnqueueTokens({
       smart_contract_id: 1,
       token_count: 3, // 3 tokens
       type: DbTokenType.nft,
     });
-    for await (const [job] of cursor) {
-    }
     // Mark jobs as done to test
     await db.sql`UPDATE jobs SET status = 'done' WHERE TRUE`;
     const jobs1 = await db.getPendingJobBatch({ limit: 10 });
@@ -319,13 +317,11 @@ describe('BlockchainSmartContractMonitor', () => {
       block_height: 1,
     };
     await db.insertAndEnqueueSmartContract({ values });
-    const cursor = db.getInsertAndEnqueueTokensCursor({
+    await db.insertAndEnqueueTokens({
       smart_contract_id: 1,
       token_count: 3, // 3 tokens
       type: DbTokenType.nft,
     });
-    for await (const [job] of cursor) {
-    }
     // Mark jobs as done to test
     await db.sql`UPDATE jobs SET status = 'done' WHERE TRUE`;
     const jobs1 = await db.getPendingJobBatch({ limit: 10 });
@@ -397,13 +393,11 @@ describe('BlockchainSmartContractMonitor', () => {
       block_height: 1,
     };
     await db.insertAndEnqueueSmartContract({ values });
-    const cursor = db.getInsertAndEnqueueTokensCursor({
+    await db.insertAndEnqueueTokens({
       smart_contract_id: 1,
       token_count: 1,
       type: DbTokenType.nft,
     });
-    for await (const [job] of cursor) {
-    }
     // Mark jobs as done to test
     await db.sql`UPDATE jobs SET status = 'done' WHERE TRUE`;
     const jobs1 = await db.getPendingJobBatch({ limit: 10 });
@@ -455,13 +449,11 @@ describe('BlockchainSmartContractMonitor', () => {
       block_height: 1,
     };
     await db.insertAndEnqueueSmartContract({ values });
-    const cursor = db.getInsertAndEnqueueTokensCursor({
+    await db.insertAndEnqueueTokens({
       smart_contract_id: 1,
       token_count: 1,
       type: DbTokenType.nft,
     });
-    for await (const [job] of cursor) {
-    }
     // Mark jobs as done to test
     await db.sql`UPDATE jobs SET status = 'done' WHERE TRUE`;
     const jobs1 = await db.getPendingJobBatch({ limit: 10 });

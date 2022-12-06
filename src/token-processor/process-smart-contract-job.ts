@@ -77,13 +77,10 @@ export class ProcessSmartContractJob extends Job {
     logger.info(
       `ProcessSmartContractJob enqueueing ${tokenCount} tokens for ${this.description()}`
     );
-    const cursor = this.db.getInsertAndEnqueueTokensCursor({
+    await this.db.insertAndEnqueueTokens({
       smart_contract_id: contract.id,
       token_count: tokenCount,
       type: dbSipNumberToDbTokenType(contract.sip),
     });
-    for await (const jobs of cursor) {
-      // Enqueue.
-    }
   }
 }

@@ -103,11 +103,11 @@ export class PgStore extends BasePgStore {
    * @param type - token type (ft, nft, sft)
    * @returns `DbTokenQueueEntry` cursor
    */
-  getInsertAndEnqueueTokensCursor(args: {
+  async insertAndEnqueueTokens(args: {
     smart_contract_id: number;
     token_count: number;
     type: DbTokenType;
-  }): AsyncIterable<DbJob[]> {
+  }): Promise<DbJob[]> {
     const tokenValues: DbTokenInsert[] = [];
     for (let index = 1; index <= args.token_count; index++) {
       tokenValues.push({
@@ -116,7 +116,7 @@ export class PgStore extends BasePgStore {
         type: args.type,
       });
     }
-    return this.getInsertAndEnqueueTokensCursorInternal(tokenValues);
+    return this.insertAndEnqueueTokensInternal(tokenValues);
   }
 
   async getToken(args: { id: number }): Promise<DbToken | undefined> {
@@ -371,9 +371,7 @@ export class PgStore extends BasePgStore {
     `;
   }
 
-  private getInsertAndEnqueueTokensCursorInternal(
-    tokenValues: DbTokenInsert[]
-  ): AsyncIterable<DbJob[]> {
+  private async insertAndEnqueueTokensInternal(tokenValues: DbTokenInsert[]): Promise<DbJob[]> {
     return this.sql<DbJob[]>`
       WITH token_inserts AS (
         INSERT INTO tokens ${this.sql(tokenValues)}
@@ -391,7 +389,7 @@ export class PgStore extends BasePgStore {
       ON CONFLICT (token_id) WHERE smart_contract_id IS NULL DO
         UPDATE SET updated_at = NOW(), status = 'pending'
       RETURNING *
-    `.cursor();
+    `;
   }
 
   private async isTokenLocaleAvailable(tokenId: number, locale: string): Promise<boolean> {

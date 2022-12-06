@@ -39,14 +39,11 @@ describe('ProcessTokenJob', () => {
         block_height: 1,
       };
       await db.insertAndEnqueueSmartContract({ values });
-      const cursor = db.getInsertAndEnqueueTokensCursor({
+      [tokenJob] = await db.insertAndEnqueueTokens({
         smart_contract_id: 1,
         token_count: 1,
         type: DbTokenType.ft,
       });
-      for await (const [job] of cursor) {
-        tokenJob = job;
-      }
     });
 
     test('parses FT info', async () => {
@@ -126,14 +123,11 @@ describe('ProcessTokenJob', () => {
         block_height: 1,
       };
       await db.insertAndEnqueueSmartContract({ values });
-      const cursor = db.getInsertAndEnqueueTokensCursor({
+      [tokenJob] = await db.insertAndEnqueueTokens({
         smart_contract_id: 1,
         token_count: 1,
         type: DbTokenType.nft,
       });
-      for await (const [job] of cursor) {
-        tokenJob = job;
-      }
     });
 
     test('parses metadata with arbitrary types', async () => {
