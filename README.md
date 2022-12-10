@@ -7,13 +7,20 @@ See the [Token Metadata Service API Reference]() for more information.
 
 ## Features
 
-* Complete SIP-016 metadata ingestion for
-    * SIP-009 Non-Fungible Tokens
-    * SIP-010 Fungible Tokens
-    * SIP-013 Semi-Fungible Tokens (coming soon!)
-* Real-time metadata refreshing via SIP-019 notifications
+* Complete
+  [SIP-016](https://github.com/stacksgov/sips/blob/main/sips/sip-016/sip-016-token-metadata.md)
+  metadata ingestion for
+    * [SIP-009](https://github.com/stacksgov/sips/blob/main/sips/sip-009/sip-009-nft-standard.md)
+      Non-Fungible Tokens
+    * [SIP-010](https://github.com/stacksgov/sips/blob/main/sips/sip-010/sip-010-fungible-token-standard.md)
+      Fungible Tokens
+    * [SIP-013](https://github.com/stacksgov/sips/pull/42) Semi-Fungible Tokens *(coming soon!)*
+* Real-time metadata refreshing via [SIP-019](https://github.com/stacksgov/sips/pull/72)
+  notifications
 * Metadata localization support
-* Metadata file fetching via `http:`, `https:`, `ipfs:`, and `data:` URIs
+* Metadata JSON fetching via `http:`, `https:`, `data:` URIs. Also supported:
+    * IPFS
+    * Arweave
 * Easy to use REST JSON endpoints with ETag caching
 * Prometheus metrics for job queue status, contract and token counts, API performance, etc.
 
@@ -31,15 +38,15 @@ mode, with its Postgres database exposed for new connections
 
 ### Running the service
 
-Copy the `.env.example` file into `.env`, and substitute the appropriate values to configure access
-to the Stacks API database, the Token Metadata Service local database, and the Stacks node RPC
-interface.
+Create an `.env` file and specify the appropriate values to configure access to the Stacks API
+database, the Token Metadata Service local database, and the Stacks node RPC interface. See
+[`env.ts`](https://github.com/hirosystems/token-metadata-service/blob/develop/src/env.ts) for
+available options.
 
-Build the app and apply local database migrations
+Build the app
 ```
 npm install
 npm run build
-npm run migrate
 ```
 
 Start the service
@@ -59,3 +66,11 @@ The Stacks Token Metadata Service connects to three different systems to operate
 1. A local Postgres DB to store all processed metadata info
 
 Additionally, the service will fetch external metadata files (JSONs, images) from the Internet.
+
+### Internal components
+
+* Smart Contract Importer
+
+* Smart Contract Monitor
+
+* Job Queue
