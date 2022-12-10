@@ -16,19 +16,21 @@ import { TypeCompiler } from '@sinclair/typebox/compiler';
 import { Static, Type } from '@sinclair/typebox';
 import { logger } from '../../logger';
 
-// Raw metadata object types.
+/**
+ * Raw metadata object types. We will allow `any` types here and validate each field towards its
+ * expected value later.
+ */
 const RawMetadata = Type.Object(
   {
-    sip: Type.Optional(Type.Integer()),
-    name: Type.Optional(Type.String()),
-    description: Type.Optional(Type.String()),
-    image: Type.Optional(Type.String()),
+    name: Type.Optional(Type.Any()),
+    description: Type.Optional(Type.Any()),
+    image: Type.Optional(Type.Any()),
     attributes: Type.Optional(Type.Any()),
     properties: Type.Optional(Type.Any()),
     localization: Type.Optional(Type.Any()),
     // Properties below are not SIP-016 compliant.
-    imageUrl: Type.Optional(Type.String()),
-    image_url: Type.Optional(Type.String()),
+    imageUrl: Type.Optional(Type.Any()),
+    image_url: Type.Optional(Type.Any()),
   },
   { additionalProperties: true }
 );
@@ -139,7 +141,6 @@ async function parseMetadataForInsertion(
   const inserts: DbMetadataLocaleInsertBundle[] = [];
   for (const raw of rawMetadataLocales) {
     const metadata = raw.metadata;
-    const sip = metadata.sip ?? 16;
     const name = metadata.name ?? defaultInsert?.metadata.name;
     if (!name) {
       // SIP-016 requires at least `sip` and `name` to be defined.
@@ -153,17 +154,18 @@ async function parseMetadataForInsertion(
       defaultInsert?.metadata.image ??
       null;
     let cachedImage: string | null = null;
-    if (image) {
+    if (image && typeof image === 'string') {
       const normalizedUrl = getImageUrl(image);
       cachedImage = await processImageUrl(normalizedUrl);
     }
     // Localized values override defaults.
     const metadataInsert: DbMetadataInsert = {
-      sip: sip,
+      sip: 16,
       token_id: token.id,
-      name: name,
-      description: metadata.description ?? defaultInsert?.metadata.description ?? null,
-      image: image,
+      name: name.toString(),
+      description:
+        metadata.description?.toString() ?? defaultInsert?.metadata.description?.toString() ?? null,
+      image: image?.toString(),
       cached_image: cachedImage,
       l10n_default: raw.default,
       l10n_locale: raw.locale ?? null,
@@ -316,7 +318,7 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
     if (RawMetadataCType.Check(result)) {
       return result;
     }
-    throw new MetadataParseError(`Invalid raw metadata JSON schema from ${httpUrl.toString()}`);
+    throw new MetadataParseError(`Invalid raw metadata JSON schema from ${httpUrl.toString()}}`);
   }
   throw new MetadataParseError(`Unable to fetch metadata from ${httpUrl.toString()}`);
 }

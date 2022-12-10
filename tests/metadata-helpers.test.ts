@@ -88,6 +88,41 @@ describe('Metadata Helpers', () => {
     );
   });
 
+  test('does not throw on raw metadata with null or stringable values', async () => {
+    const crashPunks1 = {
+      version: '1',
+      name: 'Crash Punk 294',
+      description: null,
+      image: 'ipfs://Qmb84UcaMr1MUwNbYBnXWHM3kEaDcYrKuPWwyRLVTNKELC/294.png',
+      properties: {
+        collection: 'Crash Punks',
+        collectionId: 'grace.btc/crash_punks',
+        dna: '23dbacae61aa20ed58164e06d07ce67752c3dfd3',
+        total_supply: '9216',
+        external_url:
+          'https://thisisnumberone.com/nfts/SP3QSAJQ4EA8WXEDSRRKMZZ29NH91VZ6C5X88FGZQ.crashpunks-v2/294',
+        animation_url: null,
+      },
+      localization: {
+        uri: null,
+        locales: ['en'],
+        default: 'en',
+      },
+    };
+    const agent = new MockAgent();
+    agent.disableNetConnect();
+    agent
+      .get('http://test.io')
+      .intercept({
+        path: '/1.json',
+        method: 'GET',
+      })
+      .reply(200, JSON.stringify(crashPunks1));
+    setGlobalDispatcher(agent);
+
+    await expect(getMetadataFromUri('http://test.io/1.json')).resolves.not.toThrow();
+  });
+
   test('fetches typed raw metadata', async () => {
     const json = {
       version: 1,
@@ -135,6 +170,8 @@ describe('Metadata Helpers', () => {
   });
 
   test('get fetchable URLs', () => {
+    ENV.PUBLIC_GATEWAY_IPFS = 'https://cloudflare-ipfs.com';
+    ENV.PUBLIC_GATEWAY_ARWEAVE = 'https://arweave.net';
     const arweave = 'ar://II4z2ziYyqG7-kWDa98lWGfjxRdYOx9Zdld9P_I_kzE/9731.json';
     expect(getFetchableUrl(arweave).toString()).toBe(
       'https://arweave.net/II4z2ziYyqG7-kWDa98lWGfjxRdYOx9Zdld9P_I_kzE/9731.json'
