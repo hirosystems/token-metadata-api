@@ -1,7 +1,9 @@
 import envSchema from 'env-schema';
 
 interface Env {
+  /** Hosname of the Token Metadata Service API server */
   API_HOST: string;
+  /** Port in which to serve the API */
   API_PORT: number;
 
   PGHOST: string;
@@ -14,7 +16,9 @@ interface Env {
    * is greater than `JOB_QUEUE_CONCURRENCY_LIMIT`.
    */
   PG_CONNECTION_POOL_MAX: number;
+  /** Idle connection timeout (seconds). */
   PG_IDLE_TIMEOUT: number;
+  /** Max lifetime of a connection (seconds). */
   PG_MAX_LIFETIME: number;
 
   BLOCKCHAIN_API_PGHOST: string;
@@ -34,6 +38,7 @@ interface Env {
    * before declaring the failure as a non-retryable error.
    */
   METADATA_MAX_IMMEDIATE_URI_RETRIES: number;
+  /** Timeout period for a token metadata URL fetch (miliseconds) */
   METADATA_FETCH_TIMEOUT_MS: number;
   /**
    * The maximum number of bytes of metadata to fetch. If the fetch encounters more bytes than this
@@ -52,9 +57,19 @@ interface Env {
    */
   METADATA_IMAGE_CACHE_PROCESSOR: string;
 
+  /** Whether or not the `JobQueue` will continue to try retryable failed jobs indefinitely. */
   JOB_QUEUE_STRICT_MODE: boolean;
+  /** How many jobs will be processed at the same time in the `JobQueue`. */
   JOB_QUEUE_CONCURRENCY_LIMIT: number;
+  /**
+   * The maximum number of jobs that will be loaded into memory when fetching them from the
+   * database.
+   */
   JOB_QUEUE_SIZE_LIMIT: number;
+  /**
+   * How many times a job will be retried if its failure is recoverable. This setting is ignored if
+   * `JOB_QUEUE_STRICT_MODE` is enabled.
+   */
   JOB_QUEUE_MAX_RETRIES: number;
 
   /**
