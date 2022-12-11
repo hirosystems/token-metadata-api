@@ -28,7 +28,8 @@ Stacks blockchain and exposes it via JSON REST API endpoints.
       Non-Fungible Tokens
     * [SIP-010](https://github.com/stacksgov/sips/blob/main/sips/sip-010/sip-010-fungible-token-standard.md)
       Fungible Tokens
-    * [SIP-013](https://github.com/stacksgov/sips/pull/42) Semi-Fungible Tokens *(coming soon)*
+    * [SIP-013](https://github.com/stacksgov/sips/blob/main/sips/sip-013/sip-013-semi-fungible-token-standard.md)
+      Semi-Fungible Tokens *(coming soon)*
 * Automatic metadata refreshes via [SIP-019](https://github.com/stacksgov/sips/pull/72)
   notifications
 * Metadata localization support
