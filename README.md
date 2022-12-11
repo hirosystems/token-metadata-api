@@ -1,7 +1,7 @@
 # Stacks Token Metadata Service
 
-A microservice that indexes metadata for every single Fungible and Non-Fungible Token in the Stacks
-blockchain and exposes it via REST API endpoints.
+A microservice that indexes metadata for all Fungible, Non-Fungible, and Semi-Fungible Tokens in the
+Stacks blockchain and exposes it via JSON REST API endpoints.
 
 ## Table of Contents
 
@@ -16,6 +16,8 @@ blockchain and exposes it via REST API endpoints.
         * [Blockchain importer](#smart-contract-importer)
         * [Smart Contract Monitor](#smart-contract-monitor)
         * [Job Queue](#job-queue)
+            * [Process Smart Contract Job](#process-smart-contract-job)
+            * [Process Token Job](#process-token-job)
 
 ## Features
 
@@ -26,11 +28,11 @@ blockchain and exposes it via REST API endpoints.
       Non-Fungible Tokens
     * [SIP-010](https://github.com/stacksgov/sips/blob/main/sips/sip-010/sip-010-fungible-token-standard.md)
       Fungible Tokens
-    * [SIP-013](https://github.com/stacksgov/sips/pull/42) Semi-Fungible Tokens *(coming soon!)*
-* Metadata refreshing via [SIP-019](https://github.com/stacksgov/sips/pull/72)
+    * [SIP-013](https://github.com/stacksgov/sips/pull/42) Semi-Fungible Tokens *(coming soon)*
+* Automatic metadata refreshes via [SIP-019](https://github.com/stacksgov/sips/pull/72)
   notifications
 * Metadata localization support
-* Metadata JSON fetching via `http:`, `https:`, `data:` URIs. Also supported:
+* Metadata fetching via `http:`, `https:`, `data:` URIs. Also supported:
     * IPFS
     * Arweave
 * Easy to use REST JSON endpoints with ETag caching
@@ -44,14 +46,15 @@ See the [Token Metadata Service API Reference]() for more information.
 
 ### System requirements
 
-The Token Metadata Service is a microservice that has hard dependencies on other Stacks components.
-Before you start, you'll need to have access to:
+The Token Metadata Service is a microservice that has hard dependencies on other Stacks blockchain
+components. Before you start, you'll need to have access to:
 
-* A fully synchronized [Stacks node](https://github.com/stacks-network/stacks-blockchain)
-* A fully synchronized instance of the [Stacks Blockchain
+1. A fully synchronized [Stacks node](https://github.com/stacks-network/stacks-blockchain)
+1. A fully synchronized instance of the [Stacks Blockchain
 API](https://github.com/hirosystems/stacks-blockchain-api) running in `default` or `write-only`
-mode, with its Postgres database exposed for new connections. A read-only replica is acceptable.
-* A local writeable Postgres database for token metadata storage
+mode, with its Postgres database exposed for new connections. A read-only DB replica is also
+acceptable.
+1. A local writeable Postgres database for token metadata storage
 
 ### Running the service
 
@@ -59,10 +62,10 @@ Clone the repo.
 
 Create an `.env` file and specify the appropriate values to configure access to the Stacks API
 database, the Token Metadata Service local database, and the Stacks node RPC interface. See
-[`env.ts`](https://github.com/hirosystems/token-metadata-service/blob/develop/src/env.ts) for
-available options.
+[`env.ts`](https://github.com/hirosystems/token-metadata-service/blob/develop/src/env.ts) for all
+available configuration options.
 
-Build the app
+Build the app (NodeJS v18+ is required)
 ```
 npm install
 npm run build
@@ -81,23 +84,25 @@ npm run start
 
 The Stacks Token Metadata Service connects to three different systems to operate:
 
-1. A Stacks Blockchain API database to import all historical smart contracts when booting up and to
-   listen for new contracts that may be deployed. Only read access is required, this service will
-   never need to write anything to this DB.
-1. A Stacks node to issue all read-only contract calls when refreshing metadata (to get token count,
-   token URIs, etc.)
+1. A Stacks Blockchain API database to import all historical smart contracts when booting up, and to
+   listen for new contracts that may be deployed. Read-only access is recommended as this service
+   will never need to write anything to this DB.
+1. A Stacks node to respond to all read-only contract calls required when fetching token metadata
+   (calls to get token count, token metadata URIs, etc.)
 1. A local Postgres DB to store all processed metadata info
 
 The service will also need to fetch external metadata files (JSONs, images) from the Internet, so it
-should have access to external networks.
+must have access to external networks.
 
 ### Internal
+
+![Flowchart](flowchart.png)
 
 #### Blockchain importer
 
 The
 [`BlockchainImporter`](https://github.com/hirosystems/token-metadata-service/blob/develop/src/token-processor/blockchain-api/blockchain-importer.ts)
-component is only used on service bootup.
+component is only used on service boot.
 
 It connects to the Stacks Blockchain API database and scans the entire `smart_contracts` table
 looking for any contract that conforms to SIP-009, SIP-010 or SIP-013. When it finds a token
@@ -111,4 +116,53 @@ pick up any newer contracts it might have missed while the service was unavailab
 
 #### Smart Contract Monitor
 
+The
+[`BlockchainSmartContractMonitor`](https://github.com/hirosystems/token-metadata-service/blob/develop/src/token-processor/blockchain-api/blockchain-smart-contract-monitor.ts)
+component constantly listens for the following Stacks Blockchain API events:
+
+* **Smart contract log events**
+    
+    If a contract `print` event conforms to SIP-019, it finds the affected tokens and marks them for
+    metadata refresh.
+
+* **Smart contract deployments**
+
+    If the new contract is a token contract, it saves it and enqueues it for token processing.
+
+This process is kept alive throughout the entire service lifetime.
+
 #### Job Queue
+
+The role of the
+[`JobQueue`](https://github.com/hirosystems/token-metadata-service/blob/develop/src/token-processor/queue/job-queue.ts)
+is to perform all the smart contract and token processing in the service.
+
+It is a priority queue that organizes all necessary work for contract ingestion and token metadata
+processing. Every job processed by this queue corresponds to one row in the `jobs` DB table, which
+marks its processing status and related objects to be worked on (smart contract or token).
+
+This object essentially runs an infinite loop that follows these steps:
+1. Upon `start()`, it fetches a set number of job rows that are `'pending'` and loads their
+   corresponding `Job` objects into memory for processing, marking those rows now as `'queued'`.
+2. It executes each loaded job to completion concurrently. Depending on success or failure, the job
+   row is marked as either `'done'` or `'failed'`.
+3. Once all loaded jobs are done (and the queue is now empty), it goes back to step 1.
+
+There are two env vars that can help you tune how the queue performs:
+* `ENV.JOB_QUEUE_SIZE_LIMIT`: The in-memory size of the queue, i.e. the number of pending jobs that
+   are loaded from the database while they wait for execution (see step 1 above).
+* `ENV.JOB_QUEUE_CONCURRENCY_LIMIT`: The number of jobs that will be ran simultaneously.
+
+This queue runs continuously and can handle an unlimited number of jobs.
+
+##### Process Smart Contract Job
+
+This job makes a contract call to the Stacks node in order to determine the total number of tokens
+declared by the given contract. Once determined, it creates and enqueues all of these tokens for
+metadata ingestion.
+
+##### Process Token Job
+
+This job fetches the metadata JSON object for a single token as well as other relevant properties
+depending on the token type (symbol, decimals, etc.). Once fetched, it parses and ingests this data
+to save it into the local database for API endpoints to return.
