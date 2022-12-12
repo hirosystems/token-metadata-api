@@ -4,18 +4,21 @@ import {
   TransactionVersion,
   uintCV,
 } from '@stacks/transactions';
-import { StacksNodeRpcClient } from './stacks-node/stacks-node-rpc-client';
+import { logger } from '../../../logger';
+import { PgNumeric } from '../../../pg/postgres-tools/types';
 import {
-  DbTokenType,
-  DbToken,
-  DbSmartContract,
-  DbProcessedTokenUpdateBundle,
   DbMetadataLocaleInsertBundle,
-} from '../pg/types';
-import { Job } from './queue/job';
-import { fetchAllMetadataLocalesFromBaseUri, getTokenSpecificUri } from './util/metadata-helpers';
-import { PgNumeric } from '../pg/postgres-tools/types';
-import { logger } from '../logger';
+  DbProcessedTokenUpdateBundle,
+  DbSmartContract,
+  DbToken,
+  DbTokenType,
+} from '../../../pg/types';
+import { StacksNodeRpcClient } from '../../stacks-node/stacks-node-rpc-client';
+import {
+  fetchAllMetadataLocalesFromBaseUri,
+  getTokenSpecificUri,
+} from '../../util/metadata-helpers';
+import { Job } from './job';
 
 /**
  * Downloads, parses and indexes metadata info for a single token in the Stacks blockchain by

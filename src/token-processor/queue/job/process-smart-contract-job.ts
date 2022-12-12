@@ -3,12 +3,12 @@ import {
   makeRandomPrivKey,
   TransactionVersion,
 } from '@stacks/transactions';
-import { ENV } from '../env';
-import { logger } from '../logger';
-import { DbSipNumber, DbSmartContract } from '../pg/types';
-import { Job } from './queue/job';
-import { StacksNodeRpcClient } from './stacks-node/stacks-node-rpc-client';
-import { dbSipNumberToDbTokenType } from './util/helpers';
+import { ENV } from '../../../env';
+import { logger } from '../../../logger';
+import { DbSipNumber, DbSmartContract } from '../../../pg/types';
+import { Job } from './job';
+import { StacksNodeRpcClient } from '../../stacks-node/stacks-node-rpc-client';
+import { dbSipNumberToDbTokenType } from '../../util/helpers';
 
 /**
  * Takes a smart contract and (depending on its SIP) enqueues all of its underlying tokens for

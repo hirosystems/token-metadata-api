@@ -2,10 +2,10 @@ import PQueue from 'p-queue';
 import { PgStore } from '../../pg/pg-store';
 import { DbJob, DbJobStatus } from '../../pg/types';
 import { ENV } from '../../env';
-import { ProcessSmartContractJob } from '../process-smart-contract-job';
-import { ProcessTokenJob } from '../process-token-job';
+import { ProcessSmartContractJob } from './job/process-smart-contract-job';
 import { timeout } from '../../pg/postgres-tools/helpers';
 import { logger } from '../../logger';
+import { ProcessTokenJob } from './job/process-token-job';
 
 /**
  * A priority queue that organizes all necessary work for contract ingestion and token metadata

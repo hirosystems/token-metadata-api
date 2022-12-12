@@ -1,10 +1,10 @@
-import { ENV } from '../../env';
-import { logger } from '../../logger';
-import { PgStore } from '../../pg/pg-store';
-import { stopwatch } from '../../pg/postgres-tools/helpers';
-import { DbJob, DbJobStatus } from '../../pg/types';
-import { RetryableJobError } from './errors';
-import { getJobQueueProcessingMode, JobQueueProcessingMode } from './helpers';
+import { ENV } from '../../../env';
+import { logger } from '../../../logger';
+import { PgStore } from '../../../pg/pg-store';
+import { stopwatch } from '../../../pg/postgres-tools/helpers';
+import { DbJob, DbJobStatus } from '../../../pg/types';
+import { RetryableJobError } from '../errors';
+import { getJobQueueProcessingMode, JobQueueProcessingMode } from '../helpers';
 
 /**
  * An abstract class for a job that will be processed by `JobQueue`. It only contains logic for

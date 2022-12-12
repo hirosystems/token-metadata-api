@@ -10,9 +10,9 @@ import {
   DbSmartContractInsert,
   DbTokenType,
 } from '../src/pg/types';
-import { ProcessTokenJob } from '../src/token-processor/process-token-job';
 import { ENV } from '../src/env';
 import { cycleMigrations } from '../src/pg/migrations';
+import { ProcessTokenJob } from '../src/token-processor/queue/job/process-token-job';
 
 describe('ProcessTokenJob', () => {
   let db: PgStore;
