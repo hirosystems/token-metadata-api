@@ -24,10 +24,15 @@ const PgSmartContractLogPayload = Type.Object({ txId: Type.String(), eventIndex:
 const PgSmartContractPayloadLogCType = TypeCompiler.Compile(PgSmartContractLogPayload);
 type PgSmartContractPayloadLogType = Static<typeof PgSmartContractLogPayload>;
 
+const PgBlockPayload = Type.Object({ blockHash: Type.String() });
+const PgBlockPayloadCType = TypeCompiler.Compile(PgBlockPayload);
+type PgBlockPayloadType = Static<typeof PgBlockPayload>;
+
 /**
- * Listens for postgres notifications emitted from the API database when new contracts are deployed
- * or contract logs are registered. It will analyze each of them to determine if they're new token
- * contracts that need indexing or SIP-019 notifications that call for a token metadata refresh.
+ * Listens for postgres notifications emitted from the API database:
+ * 1. Smart Contract deploys: If they're token contracts, it enqueues them for processing.
+ * 2. Smart Contract logs: If they're SIP-019 notifications, refresh the affected tokens.
+ * 3. Blocks: Check for `dynamic` token metadata that needs to be refreshed.
  */
 export class BlockchainSmartContractMonitor {
   private readonly db: PgStore;
@@ -80,6 +85,15 @@ export class BlockchainSmartContractMonitor {
             }
           }
           break;
+        case 'blockUpdate':
+          if (PgBlockPayloadCType.Check(messageJson.payload)) {
+            try {
+              await this.handleBlock(messageJson.payload);
+            } catch (error) {
+              logger.error(`BlockchainSmartContractMonitor error handling block`, error);
+            }
+          }
+          break;
         default:
           break;
       }
@@ -122,5 +136,16 @@ export class BlockchainSmartContractMonitor {
         notification.contract_id
       } ${notification.token_ids ?? []}`
     );
+  }
+
+  private async handleBlock(payload: PgBlockPayloadType) {
+    const block = await this.apiDb.getBlock({ blockHash: payload.blockHash });
+    if (!block) {
+      return;
+    }
+    // Keep latest observed block height so we can know the last synchronization point for this
+    // service.
+    await this.db.updateChainTipBlockHeight({ blockHeight: block.block_height });
+    await this.db.enqueueDynamicTokensDueForRefresh();
   }
 }

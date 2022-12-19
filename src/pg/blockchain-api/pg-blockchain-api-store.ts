@@ -15,6 +15,12 @@ export interface BlockchainDbContractLog {
   value: string;
 }
 
+export interface BlockchainDbBlock {
+  block_height: number;
+  block_hash: string;
+  index_block_hash: string;
+}
+
 /**
  * Connects and queries the Stacks Blockchain API postgres DB.
  */
@@ -83,6 +89,18 @@ export class PgBlockchainApiStore extends BasePgStore {
         AND tx_id = ${args.txId}
         AND event_index = ${args.eventIndex}
       ORDER BY block_height DESC, microblock_sequence DESC, tx_index DESC, event_index DESC
+      LIMIT 1
+    `;
+    if (result.count) {
+      return result[0];
+    }
+  }
+
+  async getBlock(args: { blockHash: string }): Promise<BlockchainDbBlock | undefined> {
+    const result = await this.sql<BlockchainDbBlock[]>`
+      SELECT block_height, block_hash, index_block_hash
+      FROM blocks
+      WHERE canonical = TRUE AND block_hash = ${args.blockHash}
       LIMIT 1
     `;
     if (result.count) {

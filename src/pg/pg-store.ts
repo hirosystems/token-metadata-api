@@ -330,6 +330,23 @@ export class PgStore extends BasePgStore {
     });
   }
 
+  async updateChainTipBlockHeight(args: { blockHeight: number }): Promise<void> {
+    await this.sql`UPDATE chain_tip SET block_height = ${args.blockHeight}`;
+  }
+
+  async enqueueDynamicTokensDueForRefresh(): Promise<void> {
+    const defaultInterval = ENV.METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL;
+    await this.sql`
+      UPDATE jobs
+      SET status = 'pending', updated_at = NOW()
+      WHERE status IN ('done', 'failed') AND token_id = (
+        SELECT id FROM tokens
+        WHERE update_mode = 'dynamic'
+          AND COALESCE(updated_at, created_at) < (NOW() - INTERVAL '${defaultInterval} seconds')
+      )
+    `;
+  }
+
   /**
    * Returns a token ETag based on its last updated date.
    * @param contractPrincipal - smart contract principal
