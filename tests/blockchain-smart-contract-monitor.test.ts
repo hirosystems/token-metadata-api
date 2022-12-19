@@ -2,6 +2,7 @@ import { bufferCV, cvToHex, listCV, stringUtf8CV, tupleCV, uintCV } from '@stack
 import * as postgres from 'postgres';
 import { ENV } from '../src/env';
 import {
+  BlockchainDbBlock,
   BlockchainDbContractLog,
   BlockchainDbSmartContract,
   PgBlockchainApiStore,
@@ -165,11 +166,17 @@ const NftAbi = {
 class MockPgBlockchainApiStore extends PgBlockchainApiStore {
   private smartContract?: BlockchainDbSmartContract;
   private contractLog?: BlockchainDbContractLog;
+  private block?: BlockchainDbBlock;
 
-  constructor(smartContract?: BlockchainDbSmartContract, contractLog?: BlockchainDbContractLog) {
+  constructor(
+    smartContract?: BlockchainDbSmartContract,
+    contractLog?: BlockchainDbContractLog,
+    block?: BlockchainDbBlock
+  ) {
     super(postgres());
     this.smartContract = smartContract;
     this.contractLog = contractLog;
+    this.block = block;
   }
 
   getSmartContract(args: { contractId: string }): Promise<BlockchainDbSmartContract | undefined> {
@@ -181,6 +188,10 @@ class MockPgBlockchainApiStore extends PgBlockchainApiStore {
     eventIndex: number;
   }): Promise<BlockchainDbContractLog | undefined> {
     return Promise.resolve(this.contractLog);
+  }
+
+  getBlock(args: { blockHash: string }): Promise<BlockchainDbBlock | undefined> {
+    return Promise.resolve(this.block);
   }
 }
 
@@ -487,5 +498,71 @@ describe('BlockchainSmartContractMonitor', () => {
     );
     const token1 = await db.getToken({ id: 1 });
     expect(token1?.update_mode).toBe('frozen');
+  });
+
+  test('updates chain tip on observed block', async () => {
+    const block: BlockchainDbBlock = {
+      block_height: 10,
+      block_hash: '0x1234',
+      index_block_hash: '0x1111',
+    };
+    const apiDb = new MockPgBlockchainApiStore(undefined, undefined, block);
+    const monitor = new TestBlockchainMonitor({ db, apiDb });
+    await monitor.testHandleMessage(
+      JSON.stringify({
+        type: 'blockUpdate',
+        payload: {
+          blockHash: '0x1234',
+        },
+      })
+    );
+
+    const result = await db.getChainTipBlockHeight();
+    expect(result).toBe(10);
+  });
+
+  test('enqueues dynamic tokens for refresh', async () => {
+    const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
+    const contractId = `${address}.friedger-pool-nft`;
+    const values: DbSmartContractInsert = {
+      principal: contractId,
+      sip: DbSipNumber.sip009,
+      abi: '"some"',
+      tx_id: '0x123456',
+      block_height: 1,
+    };
+    await db.insertAndEnqueueSmartContract({ values });
+    await db.insertAndEnqueueTokens({
+      smart_contract_id: 1,
+      token_count: 1,
+      type: DbTokenType.nft,
+    });
+    // Update update_mode and updated_at for testing.
+    await db.sql`
+      UPDATE tokens
+      SET update_mode = 'dynamic', updated_at = NOW() - INTERVAL '2 days'
+      WHERE id = 1
+    `;
+    // Mark jobs as done.
+    await db.sql`UPDATE jobs SET status = 'done'`;
+
+    const block: BlockchainDbBlock = {
+      block_height: 10,
+      block_hash: '0x1234',
+      index_block_hash: '0x1111',
+    };
+    const apiDb = new MockPgBlockchainApiStore(undefined, undefined, block);
+    const monitor = new TestBlockchainMonitor({ db, apiDb });
+    await monitor.testHandleMessage(
+      JSON.stringify({
+        type: 'blockUpdate',
+        payload: {
+          blockHash: '0x1234',
+        },
+      })
+    );
+
+    const job = await db.getJob({ id: 2 });
+    expect(job?.status).toBe('pending');
   });
 });

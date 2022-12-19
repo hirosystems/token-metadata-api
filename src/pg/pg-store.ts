@@ -334,17 +334,26 @@ export class PgStore extends BasePgStore {
     await this.sql`UPDATE chain_tip SET block_height = ${args.blockHeight}`;
   }
 
+  async getChainTipBlockHeight(): Promise<number> {
+    const result = await this.sql<{ block_height: number }[]>`SELECT block_height FROM chain_tip`;
+    return result[0].block_height;
+  }
+
   async enqueueDynamicTokensDueForRefresh(): Promise<void> {
-    const defaultInterval = ENV.METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL;
-    await this.sql`
-      UPDATE jobs
-      SET status = 'pending', updated_at = NOW()
-      WHERE status IN ('done', 'failed') AND token_id = (
-        SELECT id FROM tokens
-        WHERE update_mode = 'dynamic'
-          AND COALESCE(updated_at, created_at) < (NOW() - INTERVAL '${defaultInterval} seconds')
-      )
-    `;
+    await this.sqlWriteTransaction(async sql => {
+      const defaultInterval = ENV.METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL.toString();
+      await sql`
+        UPDATE jobs
+        SET status = 'pending', updated_at = NOW()
+        WHERE status IN ('done', 'failed') AND token_id = (
+          SELECT id FROM tokens
+          WHERE update_mode = 'dynamic'
+            AND COALESCE(updated_at, created_at)
+              < (NOW() - INTERVAL '${sql(defaultInterval)} seconds')
+        )
+      `;
+      await sql`UPDATE chain_tip SET last_dynamic_token_refresh_at = NOW()`;
+    });
   }
 
   /**

@@ -5,6 +5,11 @@ export const shorthands: ColumnDefinitions | undefined = undefined;
 
 export function up(pgm: MigrationBuilder): void {
   pgm.createTable('chain_tip', {
+    id: {
+      type: 'bool',
+      primaryKey: true,
+      default: true,
+    },
     block_height: {
       type: 'int',
       notNull: true,
@@ -18,4 +23,8 @@ export function up(pgm: MigrationBuilder): void {
   pgm.addConstraint('chain_tip', 'chain_tip_one_row', 'CHECK(id)');
   // Create the single row
   pgm.sql('INSERT INTO chain_tip VALUES(DEFAULT)');
+}
+
+export function down(pgm: MigrationBuilder): void {
+  pgm.dropTable('chain_tip');
 }
