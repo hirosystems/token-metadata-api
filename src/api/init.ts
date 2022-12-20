@@ -18,7 +18,7 @@ export const ApiSwaggerOptions: SwaggerOptions = {
       version: '0.0.1',
     },
     externalDocs: {
-      url: 'https://github.com/rafaelcr/token-metadata-service',
+      url: 'https://github.com/hirosystems/token-metadata-service',
       description: 'Source Repository',
     },
     tags: [
