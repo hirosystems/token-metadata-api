@@ -19,7 +19,7 @@ export function up(pgm: MigrationBuilder): void {
       notNull: true,
     },
     abi: {
-      type: 'text',
+      type: 'jsonb',
       notNull: true,
     },
     tx_id: {
