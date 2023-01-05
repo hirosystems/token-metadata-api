@@ -125,10 +125,10 @@ export function getTokenSpecificUri(uri: string, tokenNumber: number, locale?: s
   const localeStr = locale ?? '';
   return (
     uri
-      .replaceAll('{id}', tokenNumStr)
-      .replaceAll('{locale}', localeStr)
+      .replaceAll(/{id}/ig, tokenNumStr)
+      .replaceAll(/{locale}/ig, localeStr)
       // Patterns below are not SIP-016 compliant.
-      .replaceAll('$TOKEN_ID', tokenNumStr)
+      .replaceAll(/\$TOKEN_ID/ig, tokenNumStr)
   );
 }
 
