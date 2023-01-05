@@ -15,6 +15,12 @@ import {
   DbMetadataProperty,
   DbMetadataLocaleBundle,
   DbTokenUpdateMode,
+  SMART_CONTRACTS_COLUMNS,
+  TOKENS_COLUMNS,
+  JOBS_COLUMNS,
+  METADATA_COLUMNS,
+  METADATA_ATTRIBUTES_COLUMNS,
+  METADATA_PROPERTIES_COLUMNS,
 } from './types';
 import { connectPostgres } from './postgres-tools';
 import { BasePgStore } from './postgres-tools/base-pg-store';
@@ -66,7 +72,7 @@ export class PgStore extends BasePgStore {
 
   async getSmartContract(args: { id: number }): Promise<DbSmartContract | undefined> {
     const result = await this.sql<DbSmartContract[]>`
-      SELECT * FROM smart_contracts WHERE id = ${args.id}
+      SELECT ${this.sql(SMART_CONTRACTS_COLUMNS)} FROM smart_contracts WHERE id = ${args.id}
     `;
     if (result.count === 0) {
       return undefined;
@@ -121,7 +127,7 @@ export class PgStore extends BasePgStore {
 
   async getToken(args: { id: number }): Promise<DbToken | undefined> {
     const result = await this.sql<DbToken[]>`
-      SELECT * FROM tokens WHERE id = ${args.id}
+      SELECT ${this.sql(TOKENS_COLUMNS)} FROM tokens WHERE id = ${args.id}
     `;
     if (result.count === 0) {
       return undefined;
@@ -243,7 +249,7 @@ export class PgStore extends BasePgStore {
    */
   async getPendingJobBatch(args: { limit: number }): Promise<DbJob[]> {
     return this.sql<DbJob[]>`
-      SELECT * FROM jobs
+      SELECT ${this.sql(JOBS_COLUMNS)} FROM jobs
       WHERE status = 'pending'
       ORDER BY COALESCE(updated_at, created_at) ASC
       LIMIT ${args.limit}
@@ -256,7 +262,7 @@ export class PgStore extends BasePgStore {
    */
   async getQueuedJobs(args: { excludingIds: number[] }): Promise<DbJob[]> {
     return this.sql<DbJob[]>`
-      SELECT * FROM jobs
+      SELECT ${this.sql(JOBS_COLUMNS)} FROM jobs
       WHERE status = 'queued'
       ${
         args.excludingIds.length
@@ -268,7 +274,9 @@ export class PgStore extends BasePgStore {
   }
 
   async getJob(args: { id: number }): Promise<DbJob | undefined> {
-    const result = await this.sql<DbJob[]>`SELECT * FROM jobs WHERE id = ${args.id}`;
+    const result = await this.sql<DbJob[]>`
+      SELECT ${this.sql(JOBS_COLUMNS)} FROM jobs WHERE id = ${args.id}
+    `;
     if (result.count) {
       return result[0];
     }
@@ -295,7 +303,7 @@ export class PgStore extends BasePgStore {
 
       const refreshTokens = async (tokenIds: number[]) => {
         const tokens = await sql<DbToken[]>`
-          SELECT * FROM tokens
+          SELECT ${this.sql(TOKENS_COLUMNS)} FROM tokens
           WHERE smart_contract_id = ${contractId}
           ${tokenIds.length ? sql`AND token_number IN ${sql(tokenIds)}` : sql``}
         `;
@@ -406,7 +414,7 @@ export class PgStore extends BasePgStore {
     locale?: string
   ): Promise<DbTokenMetadataLocaleBundle> {
     const tokenRes = await this.sql<DbToken[]>`
-      SELECT * FROM tokens WHERE id = ${tokenId}
+      SELECT ${this.sql(TOKENS_COLUMNS)} FROM tokens WHERE id = ${tokenId}
     `;
     if (tokenRes.count === 0) {
       throw new TokenNotFoundError();
@@ -417,16 +425,20 @@ export class PgStore extends BasePgStore {
     }
     let localeBundle: DbMetadataLocaleBundle | undefined;
     const metadataRes = await this.sql<DbMetadata[]>`
-      SELECT * FROM metadata
+      SELECT ${this.sql(METADATA_COLUMNS)} FROM metadata
       WHERE token_id = ${token.id}
       AND ${locale ? this.sql`l10n_locale = ${locale}` : this.sql`l10n_default = TRUE`}
     `;
     if (metadataRes.count > 0) {
       const attributes = await this.sql<DbMetadataAttribute[]>`
-        SELECT * FROM metadata_attributes WHERE metadata_id = ${metadataRes[0].id}
+        SELECT ${this.sql(
+          METADATA_ATTRIBUTES_COLUMNS
+        )} FROM metadata_attributes WHERE metadata_id = ${metadataRes[0].id}
       `;
       const properties = await this.sql<DbMetadataProperty[]>`
-        SELECT * FROM metadata_properties WHERE metadata_id = ${metadataRes[0].id}
+        SELECT ${this.sql(
+          METADATA_PROPERTIES_COLUMNS
+        )} FROM metadata_properties WHERE metadata_id = ${metadataRes[0].id}
       `;
       localeBundle = {
         metadata: metadataRes[0],

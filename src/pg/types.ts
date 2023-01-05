@@ -179,3 +179,64 @@ export type DbTokenMetadataLocaleBundle = {
   token: DbToken;
   metadataLocale?: DbMetadataLocaleBundle;
 };
+
+export const SMART_CONTRACTS_COLUMNS = [
+  'id',
+  'principal',
+  'sip',
+  'abi',
+  'tx_id',
+  'block_height',
+  'token_count',
+  'created_at',
+  'updated_at',
+];
+
+export const TOKENS_COLUMNS = [
+  'id',
+  'smart_contract_id',
+  'type',
+  'token_number',
+  'update_mode',
+  'ttl',
+  'uri',
+  'name',
+  'decimals',
+  'total_supply',
+  'symbol',
+  'created_at',
+  'updated_at',
+];
+
+export const JOBS_COLUMNS = [
+  'id',
+  'token_id',
+  'smart_contract_id',
+  'status',
+  'retry_count',
+  'created_at',
+  'updated_at',
+];
+
+export const METADATA_COLUMNS = [
+  'id',
+  'sip',
+  'token_id',
+  'name',
+  'l10n_locale',
+  'l10n_uri',
+  'l10n_default',
+  'description',
+  'image',
+  'cached_image',
+];
+
+export const METADATA_ATTRIBUTES_COLUMNS = [
+  'id',
+  'metadata_id',
+  'trait_type',
+  'value',
+  'display_type',
+];
+
+export const METADATA_PROPERTIES_COLUMNS = ['id', 'metadata_id', 'name', 'value'];
