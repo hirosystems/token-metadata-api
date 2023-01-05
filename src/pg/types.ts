@@ -1,4 +1,4 @@
-import { PgNumeric } from './postgres-tools/types';
+import { PgJsonb, PgNumeric } from './postgres-tools/types';
 
 export enum DbSipNumber {
   /** Non-Fungible Tokens */
@@ -31,7 +31,7 @@ export enum DbTokenUpdateMode {
 export type DbSmartContractInsert = {
   principal: string;
   sip: DbSipNumber;
-  abi: string;
+  abi: PgJsonb;
   tx_id: string;
   block_height: number;
 };
@@ -133,7 +133,7 @@ export type DbMetadata = {
 export type DbMetadataAttributeInsert = {
   // We don't require `metadata_id` because that is determined by the insertion query.
   trait_type: string;
-  value: string;
+  value: PgJsonb;
   display_type: string | null;
 };
 
@@ -148,7 +148,7 @@ export type DbMetadataAttribute = {
 export type DbMetadataPropertyInsert = {
   // We don't require `metadata_id` because that is determined by the insertion query.
   name: string;
-  value: string;
+  value: PgJsonb;
 };
 
 export type DbMetadataProperty = {
