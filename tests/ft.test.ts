@@ -119,4 +119,90 @@ describe('FT routes', () => {
       total_supply: '1',
     });
   });
+
+  test('valid FT metadata', async () => {
+    await enqueueToken();
+    await db.updateProcessedTokenWithMetadata({
+      id: 1,
+      values: {
+        token: {
+          name: 'hello-world',
+          symbol: 'HELLO',
+          decimals: 6,
+          total_supply: 1,
+          uri: 'http://test.com/uri.json',
+        },
+        metadataLocales: [
+          {
+            metadata: {
+              sip: 16,
+              token_id: 1,
+              name: 'hello-world',
+              l10n_locale: 'en',
+              l10n_uri: null,
+              l10n_default: true,
+              description: 'test',
+              image: null,
+              cached_image: null,
+            },
+            attributes: [
+              {
+                trait_type: 'strength',
+                display_type: 'number',
+                value: JSON.stringify(105),
+              },
+              {
+                trait_type: 'powers',
+                display_type: 'array',
+                value: JSON.stringify([1, 2, 4]),
+              },
+            ],
+            properties: [
+              {
+                name: 'prop1',
+                value: JSON.stringify('ABC'),
+              },
+              {
+                name: 'prop2',
+                value: JSON.stringify(1),
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toStrictEqual({
+      name: 'hello-world',
+      symbol: 'HELLO',
+      token_uri: 'http://test.com/uri.json',
+      total_supply: '1',
+      decimals: 6,
+      metadata: {
+        sip: 16,
+        description: 'test',
+        name: 'hello-world',
+        attributes: [
+          {
+            display_type: 'number',
+            trait_type: 'strength',
+            value: 105,
+          },
+          {
+            display_type: 'array',
+            trait_type: 'powers',
+            value: [1, 2, 4],
+          },
+        ],
+        properties: {
+          prop1: 'ABC',
+          prop2: 1,
+        },
+      },
+    });
+  });
 });
