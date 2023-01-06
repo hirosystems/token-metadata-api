@@ -9,13 +9,24 @@ export const TokenQuerystringParams = Type.Object({
   ),
 });
 
+const MetadataValue = Type.Union([
+  Type.Object({}, { additionalProperties: true }),
+  Type.String(),
+  Type.Number(),
+  Type.Integer(),
+  Type.Boolean(),
+  Type.Array(Type.Any()),
+]);
+export type MetadataValueType = Static<typeof MetadataValue>;
+
 export const MetadataAttribute = Type.Object({
   trait_type: Type.String(),
-  value: Type.Any(),
   display_type: Type.Optional(Type.String()),
+  value: MetadataValue,
 });
 
-export const MetadataProperties = Type.Record(Type.String(), Type.Any());
+export const MetadataProperties = Type.Record(Type.String(), MetadataValue);
+export type MetadataPropertiesType = Static<typeof MetadataProperties>;
 
 export const MetadataLocalization = Type.Object({
   uri: Type.String({ format: 'uri' }),
