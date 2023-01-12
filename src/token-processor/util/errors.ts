@@ -24,3 +24,21 @@ export class MetadataParseError extends Error {
     this.name = this.constructor.name;
   }
 }
+
+export class HttpError extends Error {
+  public cause?: unknown;
+  constructor(message: string, cause?: unknown) {
+    super();
+    this.message = message;
+    this.name = this.constructor.name;
+    this.cause = cause;
+  }
+}
+
+export class JsonParseError extends Error {
+  constructor(message: string) {
+    super();
+    this.message = message;
+    this.name = this.constructor.name;
+  }
+}
