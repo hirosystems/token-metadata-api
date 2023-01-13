@@ -1,6 +1,8 @@
 import { MockAgent, setGlobalDispatcher } from 'undici';
 import { ENV } from '../src/env';
 import {
+  HttpError,
+  MetadataParseError,
   MetadataSizeExceededError,
   MetadataTimeoutError,
 } from '../src/token-processor/util/errors';
@@ -86,6 +88,22 @@ describe('Metadata Helpers', () => {
     await expect(getMetadataFromUri('http://test.io/1.json')).rejects.toThrow(
       /Invalid raw metadata JSON schema/
     );
+  });
+
+  test('throws metadata http errors', async () => {
+    const url = new URL('http://test.io/1.json');
+    const agent = new MockAgent();
+    agent.disableNetConnect();
+    agent
+      .get('http://test.io')
+      .intercept({
+        path: '/1.json',
+        method: 'GET',
+      })
+      .reply(500, { message: 'server error' });
+    setGlobalDispatcher(agent);
+
+    await expect(performSizeAndTimeLimitedMetadataFetch(url)).rejects.toThrow(HttpError);
   });
 
   test('does not throw on raw metadata with null or stringable values', async () => {
