@@ -11,7 +11,12 @@ import {
 } from '../../pg/types';
 import { ENV } from '../../env';
 import { TextDecoder } from 'util';
-import { MetadataParseError, MetadataSizeExceededError, MetadataTimeoutError } from './errors';
+import {
+  HttpError,
+  MetadataParseError,
+  MetadataSizeExceededError,
+  MetadataTimeoutError,
+} from './errors';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
 import { Static, Type } from '@sinclair/typebox';
 import { logger } from '../../logger';
@@ -235,6 +240,9 @@ export async function performSizeAndTimeLimitedMetadataFetch(
       method: 'GET',
       signal: ctrl.signal,
     });
+    if (networkResult.status >= 400) {
+      throw new HttpError(`Fetch error from ${httpUrl.toString()} (${networkResult.status})`);
+    }
     if (networkResult.body) {
       const decoder = new TextDecoder();
       let responseText: string = '';
