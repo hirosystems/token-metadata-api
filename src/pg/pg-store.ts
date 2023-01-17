@@ -122,7 +122,7 @@ export class PgStore extends BasePgStore {
         type: args.type,
       });
     }
-    return this.insertAndEnqueueTokensInternal(tokenValues);
+    return this.insertAndEnqueueTokenArray(tokenValues);
   }
 
   async getToken(args: { id: number }): Promise<DbToken | undefined> {
@@ -379,7 +379,7 @@ export class PgStore extends BasePgStore {
     `;
   }
 
-  private async insertAndEnqueueTokensInternal(tokenValues: DbTokenInsert[]): Promise<DbJob[]> {
+  async insertAndEnqueueTokenArray(tokenValues: DbTokenInsert[]): Promise<DbJob[]> {
     return this.sql<DbJob[]>`
       WITH token_inserts AS (
         INSERT INTO tokens ${this.sql(tokenValues)}
