@@ -221,7 +221,6 @@ export function getSmartContractSip(abi: ClarityAbi): DbSipNumber | undefined {
   if (!abi) {
     return;
   }
-  // TODO: Will stacks.js support SFTs?
   if (abiContains(abi, SftTraitFunctions)) {
     return DbSipNumber.sip013;
   }

@@ -98,8 +98,6 @@ export type DbNftInsert = {
 };
 
 export type DbSftInsert = {
-  name: string | null;
-  symbol: string | null;
   decimals: number | null;
   total_supply: number | null;
   uri: string | null;
