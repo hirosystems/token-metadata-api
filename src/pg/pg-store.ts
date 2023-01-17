@@ -70,9 +70,13 @@ export class PgStore extends BasePgStore {
     return result[0];
   }
 
-  async getSmartContract(args: { id: number }): Promise<DbSmartContract | undefined> {
+  async getSmartContract(
+    args: { id: number } | { principal: string }
+  ): Promise<DbSmartContract | undefined> {
     const result = await this.sql<DbSmartContract[]>`
-      SELECT ${this.sql(SMART_CONTRACTS_COLUMNS)} FROM smart_contracts WHERE id = ${args.id}
+      SELECT ${this.sql(SMART_CONTRACTS_COLUMNS)}
+      FROM smart_contracts
+      WHERE ${'id' in args ? this.sql`id = ${args.id}` : this.sql`principal = ${args.principal}`}
     `;
     if (result.count === 0) {
       return undefined;

@@ -346,6 +346,7 @@ export function getContractLogMetadataUpdateNotification(
 }
 
 export type SftMintEvent = {
+  contractId: string;
   tokenId: bigint;
   amount: bigint;
   recipient: string;
@@ -364,6 +365,7 @@ export function getContractLogSftMintEvent(log: BlockchainDbContractLog): SftMin
     const amount = (value.data['amount'] as UIntCV).value;
 
     const event: SftMintEvent = {
+      contractId: log.contract_identifier,
       tokenId: tokenId,
       amount: amount,
       recipient: recipient,

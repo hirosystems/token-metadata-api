@@ -3,12 +3,14 @@ import { PgStore } from '../../pg/pg-store';
 import { PgBlockchainApiStore } from '../../pg/blockchain-api/pg-blockchain-api-store';
 import {
   getContractLogMetadataUpdateNotification,
+  getContractLogSftMintEvent,
   getSmartContractSip,
 } from '../util/sip-validation';
 import { ClarityAbi } from '@stacks/transactions';
 import { Static, Type } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
 import { logger } from '../../logger';
+import { DbSipNumber, DbTokenType } from '../../pg/types';
 
 const PgNotification = Type.Object({
   type: Type.String(),
@@ -108,19 +110,37 @@ export class BlockchainSmartContractMonitor {
   }
 
   private async handleSmartContractLog(payload: PgSmartContractPayloadLogType) {
-    const event = await this.apiDb.getSmartContractLog({ ...payload });
-    if (!event) {
+    const log = await this.apiDb.getSmartContractLog({ ...payload });
+    if (!log) {
       return;
     }
-    const notification = getContractLogMetadataUpdateNotification(event);
-    if (!notification) {
-      return; // Not a valid SIP-019 notification.
+    // SIP-019 notification?
+    const notification = getContractLogMetadataUpdateNotification(log);
+    if (notification) {
+      await this.db.enqueueTokenMetadataUpdateNotification({ notification });
+      logger.info(
+        `BlockchainSmartContractMonitor detected SIP-019 notification for ${
+          notification.contract_id
+        } ${notification.token_ids ?? []}`
+      );
+      return;
     }
-    await this.db.enqueueTokenMetadataUpdateNotification({ notification });
-    logger.info(
-      `BlockchainSmartContractMonitor detected SIP-019 notification for ${
-        notification.contract_id
-      } ${notification.token_ids ?? []}`
-    );
+    // SIP-013 SFT mint?
+    const mint = getContractLogSftMintEvent(log);
+    if (mint) {
+      const contract = await this.db.getSmartContract({ principal: mint.contractId });
+      if (contract && contract.sip === DbSipNumber.sip013) {
+        await this.db.insertAndEnqueueTokenArray([
+          {
+            smart_contract_id: contract.id,
+            type: DbTokenType.sft,
+            token_number: Number(mint.tokenId),
+          },
+        ]);
+        logger.info(
+          `BlockchainSmartContractMonitor detected SIP-013 SFT mint event for ${mint.contractId} ${mint.tokenId}`
+        );
+      }
+    }
   }
 }
