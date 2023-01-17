@@ -139,27 +139,7 @@ export class PgStore extends BasePgStore {
     };
   }
 
-  async getFtMetadataBundle(args: {
-    contractPrincipal: string;
-    locale?: string;
-  }): Promise<DbTokenMetadataLocaleBundle> {
-    return await this.sqlTransaction(async sql => {
-      const tokenIdRes = await sql<{ id: number }[]>`
-        SELECT tokens.id FROM tokens
-        INNER JOIN smart_contracts ON tokens.smart_contract_id = smart_contracts.id
-        WHERE smart_contracts.principal = ${args.contractPrincipal}
-      `;
-      if (tokenIdRes.count === 0) {
-        throw new TokenNotFoundError();
-      }
-      if (args.locale && !(await this.isTokenLocaleAvailable(tokenIdRes[0].id, args.locale))) {
-        throw new TokenLocaleNotFoundError();
-      }
-      return await this.getTokenMetadataBundle(tokenIdRes[0].id, args.locale);
-    });
-  }
-
-  async getNftMetadataBundle(args: {
+  async getTokenMetadataBundle(args: {
     contractPrincipal: string;
     tokenNumber: number;
     locale?: string;
@@ -178,7 +158,7 @@ export class PgStore extends BasePgStore {
       if (args.locale && !(await this.isTokenLocaleAvailable(tokenIdRes[0].id, args.locale))) {
         throw new TokenLocaleNotFoundError();
       }
-      return await this.getTokenMetadataBundle(tokenIdRes[0].id, args.locale);
+      return await this.getTokenMetadataBundleInternal(tokenIdRes[0].id, args.locale);
     });
   }
 
@@ -409,7 +389,7 @@ export class PgStore extends BasePgStore {
     return tokenLocale.count !== 0;
   }
 
-  private async getTokenMetadataBundle(
+  private async getTokenMetadataBundleInternal(
     tokenId: number,
     locale?: string
   ): Promise<DbTokenMetadataLocaleBundle> {

@@ -185,7 +185,7 @@ describe('ProcessTokenJob', () => {
 
       await new ProcessTokenJob({ db, job: tokenJob }).work();
 
-      const bundle = await db.getNftMetadataBundle({
+      const bundle = await db.getTokenMetadataBundle({
         contractPrincipal: 'ABCD.test-nft',
         tokenNumber: 1,
       });
@@ -297,7 +297,7 @@ describe('ProcessTokenJob', () => {
 
       await new ProcessTokenJob({ db, job: tokenJob }).work();
 
-      const bundle = await db.getNftMetadataBundle({
+      const bundle = await db.getTokenMetadataBundle({
         contractPrincipal: 'ABCD.test-nft',
         tokenNumber: 1,
       });
@@ -308,7 +308,7 @@ describe('ProcessTokenJob', () => {
       expect(bundle?.metadataLocale?.metadata.l10n_uri).toBe('http://m.io/1.json');
 
       // Make sure localization overrides work correctly
-      const mexicanBundle = await db.getNftMetadataBundle({
+      const mexicanBundle = await db.getTokenMetadataBundle({
         contractPrincipal: 'ABCD.test-nft',
         tokenNumber: 1,
         locale: 'es-MX',
@@ -395,7 +395,7 @@ describe('ProcessTokenJob', () => {
       // Process once
       await new ProcessTokenJob({ db, job: tokenJob }).work();
 
-      const bundle1 = await db.getNftMetadataBundle({
+      const bundle1 = await db.getTokenMetadataBundle({
         contractPrincipal: 'ABCD.test-nft',
         tokenNumber: 1,
       });
@@ -439,7 +439,7 @@ describe('ProcessTokenJob', () => {
       await db.updateJobStatus({ id: tokenJob.id, status: DbJobStatus.pending });
       await new ProcessTokenJob({ db, job: tokenJob }).work();
 
-      const bundle2 = await db.getNftMetadataBundle({
+      const bundle2 = await db.getTokenMetadataBundle({
         contractPrincipal: 'ABCD.test-nft',
         tokenNumber: 1,
       });
@@ -494,7 +494,7 @@ describe('ProcessTokenJob', () => {
 
       await new ProcessTokenJob({ db, job: tokenJob }).work();
 
-      const bundle = await db.getNftMetadataBundle({
+      const bundle = await db.getTokenMetadataBundle({
         contractPrincipal: 'ABCD.test-nft',
         tokenNumber: 1,
       });

@@ -45,6 +45,12 @@ export const Metadata = Type.Object({
 });
 export type MetadataType = Static<typeof Metadata>;
 
+export const Name = Type.String();
+export const Symbol = Type.String();
+export const Decimals = Type.Integer();
+export const TotalSupply = Type.String();
+export const TokenUri = Type.String({ format: 'uri' });
+
 export const TokenNotFoundResponse = Type.Object({
   error: Type.Literal('Token not found'),
 });
