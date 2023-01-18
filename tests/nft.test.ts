@@ -29,9 +29,9 @@ describe('NFT routes', () => {
       block_height: 1,
     };
     await db.insertAndEnqueueSmartContract({ values });
-    await db.insertAndEnqueueTokens({
+    await db.insertAndEnqueueSequentialTokens({
       smart_contract_id: 1,
-      token_count: 1,
+      token_count: 1n,
       type: DbTokenType.nft,
     });
   };
@@ -64,7 +64,7 @@ describe('NFT routes', () => {
           name: 'hello-world',
           symbol: null,
           decimals: null,
-          total_supply: 1,
+          total_supply: '1',
           uri: 'http://test.com/uri.json',
         },
         metadataLocales: [
@@ -101,7 +101,7 @@ describe('NFT routes', () => {
           name: 'hello-world',
           symbol: null,
           decimals: null,
-          total_supply: 1,
+          total_supply: '1',
           uri: 'http://test.com/uri.json',
         },
       },
@@ -123,7 +123,7 @@ describe('NFT routes', () => {
           name: 'hello-world',
           symbol: null,
           decimals: null,
-          total_supply: 1,
+          total_supply: '1',
           uri: 'http://test.com/uri.json',
         },
         metadataLocales: [

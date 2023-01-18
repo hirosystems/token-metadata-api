@@ -31,7 +31,7 @@ export function up(pgm: MigrationBuilder): void {
       notNull: true,
     },
     token_count: {
-      type: 'int',
+      type: 'numeric',
     },
     created_at: {
       type: 'timestamp',

@@ -6,6 +6,7 @@ import { ProcessSmartContractJob } from './job/process-smart-contract-job';
 import { timeout } from '../../pg/postgres-tools/helpers';
 import { logger } from '../../logger';
 import { ProcessTokenJob } from './job/process-token-job';
+import { PgBlockchainApiStore } from '../../pg/blockchain-api/pg-blockchain-api-store';
 
 /**
  * A priority queue that organizes all necessary work for contract ingestion and token metadata
@@ -34,12 +35,14 @@ import { ProcessTokenJob } from './job/process-token-job';
 export class JobQueue {
   private readonly queue: PQueue;
   private readonly db: PgStore;
+  private readonly apiDb: PgBlockchainApiStore;
   /** IDs of jobs currently being processed by the queue. */
   private jobIds: Set<number>;
   private isRunning = false;
 
-  constructor(args: { db: PgStore }) {
+  constructor(args: { db: PgStore; apiDb: PgBlockchainApiStore }) {
     this.db = args.db;
+    this.apiDb = args.apiDb;
     this.queue = new PQueue({
       concurrency: ENV.JOB_QUEUE_CONCURRENCY_LIMIT,
       autoStart: false,
@@ -88,7 +91,7 @@ export class JobQueue {
       if (job.token_id) {
         await new ProcessTokenJob({ db: this.db, job: job }).work();
       } else if (job.smart_contract_id) {
-        await new ProcessSmartContractJob({ db: this.db, job: job }).work();
+        await new ProcessSmartContractJob({ db: this.db, apiDb: this.apiDb, job: job }).work();
       }
       this.jobIds.delete(job.id);
     });

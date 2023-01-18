@@ -4,7 +4,7 @@ import { PgStore } from '../src/pg/pg-store';
 import { DbSipNumber, DbSmartContractInsert, DbTokenType } from '../src/pg/types';
 import { startTestApiServer, TestFastifyServer } from './helpers';
 
-describe('FT routes', () => {
+describe('SFT routes', () => {
   let db: PgStore;
   let fastify: TestFastifyServer;
 
@@ -21,25 +21,29 @@ describe('FT routes', () => {
   });
 
   const enqueueToken = async () => {
+    const address = 'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9';
+    const contractId = 'key-alex-autoalex-v1';
     const values: DbSmartContractInsert = {
-      principal: 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
-      sip: DbSipNumber.sip010,
+      principal: `${address}.${contractId}`,
+      sip: DbSipNumber.sip013,
       abi: '"some"',
       tx_id: '0x123456',
       block_height: 1,
     };
     await db.insertAndEnqueueSmartContract({ values });
-    await db.insertAndEnqueueSequentialTokens({
-      smart_contract_id: 1,
-      token_count: 1n,
-      type: DbTokenType.ft,
-    });
+    await db.insertAndEnqueueTokenArray([
+      {
+        smart_contract_id: 1,
+        type: DbTokenType.sft,
+        token_number: '1',
+      },
+    ]);
   };
 
   test('token not found', async () => {
     const response = await fastify.inject({
       method: 'GET',
-      url: '/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      url: '/sft/SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1/1',
     });
     expect(response.statusCode).toBe(404);
     expect(response.json()).toStrictEqual({ error: 'Token not found' });
@@ -49,7 +53,7 @@ describe('FT routes', () => {
     await enqueueToken();
     const response = await fastify.inject({
       method: 'GET',
-      url: '/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      url: '/sft/SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1/1',
     });
     expect(response.statusCode).toBe(422);
     expect(response.json()).toStrictEqual({ error: 'Token metadata fetch in progress' });
@@ -61,10 +65,10 @@ describe('FT routes', () => {
       id: 1,
       values: {
         token: {
-          name: 'hello-world',
-          symbol: 'HELLO',
+          name: null,
+          symbol: null,
           decimals: 6,
-          total_supply: '1',
+          total_supply: '200',
           uri: 'http://test.com/uri.json',
         },
         metadataLocales: [
@@ -72,7 +76,7 @@ describe('FT routes', () => {
             metadata: {
               sip: 16,
               token_id: 1,
-              name: 'hello-world',
+              name: 'key-alex-autoalex-v1',
               l10n_locale: 'en',
               l10n_uri: null,
               l10n_default: true,
@@ -86,7 +90,7 @@ describe('FT routes', () => {
     });
     const response = await fastify.inject({
       method: 'GET',
-      url: '/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world?locale=es',
+      url: '/sft/SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1/1?locale=es',
     });
     expect(response.statusCode).toBe(422);
     expect(response.json()).toStrictEqual({ error: 'Locale not found' });
@@ -98,8 +102,8 @@ describe('FT routes', () => {
       id: 1,
       values: {
         token: {
-          name: 'hello-world',
-          symbol: 'HELLO',
+          name: 'key-alex-autoalex-v1',
+          symbol: null,
           decimals: 6,
           total_supply: '1',
           uri: 'http://test.com/uri.json',
@@ -108,28 +112,26 @@ describe('FT routes', () => {
     });
     const response = await fastify.inject({
       method: 'GET',
-      url: '/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      url: '/sft/SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1/1',
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toStrictEqual({
       decimals: 6,
-      name: 'hello-world',
-      symbol: 'HELLO',
-      token_uri: 'http://test.com/uri.json',
       total_supply: '1',
+      token_uri: 'http://test.com/uri.json',
     });
   });
 
-  test('valid FT metadata', async () => {
+  test('valid SFT metadata', async () => {
     await enqueueToken();
     await db.updateProcessedTokenWithMetadata({
       id: 1,
       values: {
         token: {
-          name: 'hello-world',
-          symbol: 'HELLO',
+          name: null,
+          symbol: null,
           decimals: 6,
-          total_supply: '1',
+          total_supply: '200',
           uri: 'http://test.com/uri.json',
         },
         metadataLocales: [
@@ -137,7 +139,7 @@ describe('FT routes', () => {
             metadata: {
               sip: 16,
               token_id: 1,
-              name: 'hello-world',
+              name: 'key-alex-autoalex-v1',
               l10n_locale: 'en',
               l10n_uri: null,
               l10n_default: true,
@@ -173,19 +175,17 @@ describe('FT routes', () => {
     });
     const response = await fastify.inject({
       method: 'GET',
-      url: '/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      url: '/sft/SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1/1',
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toStrictEqual({
-      name: 'hello-world',
-      symbol: 'HELLO',
       token_uri: 'http://test.com/uri.json',
-      total_supply: '1',
       decimals: 6,
+      total_supply: '200',
       metadata: {
         sip: 16,
         description: 'test',
-        name: 'hello-world',
+        name: 'key-alex-autoalex-v1',
         attributes: [
           {
             display_type: 'number',

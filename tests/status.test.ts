@@ -42,9 +42,9 @@ describe('Status routes', () => {
         block_height: 1,
       },
     });
-    await db.insertAndEnqueueTokens({
+    await db.insertAndEnqueueSequentialTokens({
       smart_contract_id: 1,
-      token_count: 1,
+      token_count: 1n,
       type: DbTokenType.nft,
     });
 

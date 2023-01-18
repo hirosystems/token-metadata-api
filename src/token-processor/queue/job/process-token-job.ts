@@ -59,7 +59,7 @@ export class ProcessTokenJob extends Job {
         await this.handleNft(client, token);
         break;
       case DbTokenType.sft:
-        // TODO: Handle SFT
+        await this.handleSft(client, token);
         break;
     }
   }
@@ -123,6 +123,41 @@ export class ProcessTokenJob extends Job {
     const tokenValues: DbProcessedTokenUpdateBundle = {
       token: {
         uri: uri ? getTokenSpecificUri(uri, token.token_number) : null,
+      },
+      metadataLocales: metadataLocales,
+    };
+    await this.db.updateProcessedTokenWithMetadata({ id: token.id, values: tokenValues });
+  }
+
+  private async handleSft(client: StacksNodeRpcClient, token: DbToken) {
+    const uri = await client.readStringFromContract('get-token-uri', [uintCV(token.token_number)]);
+
+    let fDecimals: number | undefined;
+    const decimals = await client.readUIntFromContract('get-decimals', [
+      uintCV(token.token_number),
+    ]);
+    if (decimals) {
+      fDecimals = Number(decimals.toString());
+    }
+
+    let fTotalSupply: PgNumeric | undefined;
+    const totalSupply = await client.readUIntFromContract('get-total-supply', [
+      uintCV(token.token_number),
+    ]);
+    if (totalSupply) {
+      fTotalSupply = totalSupply.toString();
+    }
+
+    let metadataLocales: DbMetadataLocaleInsertBundle[] | undefined;
+    if (uri) {
+      metadataLocales = await fetchAllMetadataLocalesFromBaseUri(uri, token);
+    }
+
+    const tokenValues: DbProcessedTokenUpdateBundle = {
+      token: {
+        uri: uri ? getTokenSpecificUri(uri, token.token_number) : null,
+        decimals: fDecimals ?? null,
+        total_supply: fTotalSupply ?? null,
       },
       metadataLocales: metadataLocales,
     };

@@ -70,9 +70,13 @@ export class PgStore extends BasePgStore {
     return result[0];
   }
 
-  async getSmartContract(args: { id: number }): Promise<DbSmartContract | undefined> {
+  async getSmartContract(
+    args: { id: number } | { principal: string }
+  ): Promise<DbSmartContract | undefined> {
     const result = await this.sql<DbSmartContract[]>`
-      SELECT ${this.sql(SMART_CONTRACTS_COLUMNS)} FROM smart_contracts WHERE id = ${args.id}
+      SELECT ${this.sql(SMART_CONTRACTS_COLUMNS)}
+      FROM smart_contracts
+      WHERE ${'id' in args ? this.sql`id = ${args.id}` : this.sql`principal = ${args.principal}`}
     `;
     if (result.count === 0) {
       return undefined;
@@ -95,34 +99,35 @@ export class PgStore extends BasePgStore {
     return result[0].max;
   }
 
-  async updateSmartContractTokenCount(args: { id: number; count: number }): Promise<void> {
+  async updateSmartContractTokenCount(args: { id: number; count: bigint }): Promise<void> {
     await this.sql`
-      UPDATE smart_contracts SET token_count = ${args.count} WHERE id = ${args.id}
+      UPDATE smart_contracts SET token_count = ${args.count.toString()} WHERE id = ${args.id}
     `;
   }
 
   /**
    * Returns a cursor that inserts new tokens and new token queue entries until `token_count` items
-   * are created. A cursor is preferred because `token_count` could be in the tens of thousands.
+   * are created, usually used when processing an NFT contract. A cursor is preferred because
+   * `token_count` could be in the tens of thousands.
    * @param smart_contract_id - smart contract id
    * @param token_count - how many tokens to insert
-   * @param type - token type (ft, nft, sft)
-   * @returns `DbTokenQueueEntry` cursor
+   * @param type - token type
+   * @returns `DbJob` array for all inserted tokens
    */
-  async insertAndEnqueueTokens(args: {
+  async insertAndEnqueueSequentialTokens(args: {
     smart_contract_id: number;
-    token_count: number;
+    token_count: bigint;
     type: DbTokenType;
   }): Promise<DbJob[]> {
     const tokenValues: DbTokenInsert[] = [];
     for (let index = 1; index <= args.token_count; index++) {
       tokenValues.push({
         smart_contract_id: args.smart_contract_id,
-        token_number: index,
+        token_number: index.toString(),
         type: args.type,
       });
     }
-    return this.insertAndEnqueueTokensInternal(tokenValues);
+    return this.insertAndEnqueueTokenArray(tokenValues);
   }
 
   async getToken(args: { id: number }): Promise<DbToken | undefined> {
@@ -139,27 +144,7 @@ export class PgStore extends BasePgStore {
     };
   }
 
-  async getFtMetadataBundle(args: {
-    contractPrincipal: string;
-    locale?: string;
-  }): Promise<DbTokenMetadataLocaleBundle> {
-    return await this.sqlTransaction(async sql => {
-      const tokenIdRes = await sql<{ id: number }[]>`
-        SELECT tokens.id FROM tokens
-        INNER JOIN smart_contracts ON tokens.smart_contract_id = smart_contracts.id
-        WHERE smart_contracts.principal = ${args.contractPrincipal}
-      `;
-      if (tokenIdRes.count === 0) {
-        throw new TokenNotFoundError();
-      }
-      if (args.locale && !(await this.isTokenLocaleAvailable(tokenIdRes[0].id, args.locale))) {
-        throw new TokenLocaleNotFoundError();
-      }
-      return await this.getTokenMetadataBundle(tokenIdRes[0].id, args.locale);
-    });
-  }
-
-  async getNftMetadataBundle(args: {
+  async getTokenMetadataBundle(args: {
     contractPrincipal: string;
     tokenNumber: number;
     locale?: string;
@@ -178,7 +163,7 @@ export class PgStore extends BasePgStore {
       if (args.locale && !(await this.isTokenLocaleAvailable(tokenIdRes[0].id, args.locale))) {
         throw new TokenLocaleNotFoundError();
       }
-      return await this.getTokenMetadataBundle(tokenIdRes[0].id, args.locale);
+      return await this.getTokenMetadataBundleInternal(tokenIdRes[0].id, args.locale);
     });
   }
 
@@ -379,7 +364,7 @@ export class PgStore extends BasePgStore {
     `;
   }
 
-  private async insertAndEnqueueTokensInternal(tokenValues: DbTokenInsert[]): Promise<DbJob[]> {
+  async insertAndEnqueueTokenArray(tokenValues: DbTokenInsert[]): Promise<DbJob[]> {
     return this.sql<DbJob[]>`
       WITH token_inserts AS (
         INSERT INTO tokens ${this.sql(tokenValues)}
@@ -409,7 +394,7 @@ export class PgStore extends BasePgStore {
     return tokenLocale.count !== 0;
   }
 
-  private async getTokenMetadataBundle(
+  private async getTokenMetadataBundleInternal(
     tokenId: number,
     locale?: string
   ): Promise<DbTokenMetadataLocaleBundle> {

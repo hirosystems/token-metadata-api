@@ -39,9 +39,9 @@ describe('ProcessTokenJob', () => {
         block_height: 1,
       };
       await db.insertAndEnqueueSmartContract({ values });
-      [tokenJob] = await db.insertAndEnqueueTokens({
+      [tokenJob] = await db.insertAndEnqueueSequentialTokens({
         smart_contract_id: 1,
-        token_count: 1,
+        token_count: 1n,
         type: DbTokenType.ft,
       });
     });
@@ -123,9 +123,9 @@ describe('ProcessTokenJob', () => {
         block_height: 1,
       };
       await db.insertAndEnqueueSmartContract({ values });
-      [tokenJob] = await db.insertAndEnqueueTokens({
+      [tokenJob] = await db.insertAndEnqueueSequentialTokens({
         smart_contract_id: 1,
-        token_count: 1,
+        token_count: 1n,
         type: DbTokenType.nft,
       });
     });
@@ -185,7 +185,7 @@ describe('ProcessTokenJob', () => {
 
       await new ProcessTokenJob({ db, job: tokenJob }).work();
 
-      const bundle = await db.getNftMetadataBundle({
+      const bundle = await db.getTokenMetadataBundle({
         contractPrincipal: 'ABCD.test-nft',
         tokenNumber: 1,
       });
@@ -297,7 +297,7 @@ describe('ProcessTokenJob', () => {
 
       await new ProcessTokenJob({ db, job: tokenJob }).work();
 
-      const bundle = await db.getNftMetadataBundle({
+      const bundle = await db.getTokenMetadataBundle({
         contractPrincipal: 'ABCD.test-nft',
         tokenNumber: 1,
       });
@@ -308,7 +308,7 @@ describe('ProcessTokenJob', () => {
       expect(bundle?.metadataLocale?.metadata.l10n_uri).toBe('http://m.io/1.json');
 
       // Make sure localization overrides work correctly
-      const mexicanBundle = await db.getNftMetadataBundle({
+      const mexicanBundle = await db.getTokenMetadataBundle({
         contractPrincipal: 'ABCD.test-nft',
         tokenNumber: 1,
         locale: 'es-MX',
@@ -395,7 +395,7 @@ describe('ProcessTokenJob', () => {
       // Process once
       await new ProcessTokenJob({ db, job: tokenJob }).work();
 
-      const bundle1 = await db.getNftMetadataBundle({
+      const bundle1 = await db.getTokenMetadataBundle({
         contractPrincipal: 'ABCD.test-nft',
         tokenNumber: 1,
       });
@@ -439,7 +439,7 @@ describe('ProcessTokenJob', () => {
       await db.updateJobStatus({ id: tokenJob.id, status: DbJobStatus.pending });
       await new ProcessTokenJob({ db, job: tokenJob }).work();
 
-      const bundle2 = await db.getNftMetadataBundle({
+      const bundle2 = await db.getTokenMetadataBundle({
         contractPrincipal: 'ABCD.test-nft',
         tokenNumber: 1,
       });
@@ -494,11 +494,80 @@ describe('ProcessTokenJob', () => {
 
       await new ProcessTokenJob({ db, job: tokenJob }).work();
 
-      const bundle = await db.getNftMetadataBundle({
+      const bundle = await db.getTokenMetadataBundle({
         contractPrincipal: 'ABCD.test-nft',
         tokenNumber: 1,
       });
       expect(bundle?.metadataLocale).toBeUndefined();
+    });
+  });
+
+  describe('SFT', () => {
+    const address = 'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9';
+    const contractId = 'key-alex-autoalex-v1';
+    let tokenJob: DbJob;
+
+    beforeEach(async () => {
+      const values: DbSmartContractInsert = {
+        principal: `${address}.${contractId}`,
+        sip: DbSipNumber.sip013,
+        abi: '"some"',
+        tx_id: '0x123456',
+        block_height: 1,
+      };
+      await db.insertAndEnqueueSmartContract({ values });
+      [tokenJob] = await db.insertAndEnqueueTokenArray([
+        {
+          smart_contract_id: 1,
+          type: DbTokenType.sft,
+          token_number: '1',
+        },
+      ]);
+    });
+
+    test('parses SFT info', async () => {
+      const agent = new MockAgent();
+      agent.disableNetConnect();
+      const interceptor = agent.get(
+        `http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`
+      );
+      interceptor
+        .intercept({
+          path: `/v2/contracts/call-read/${address}/${contractId}/get-token-uri`,
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(noneCV()), // We'll do that in another test
+        });
+      interceptor
+        .intercept({
+          path: `/v2/contracts/call-read/${address}/${contractId}/get-decimals`,
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(uintCV(6)),
+        });
+      interceptor
+        .intercept({
+          path: `/v2/contracts/call-read/${address}/${contractId}/get-total-supply`,
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(uintCV(200200200)),
+        });
+      setGlobalDispatcher(agent);
+
+      const processor = new ProcessTokenJob({ db, job: tokenJob });
+      await processor.work();
+
+      const token = await db.getToken({ id: 1 });
+      expect(token).not.toBeUndefined();
+      expect(token?.uri).toBeNull();
+      expect(token?.decimals).toBe(6);
+      expect(token?.total_supply).toBe(200200200n);
     });
   });
 });

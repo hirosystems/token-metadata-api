@@ -1,4 +1,5 @@
-import { cvToHex, uintCV } from '@stacks/transactions';
+import * as postgres from 'postgres';
+import { bufferCV, cvToHex, tupleCV, uintCV } from '@stacks/transactions';
 import { MockAgent, setGlobalDispatcher } from 'undici';
 import { PgStore } from '../src/pg/pg-store';
 import {
@@ -11,6 +12,39 @@ import {
 import { ProcessSmartContractJob } from '../src/token-processor/queue/job/process-smart-contract-job';
 import { ENV } from '../src/env';
 import { cycleMigrations } from '../src/pg/migrations';
+import {
+  BlockchainDbContractLog,
+  PgBlockchainApiStore,
+} from '../src/pg/blockchain-api/pg-blockchain-api-store';
+
+class MockPgBlockchainApiStore extends PgBlockchainApiStore {
+  private contractLogs?: BlockchainDbContractLog[];
+
+  constructor(contractLogs?: BlockchainDbContractLog[]) {
+    super(postgres());
+    this.contractLogs = contractLogs;
+  }
+
+  getSmartContractLogsByContractCursor(args: {
+    contractId: string;
+  }): AsyncIterable<BlockchainDbContractLog[]> {
+    const logs = this.contractLogs ?? [];
+    const iterable: AsyncIterable<BlockchainDbContractLog[]> = {
+      [Symbol.asyncIterator]: (): AsyncIterator<BlockchainDbContractLog[], any, undefined> => {
+        return {
+          next: () => {
+            if (logs.length) {
+              const value = logs.shift() as BlockchainDbContractLog;
+              return Promise.resolve({ value: [value], done: false });
+            }
+            return Promise.resolve({ value: [] as BlockchainDbContractLog[], done: true });
+          },
+        };
+      },
+    };
+    return iterable;
+  }
+}
 
 describe('ProcessSmartContractJob', () => {
   let db: PgStore;
@@ -34,7 +68,11 @@ describe('ProcessSmartContractJob', () => {
       block_height: 1,
     };
     const job = await db.insertAndEnqueueSmartContract({ values });
-    const processor = new ProcessSmartContractJob({ db, job });
+    const processor = new ProcessSmartContractJob({
+      db,
+      job,
+      apiDb: new MockPgBlockchainApiStore(),
+    });
     await processor.work();
 
     const tokens = await db.sql<DbToken[]>`SELECT ${db.sql(TOKENS_COLUMNS)} FROM tokens`;
@@ -66,7 +104,11 @@ describe('ProcessSmartContractJob', () => {
       block_height: 1,
     };
     const job = await db.insertAndEnqueueSmartContract({ values });
-    const processor = new ProcessSmartContractJob({ db, job });
+    const processor = new ProcessSmartContractJob({
+      db,
+      job,
+      apiDb: new MockPgBlockchainApiStore(),
+    });
     await processor.work();
 
     const tokens = await db.sql<DbToken[]>`SELECT ${db.sql(TOKENS_COLUMNS)} FROM tokens`;
@@ -98,10 +140,70 @@ describe('ProcessSmartContractJob', () => {
       block_height: 1,
     };
     const job = await db.insertAndEnqueueSmartContract({ values });
-    const processor = new ProcessSmartContractJob({ db, job });
+    const processor = new ProcessSmartContractJob({
+      db,
+      job,
+      apiDb: new MockPgBlockchainApiStore(),
+    });
     await processor.work();
 
     const tokens = await db.sql<DbToken[]>`SELECT ${db.sql(TOKENS_COLUMNS)} FROM tokens`;
     expect(tokens.count).toBe(0);
+  });
+
+  test('enqueues minted tokens for SFT contract', async () => {
+    const address = 'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9';
+    const contractId = `${address}.key-alex-autoalex-v1`;
+
+    const values: DbSmartContractInsert = {
+      principal: contractId,
+      sip: DbSipNumber.sip013,
+      abi: '"some"',
+      tx_id: '0x123456',
+      block_height: 1,
+    };
+    const job = await db.insertAndEnqueueSmartContract({ values });
+
+    // Create mint events.
+    const event1: BlockchainDbContractLog = {
+      contract_identifier: contractId,
+      sender_address: address,
+      value: cvToHex(
+        tupleCV({
+          type: bufferCV(Buffer.from('sft-mint')),
+          recipient: bufferCV(Buffer.from(address)),
+          'token-id': uintCV(3),
+          amount: uintCV(1000),
+        })
+      ),
+    };
+    const event2: BlockchainDbContractLog = {
+      contract_identifier: contractId,
+      sender_address: address,
+      value: cvToHex(
+        tupleCV({
+          type: bufferCV(Buffer.from('sft-mint')),
+          recipient: bufferCV(Buffer.from(address)),
+          'token-id': uintCV(7),
+          amount: uintCV(2000),
+        })
+      ),
+    };
+
+    const processor = new ProcessSmartContractJob({
+      db,
+      job,
+      apiDb: new MockPgBlockchainApiStore([event1, event2]),
+    });
+    await processor.work();
+
+    const tokens = await db.sql<DbToken[]>`SELECT ${db.sql(TOKENS_COLUMNS)} FROM tokens`;
+    expect(tokens.count).toBe(2);
+    expect(tokens[0].type).toBe(DbTokenType.sft);
+    expect(tokens[0].smart_contract_id).toBe(1);
+    expect(tokens[0].token_number).toBe('3');
+    expect(tokens[1].type).toBe(DbTokenType.sft);
+    expect(tokens[1].smart_contract_id).toBe(1);
+    expect(tokens[1].token_number).toBe('7');
   });
 });

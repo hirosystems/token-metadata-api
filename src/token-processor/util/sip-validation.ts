@@ -221,7 +221,6 @@ export function getSmartContractSip(abi: ClarityAbi): DbSipNumber | undefined {
   if (!abi) {
     return;
   }
-  // TODO: Will stacks.js support SFTs?
   if (abiContains(abi, SftTraitFunctions)) {
     return DbSipNumber.sip013;
   }
@@ -252,6 +251,21 @@ function findFunction(fun: ClarityAbiFunction, functionList: ClarityAbiFunction[
   return found !== undefined;
 }
 
+function stringFromValue(value: ClarityValue): string {
+  switch (value.type) {
+    case ClarityType.Buffer:
+      return value.buffer.toString('utf8');
+    case ClarityType.StringASCII:
+    case ClarityType.StringUTF8:
+      return value.data;
+    case ClarityType.PrincipalContract:
+    case ClarityType.PrincipalStandard:
+      return principalToString(value);
+    default:
+      throw new Error('Invalid clarity value');
+  }
+}
+
 type TokenClass = 'ft' | 'nft' | 'sft';
 
 type MetadataUpdateMode = 'standard' | 'frozen' | 'dynamic';
@@ -271,21 +285,6 @@ export type TokenMetadataUpdateNotification = {
 export function getContractLogMetadataUpdateNotification(
   log: BlockchainDbContractLog
 ): TokenMetadataUpdateNotification | undefined {
-  const stringFromValue = (value: ClarityValue): string => {
-    switch (value.type) {
-      case ClarityType.Buffer:
-        return value.buffer.toString('utf8');
-      case ClarityType.StringASCII:
-      case ClarityType.StringUTF8:
-        return value.data;
-      case ClarityType.PrincipalContract:
-      case ClarityType.PrincipalStandard:
-        return principalToString(value);
-      default:
-        throw new Error('Invalid clarity value');
-    }
-  };
-
   try {
     // Validate that we have the correct SIP-019 payload structure.
     const value = hexToCV(log.value) as TupleCV;
@@ -341,6 +340,37 @@ export function getContractLogMetadataUpdateNotification(
       update_mode: updateMode,
       ttl: ttl,
     };
+  } catch (error) {
+    return;
+  }
+}
+
+export type SftMintEvent = {
+  contractId: string;
+  tokenId: bigint;
+  amount: bigint;
+  recipient: string;
+};
+
+export function getContractLogSftMintEvent(log: BlockchainDbContractLog): SftMintEvent | undefined {
+  try {
+    // Validate that we have the correct SIP-013 `sft-mint` payload structure.
+    const value = hexToCV(log.value) as TupleCV;
+    const type = stringFromValue(value.data.type);
+    if (type !== 'sft-mint') {
+      return;
+    }
+    const recipient = stringFromValue(value.data['recipient']);
+    const tokenId = (value.data['token-id'] as UIntCV).value;
+    const amount = (value.data['amount'] as UIntCV).value;
+
+    const event: SftMintEvent = {
+      contractId: log.contract_identifier,
+      tokenId: tokenId,
+      amount: amount,
+      recipient: recipient,
+    };
+    return event;
   } catch (error) {
     return;
   }

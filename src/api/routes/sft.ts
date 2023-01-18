@@ -5,44 +5,41 @@ import { Server } from 'http';
 import {
   Decimals,
   Metadata,
-  Name,
   SmartContractRegEx,
-  Symbol,
   TokenQuerystringParams,
   TokenUri,
   TotalSupply,
 } from '../types';
 import { handleTokenCache } from '../util/cache';
-import { generateTokenErrorResponse, TokenErrorResponseSchema } from '../util/errors';
 import { parseMetadataLocaleBundle } from '../util/helpers';
+import { generateTokenErrorResponse, TokenErrorResponseSchema } from '../util/errors';
 
-export const FtRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTypeProvider> = (
+export const SftRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTypeProvider> = (
   fastify,
   options,
   done
 ) => {
   fastify.addHook('preHandler', handleTokenCache);
   fastify.get(
-    '/ft/:principal',
+    '/sft/:principal/:token_id',
     {
       schema: {
-        summary: 'Fungible Token Metadata',
-        description: 'Retrieves metadata for a SIP-010 Fungible Token',
+        summary: 'Semi-Fungible Token Metadata',
+        description: 'Retrieves metadata for a SIP-013 Semi-Fungible Token',
         tags: ['Tokens'],
         params: Type.Object({
           principal: Type.RegEx(SmartContractRegEx, {
-            description: 'Principal for the contract which owns the SIP-010 token',
-            examples: ['SP32XCD69XPS3GKDEXAQ29PJRDSD5AR643GNEEBXZ.fari-token'],
+            description: 'SIP-013 compliant smart contract principal',
+            examples: ['SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1'],
           }),
+          token_id: Type.Integer({ description: 'Token ID to retrieve', examples: ['35'] }),
         }),
         querystring: TokenQuerystringParams,
         response: {
           200: Type.Object({
-            name: Type.Optional(Name),
-            symbol: Type.Optional(Symbol),
+            token_uri: Type.Optional(TokenUri),
             decimals: Type.Optional(Decimals),
             total_supply: Type.Optional(TotalSupply),
-            token_uri: Type.Optional(TokenUri),
             metadata: Type.Optional(Metadata),
           }),
           ...TokenErrorResponseSchema,
@@ -53,15 +50,13 @@ export const FtRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeB
       try {
         const metadataBundle = await fastify.db.getTokenMetadataBundle({
           contractPrincipal: request.params.principal,
-          tokenNumber: 1,
+          tokenNumber: request.params.token_id,
           locale: request.query.locale,
         });
         await reply.send({
-          name: metadataBundle?.token?.name ?? undefined,
-          symbol: metadataBundle?.token?.symbol ?? undefined,
+          token_uri: metadataBundle?.token?.uri ?? undefined,
           decimals: metadataBundle?.token?.decimals ?? undefined,
           total_supply: metadataBundle?.token?.total_supply?.toString() ?? undefined,
-          token_uri: metadataBundle?.token?.uri ?? undefined,
           metadata: parseMetadataLocaleBundle(metadataBundle?.metadataLocale),
         });
       } catch (error) {

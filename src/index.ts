@@ -38,7 +38,7 @@ async function initApp() {
     },
   });
 
-  const jobQueue = new JobQueue({ db });
+  const jobQueue = new JobQueue({ db, apiDb });
   registerShutdownConfig({
     name: 'Job Queue',
     forceKillable: false,
