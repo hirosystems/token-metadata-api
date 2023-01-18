@@ -1,9 +1,5 @@
-import {
-  getAddressFromPrivateKey,
-  makeRandomPrivKey,
-  TransactionVersion,
-  uintCV,
-} from '@stacks/transactions';
+import { getAddressFromPrivateKey, makeRandomPrivKey } from '@stacks/transactions';
+import { ClarityValueUInt, TransactionVersion } from 'stacks-encoding-native-js';
 import { logger } from '../../../logger';
 import { PgNumeric } from '../../../pg/postgres-tools/types';
 import {
@@ -114,7 +110,9 @@ export class ProcessTokenJob extends Job {
   }
 
   private async handleNft(client: StacksNodeRpcClient, token: DbToken) {
-    const uri = await client.readStringFromContract('get-token-uri', [uintCV(token.token_number)]);
+    const uri = await client.readStringFromContract('get-token-uri', [
+      { value: token.token_number.toString() } as ClarityValueUInt,
+    ]);
     let metadataLocales: DbMetadataLocaleInsertBundle[] | undefined;
     if (uri) {
       metadataLocales = await fetchAllMetadataLocalesFromBaseUri(uri, token);
@@ -130,20 +128,18 @@ export class ProcessTokenJob extends Job {
   }
 
   private async handleSft(client: StacksNodeRpcClient, token: DbToken) {
-    const uri = await client.readStringFromContract('get-token-uri', [uintCV(token.token_number)]);
+    const arg = [{ value: token.token_number.toString() } as ClarityValueUInt];
+
+    const uri = await client.readStringFromContract('get-token-uri', arg);
 
     let fDecimals: number | undefined;
-    const decimals = await client.readUIntFromContract('get-decimals', [
-      uintCV(token.token_number),
-    ]);
+    const decimals = await client.readUIntFromContract('get-decimals', arg);
     if (decimals) {
       fDecimals = Number(decimals.toString());
     }
 
     let fTotalSupply: PgNumeric | undefined;
-    const totalSupply = await client.readUIntFromContract('get-total-supply', [
-      uintCV(token.token_number),
-    ]);
+    const totalSupply = await client.readUIntFromContract('get-total-supply', arg);
     if (totalSupply) {
       fTotalSupply = totalSupply.toString();
     }
