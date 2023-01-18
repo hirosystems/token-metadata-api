@@ -286,7 +286,7 @@ export class PgStore extends BasePgStore {
       }
       const contractId = contractResult[0].id;
 
-      const refreshTokens = async (tokenIds: number[]) => {
+      const refreshTokens = async (tokenIds: bigint[]) => {
         const tokens = await sql<DbToken[]>`
           SELECT ${this.sql(TOKENS_COLUMNS)} FROM tokens
           WHERE smart_contract_id = ${contractId}
@@ -317,7 +317,7 @@ export class PgStore extends BasePgStore {
           await refreshTokens(args.notification.token_ids ?? []);
           break;
         case 'ft':
-          await refreshTokens([1]);
+          await refreshTokens([1n]);
           break;
       }
     });

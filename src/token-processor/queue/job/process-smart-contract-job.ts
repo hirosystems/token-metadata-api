@@ -1,8 +1,3 @@
-import {
-  getAddressFromPrivateKey,
-  makeRandomPrivKey,
-  TransactionVersion,
-} from '@stacks/transactions';
 import { ENV } from '../../../env';
 import { logger } from '../../../logger';
 import { DbJob, DbSipNumber, DbSmartContract, DbTokenInsert, DbTokenType } from '../../../pg/types';
@@ -12,6 +7,8 @@ import { dbSipNumberToDbTokenType } from '../../util/helpers';
 import { PgBlockchainApiStore } from '../../../pg/blockchain-api/pg-blockchain-api-store';
 import { PgStore } from '../../../pg/pg-store';
 import { getContractLogSftMintEvent } from '../../util/sip-validation';
+import { makeRandomPrivKey, getAddressFromPrivateKey } from '@stacks/transactions';
+import { TransactionVersion } from 'stacks-encoding-native-js';
 
 /**
  * Takes a smart contract and (depending on its SIP) enqueues all of its underlying tokens for
