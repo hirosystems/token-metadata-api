@@ -125,7 +125,7 @@ export async function fetchAllMetadataLocalesFromBaseUri(
  * @param locale - locale to apply
  * @returns token specific uri string
  */
-export function getTokenSpecificUri(uri: string, tokenNumber: number, locale?: string): string {
+export function getTokenSpecificUri(uri: string, tokenNumber: bigint, locale?: string): string {
   const tokenNumStr = tokenNumber.toString();
   const localeStr = locale ?? '';
   return (

@@ -39,9 +39,9 @@ describe('ProcessTokenJob', () => {
         block_height: 1,
       };
       await db.insertAndEnqueueSmartContract({ values });
-      [tokenJob] = await db.insertAndEnqueueTokens({
+      [tokenJob] = await db.insertAndEnqueueSequentialTokens({
         smart_contract_id: 1,
-        token_count: 1,
+        token_count: 1n,
         type: DbTokenType.ft,
       });
     });
@@ -123,9 +123,9 @@ describe('ProcessTokenJob', () => {
         block_height: 1,
       };
       await db.insertAndEnqueueSmartContract({ values });
-      [tokenJob] = await db.insertAndEnqueueTokens({
+      [tokenJob] = await db.insertAndEnqueueSequentialTokens({
         smart_contract_id: 1,
-        token_count: 1,
+        token_count: 1n,
         type: DbTokenType.nft,
       });
     });
@@ -520,7 +520,7 @@ describe('ProcessTokenJob', () => {
         {
           smart_contract_id: 1,
           type: DbTokenType.sft,
-          token_number: 1,
+          token_number: '1',
         },
       ]);
     });

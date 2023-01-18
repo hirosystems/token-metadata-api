@@ -43,7 +43,7 @@ export type DbSmartContract = {
   abi: string;
   tx_id: string;
   block_height: number;
-  token_count?: number;
+  token_count?: bigint;
   created_at: string;
   updated_at?: string;
 };
@@ -51,14 +51,14 @@ export type DbSmartContract = {
 export type DbTokenInsert = {
   smart_contract_id: number;
   type: DbTokenType;
-  token_number: number;
+  token_number: PgNumeric;
 };
 
 export type DbToken = {
   id: number;
   smart_contract_id: number;
   type: DbTokenType;
-  token_number: number;
+  token_number: bigint;
   update_mode: DbTokenUpdateMode;
   ttl?: number;
   uri?: string;
@@ -99,7 +99,7 @@ export type DbNftInsert = {
 
 export type DbSftInsert = {
   decimals: number | null;
-  total_supply: number | null;
+  total_supply: PgNumeric | null;
   uri: string | null;
 };
 

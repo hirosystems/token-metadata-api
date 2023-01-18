@@ -266,9 +266,9 @@ describe('BlockchainSmartContractMonitor', () => {
       block_height: 1,
     };
     await db.insertAndEnqueueSmartContract({ values });
-    await db.insertAndEnqueueTokens({
+    await db.insertAndEnqueueSequentialTokens({
       smart_contract_id: 1,
-      token_count: 3, // 3 tokens
+      token_count: 3n, // 3 tokens
       type: DbTokenType.nft,
     });
     // Mark jobs as done to test
@@ -317,9 +317,9 @@ describe('BlockchainSmartContractMonitor', () => {
       block_height: 1,
     };
     await db.insertAndEnqueueSmartContract({ values });
-    await db.insertAndEnqueueTokens({
+    await db.insertAndEnqueueSequentialTokens({
       smart_contract_id: 1,
-      token_count: 3, // 3 tokens
+      token_count: 3n, // 3 tokens
       type: DbTokenType.nft,
     });
     // Mark jobs as done to test
@@ -393,9 +393,9 @@ describe('BlockchainSmartContractMonitor', () => {
       block_height: 1,
     };
     await db.insertAndEnqueueSmartContract({ values });
-    await db.insertAndEnqueueTokens({
+    await db.insertAndEnqueueSequentialTokens({
       smart_contract_id: 1,
-      token_count: 1,
+      token_count: 1n,
       type: DbTokenType.nft,
     });
     // Mark jobs as done to test
@@ -449,9 +449,9 @@ describe('BlockchainSmartContractMonitor', () => {
       block_height: 1,
     };
     await db.insertAndEnqueueSmartContract({ values });
-    await db.insertAndEnqueueTokens({
+    await db.insertAndEnqueueSequentialTokens({
       smart_contract_id: 1,
-      token_count: 1,
+      token_count: 1n,
       type: DbTokenType.nft,
     });
     // Mark jobs as done to test
@@ -529,6 +529,6 @@ describe('BlockchainSmartContractMonitor', () => {
 
     const token = await db.getToken({ id: 1 });
     expect(token?.type).toBe(DbTokenType.sft);
-    expect(token?.token_number).toBe(3);
+    expect(token?.token_number).toBe('3');
   });
 });

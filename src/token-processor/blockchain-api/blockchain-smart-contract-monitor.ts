@@ -136,7 +136,7 @@ export class BlockchainSmartContractMonitor {
           {
             smart_contract_id: contract.id,
             type: DbTokenType.sft,
-            token_number: Number(mint.tokenId),
+            token_number: mint.tokenId.toString(),
           },
         ]);
         logger.info(

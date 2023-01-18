@@ -99,30 +99,31 @@ export class PgStore extends BasePgStore {
     return result[0].max;
   }
 
-  async updateSmartContractTokenCount(args: { id: number; count: number }): Promise<void> {
+  async updateSmartContractTokenCount(args: { id: number; count: bigint }): Promise<void> {
     await this.sql`
-      UPDATE smart_contracts SET token_count = ${args.count} WHERE id = ${args.id}
+      UPDATE smart_contracts SET token_count = ${args.count.toString()} WHERE id = ${args.id}
     `;
   }
 
   /**
    * Returns a cursor that inserts new tokens and new token queue entries until `token_count` items
-   * are created. A cursor is preferred because `token_count` could be in the tens of thousands.
+   * are created, usually used when processing an NFT contract. A cursor is preferred because
+   * `token_count` could be in the tens of thousands.
    * @param smart_contract_id - smart contract id
    * @param token_count - how many tokens to insert
-   * @param type - token type (ft, nft, sft)
-   * @returns `DbTokenQueueEntry` cursor
+   * @param type - token type
+   * @returns `DbJob` array for all inserted tokens
    */
-  async insertAndEnqueueTokens(args: {
+  async insertAndEnqueueSequentialTokens(args: {
     smart_contract_id: number;
-    token_count: number;
+    token_count: bigint;
     type: DbTokenType;
   }): Promise<DbJob[]> {
     const tokenValues: DbTokenInsert[] = [];
     for (let index = 1; index <= args.token_count; index++) {
       tokenValues.push({
         smart_contract_id: args.smart_contract_id,
-        token_number: index,
+        token_number: index.toString(),
         type: args.type,
       });
     }

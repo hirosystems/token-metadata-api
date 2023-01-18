@@ -208,16 +208,16 @@ describe('Metadata Helpers', () => {
   test('replace URI string tokens', () => {
     const uri1 =
       'https://ipfs.io/ipfs/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn/$TOKEN_ID.json';
-    expect(getTokenSpecificUri(uri1, 7)).toBe(
+    expect(getTokenSpecificUri(uri1, 7n)).toBe(
       'https://ipfs.io/ipfs/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn/7.json'
     );
     const uri2 = 'https://ipfs.io/ipfs/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn/{id}.json';
-    expect(getTokenSpecificUri(uri2, 7)).toBe(
+    expect(getTokenSpecificUri(uri2, 7n)).toBe(
       'https://ipfs.io/ipfs/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn/7.json'
     );
     const uri3 =
       'https://ipfs.io/ipfs/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn/{id}-{locale}.json';
-    expect(getTokenSpecificUri(uri3, 7, 'es')).toBe(
+    expect(getTokenSpecificUri(uri3, 7n, 'es')).toBe(
       'https://ipfs.io/ipfs/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn/7-es.json'
     );
   });

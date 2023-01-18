@@ -41,13 +41,13 @@ export class ProcessSmartContractJob extends Job {
         // through a contract call and then queue that same number of tokens for metadata retrieval.
         const tokenCount = await this.getNftContractLastTokenId(contract);
         if (tokenCount) {
-          await this.enqueueTokens(contract, Number(tokenCount));
+          await this.enqueueTokens(contract, tokenCount);
         }
         break;
 
       case DbSipNumber.sip010:
         // FT contracts only have 1 token to process. Do that immediately.
-        await this.enqueueTokens(contract, 1);
+        await this.enqueueTokens(contract, 1n);
         break;
 
       case DbSipNumber.sip013:
@@ -88,7 +88,7 @@ export class ProcessSmartContractJob extends Job {
         tokenInserts.push({
           smart_contract_id: contract.id,
           type: DbTokenType.sft,
-          token_number: Number(event.tokenId), // Not necessarily sequential.
+          token_number: event.tokenId.toString(), // Not necessarily sequential.
         });
       }
     }
@@ -97,8 +97,8 @@ export class ProcessSmartContractJob extends Job {
     }
   }
 
-  private async enqueueTokens(contract: DbSmartContract, tokenCount: number): Promise<void> {
-    if (tokenCount === 0) {
+  private async enqueueTokens(contract: DbSmartContract, tokenCount: bigint): Promise<void> {
+    if (tokenCount === 0n) {
       return;
     }
     if (tokenCount > ENV.METADATA_MAX_NFT_CONTRACT_TOKEN_COUNT) {
@@ -111,7 +111,7 @@ export class ProcessSmartContractJob extends Job {
     logger.info(
       `ProcessSmartContractJob enqueueing ${tokenCount} tokens for ${this.description()}`
     );
-    await this.db.insertAndEnqueueTokens({
+    await this.db.insertAndEnqueueSequentialTokens({
       smart_contract_id: contract.id,
       token_count: tokenCount,
       type: dbSipNumberToDbTokenType(contract.sip),

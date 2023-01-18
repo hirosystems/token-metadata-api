@@ -201,9 +201,9 @@ describe('ProcessSmartContractJob', () => {
     expect(tokens.count).toBe(2);
     expect(tokens[0].type).toBe(DbTokenType.sft);
     expect(tokens[0].smart_contract_id).toBe(1);
-    expect(tokens[0].token_number).toBe(3);
+    expect(tokens[0].token_number).toBe('3');
     expect(tokens[1].type).toBe(DbTokenType.sft);
     expect(tokens[1].smart_contract_id).toBe(1);
-    expect(tokens[1].token_number).toBe(7);
+    expect(tokens[1].token_number).toBe('7');
   });
 });

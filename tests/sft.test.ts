@@ -35,7 +35,7 @@ describe('SFT routes', () => {
       {
         smart_contract_id: 1,
         type: DbTokenType.sft,
-        token_number: 1,
+        token_number: '1',
       },
     ]);
   };
@@ -68,7 +68,7 @@ describe('SFT routes', () => {
           name: null,
           symbol: null,
           decimals: 6,
-          total_supply: 200,
+          total_supply: '200',
           uri: 'http://test.com/uri.json',
         },
         metadataLocales: [
@@ -105,7 +105,7 @@ describe('SFT routes', () => {
           name: 'key-alex-autoalex-v1',
           symbol: null,
           decimals: 6,
-          total_supply: 1,
+          total_supply: '1',
           uri: 'http://test.com/uri.json',
         },
       },
@@ -131,7 +131,7 @@ describe('SFT routes', () => {
           name: null,
           symbol: null,
           decimals: 6,
-          total_supply: 200,
+          total_supply: '200',
           uri: 'http://test.com/uri.json',
         },
         metadataLocales: [
