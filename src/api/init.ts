@@ -9,6 +9,7 @@ import FastifySwagger, { SwaggerOptions } from '@fastify/swagger';
 import { StatusRoutes } from './routes/status';
 import FastifyMetrics from 'fastify-metrics';
 import { Server } from 'http';
+import { SERVER_VERSION } from '../server-version';
 
 export const ApiSwaggerOptions: SwaggerOptions = {
   openapi: {
@@ -16,7 +17,7 @@ export const ApiSwaggerOptions: SwaggerOptions = {
       title: 'Stacks Token Metadata Service',
       description:
         'A microservice that indexes metadata for every SIP-009, SIP-010, and SIP-013 Token in the Stacks blockchain and exposes it via REST API endpoints.',
-      version: '0.0.1',
+      version: SERVER_VERSION.tag,
     },
     externalDocs: {
       url: 'https://github.com/hirosystems/token-metadata-service',

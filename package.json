@@ -15,7 +15,9 @@
     "lint:eslint": "eslint . --ext .js,.jsx,.ts,.tsx -f unix",
     "lint:prettier": "prettier --check src/**/*.ts tests/**/*.ts migrations/**/*.ts",
     "generate:openapi": "node -r ts-node/register ./util/openapi-generator.ts",
-    "generate:docs": "redoc-cli build --output ./tmp/index.html ./tmp/openapi.yaml"
+    "generate:docs": "redoc-cli build --output ./tmp/index.html ./tmp/openapi.yaml",
+    "generate:git-info": "rimraf .git-info && node ./git-info-generator.mjs",
+    "generate:vercel": "rimraf ./tmp && npm run generate:git-info && npm run generate:openapi && npm run generate:docs"
   },
   "author": "",
   "license": "ISC",

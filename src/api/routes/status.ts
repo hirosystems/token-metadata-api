@@ -2,6 +2,7 @@ import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { FastifyPluginCallback } from 'fastify';
 import { Server } from 'http';
+import { SERVER_VERSION } from '../../server-version';
 
 export const StatusRoutes: FastifyPluginCallback<
   Record<never, never>,
@@ -18,6 +19,7 @@ export const StatusRoutes: FastifyPluginCallback<
         tags: ['Status'],
         response: {
           200: Type.Object({
+            server_version: Type.String(),
             status: Type.String(),
             tokens: Type.Optional(Type.Record(Type.String(), Type.Integer())),
             token_contracts: Type.Optional(Type.Record(Type.String(), Type.Integer())),
@@ -47,6 +49,7 @@ export const StatusRoutes: FastifyPluginCallback<
         }
 
         return {
+          server_version: `token-metadata-service ${SERVER_VERSION.tag} (${SERVER_VERSION.branch}:${SERVER_VERSION.commit})`,
           status: 'ready',
           tokens: tokenCounts.length ? tokens : undefined,
           token_contracts: contractCounts.length ? smartContracts : undefined,
