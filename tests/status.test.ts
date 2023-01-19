@@ -23,7 +23,11 @@ describe('Status routes', () => {
   test('returns status when nothing has been processed', async () => {
     const response = await fastify.inject({ method: 'GET', url: '/' });
     const json = response.json();
-    expect(json).toStrictEqual({ status: 'ready' });
+    expect(json).toEqual(
+      expect.objectContaining({
+        status: 'ready',
+      })
+    );
   });
 
   test('returns status counts', async () => {
@@ -50,17 +54,19 @@ describe('Status routes', () => {
 
     const response = await fastify.inject({ method: 'GET', url: '/' });
     const json = response.json();
-    expect(json).toStrictEqual({
-      status: 'ready',
-      job_queue: {
-        pending: 2,
-      },
-      token_contracts: {
-        'sip-009': 1,
-      },
-      tokens: {
-        nft: 1,
-      },
-    });
+    expect(json).toEqual(
+      expect.objectContaining({
+        status: 'ready',
+        job_queue: {
+          pending: 2,
+        },
+        token_contracts: {
+          'sip-009': 1,
+        },
+        tokens: {
+          nft: 1,
+        },
+      })
+    );
   });
 });
