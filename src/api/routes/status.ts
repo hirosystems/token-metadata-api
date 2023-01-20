@@ -9,7 +9,6 @@ export const StatusRoutes: FastifyPluginCallback<
   Server,
   TypeBoxTypeProvider
 > = (fastify, options, done) => {
-  // TODO: Add a job-queue etag cache handler.
   fastify.get(
     '/',
     {
