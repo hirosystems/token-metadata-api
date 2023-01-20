@@ -24,13 +24,15 @@ export class SmartContractImportInterruptedError extends Error {
 export class BlockchainImporter {
   private readonly db: PgStore;
   private readonly apiDb: PgBlockchainApiStore;
+  private readonly startingBlockHeight: number;
   private importInterruptWaiter: Waiter<void>;
   private importInterrupted = false;
   private importFinished = false;
 
-  constructor(args: { db: PgStore; apiDb: PgBlockchainApiStore }) {
+  constructor(args: { db: PgStore; apiDb: PgBlockchainApiStore; startingBlockHeight: number }) {
     this.db = args.db;
     this.apiDb = args.apiDb;
+    this.startingBlockHeight = args.startingBlockHeight;
     this.importInterruptWaiter = waiter();
   }
 
@@ -46,8 +48,9 @@ export class BlockchainImporter {
   async import() {
     while (!this.importFinished) {
       try {
-        const afterBlockHeight = (await this.db.getSmartContractsMaxBlockHeight()) ?? 1;
-        await this.importSmartContracts(afterBlockHeight);
+        const currentBlockHeight = (await this.apiDb.getCurrentBlockHeight()) ?? 1;
+        await this.importSmartContracts(this.startingBlockHeight, currentBlockHeight);
+        // TODO: Import SIP-019 notifications.
         this.importFinished = true;
       } catch (error) {
         if (isPgConnectionError(error)) {
@@ -70,13 +73,14 @@ export class BlockchainImporter {
    * Scans the `smart_contracts` table in the Stacks Blockchain API postgres DB for every smart
    * contract that exists in the blockchain. It then takes all of them which declare tokens and
    * enqueues them for processing.
-   * @param afterBlockHeight - Minimum block height
+   * @param fromBlockHeight - Minimum block height
+   * @param toBlockHeight - Maximum block height
    */
-  private async importSmartContracts(afterBlockHeight: number) {
+  private async importSmartContracts(fromBlockHeight: number, toBlockHeight: number) {
     logger.info(
-      `BlockchainImporter smart contract import starting at block height ${afterBlockHeight}`
+      `BlockchainImporter smart contract import at block heights ${fromBlockHeight} to ${toBlockHeight}`
     );
-    const cursor = this.apiDb.getSmartContractsCursor({ afterBlockHeight });
+    const cursor = this.apiDb.getSmartContractsCursor({ fromBlockHeight, toBlockHeight });
     for await (const rows of cursor) {
       for (const row of rows) {
         if (this.importInterrupted) {
@@ -84,26 +88,22 @@ export class BlockchainImporter {
           // booting the rest of the service.
           throw new SmartContractImportInterruptedError();
         }
-        await this.doImportSmartContract(row);
+        const sip = getSmartContractSip(row.abi as ClarityAbi);
+        if (!sip) {
+          continue; // Not a token contract.
+        }
+        await this.db.insertAndEnqueueSmartContract({
+          values: {
+            principal: row.contract_id,
+            sip: sip,
+            abi: JSON.stringify(row.abi),
+            tx_id: row.tx_id,
+            block_height: row.block_height,
+          },
+        });
+        logger.info(`BlockchainImporter detected token contract (${sip}): ${row.contract_id}`);
       }
     }
     logger.info(`BlockchainImporter smart contract import finished`);
-  }
-
-  protected async doImportSmartContract(contract: BlockchainDbSmartContract): Promise<void> {
-    const sip = getSmartContractSip(contract.abi as ClarityAbi);
-    if (!sip) {
-      return; // Not a token contract.
-    }
-    await this.db.insertAndEnqueueSmartContract({
-      values: {
-        principal: contract.contract_id,
-        sip: sip,
-        abi: JSON.stringify(contract.abi),
-        tx_id: contract.tx_id,
-        block_height: contract.block_height,
-      },
-    });
-    logger.info(`BlockchainImporter detected token contract (${sip}): ${contract.contract_id}`);
   }
 }

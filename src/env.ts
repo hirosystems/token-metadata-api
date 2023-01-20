@@ -38,7 +38,7 @@ interface Env {
    * before declaring the failure as a non-retryable error.
    */
   METADATA_MAX_IMMEDIATE_URI_RETRIES: number;
-  /** Timeout period for a token metadata URL fetch (miliseconds) */
+  /** Timeout period for a token metadata URL fetch (milliseconds) */
   METADATA_FETCH_TIMEOUT_MS: number;
   /**
    * The maximum number of bytes of metadata to fetch. If the fetch encounters more bytes than this
@@ -57,6 +57,11 @@ interface Env {
    * Example: ./config/image-cache.js
    */
   METADATA_IMAGE_CACHE_PROCESSOR: string;
+  /**
+   * How often will token metadata that is marked `dynamic` will be refreshed (seconds). See SIP-019
+   * for more information. Defaults to 86400 seconds (24 hours).
+   */
+  METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL: number;
 
   /** Whether or not the `JobQueue` will continue to try retryable failed jobs indefinitely. */
   JOB_QUEUE_STRICT_MODE: boolean;
@@ -206,6 +211,10 @@ export function getEnvVars(): Env {
       },
       METADATA_IMAGE_CACHE_PROCESSOR: {
         type: 'string',
+      },
+      METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL: {
+        type: 'number',
+        default: 86_400, // 24 hours
       },
       JOB_QUEUE_CONCURRENCY_LIMIT: {
         type: 'number',

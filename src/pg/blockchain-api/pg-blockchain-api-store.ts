@@ -15,6 +15,12 @@ export interface BlockchainDbContractLog {
   value: string;
 }
 
+export interface BlockchainDbBlock {
+  block_height: number;
+  block_hash: string;
+  index_block_hash: string;
+}
+
 /**
  * Connects and queries the Stacks Blockchain API postgres DB.
  */
@@ -39,7 +45,8 @@ export class PgBlockchainApiStore extends BasePgStore {
   }
 
   getSmartContractsCursor(args: {
-    afterBlockHeight: number;
+    fromBlockHeight: number;
+    toBlockHeight: number;
   }): AsyncIterable<BlockchainDbSmartContract[]> {
     return this.sql<BlockchainDbSmartContract[]>`
       SELECT * FROM (
@@ -48,7 +55,8 @@ export class PgBlockchainApiStore extends BasePgStore {
         WHERE
           canonical = TRUE
           AND microblock_canonical = TRUE
-          AND block_height >= ${args.afterBlockHeight}
+          AND block_height >= ${args.fromBlockHeight}
+          AND block_height <= ${args.toBlockHeight}
           AND abi <> '"null"'
         ORDER BY contract_id, block_height DESC, microblock_sequence DESC
       ) AS contract_list
@@ -87,6 +95,27 @@ export class PgBlockchainApiStore extends BasePgStore {
     `;
     if (result.count) {
       return result[0];
+    }
+  }
+
+  async getBlock(args: { blockHash: string }): Promise<BlockchainDbBlock | undefined> {
+    const result = await this.sql<BlockchainDbBlock[]>`
+      SELECT block_height, block_hash, index_block_hash
+      FROM blocks
+      WHERE canonical = TRUE AND block_hash = ${args.blockHash}
+      LIMIT 1
+    `;
+    if (result.count) {
+      return result[0];
+    }
+  }
+
+  async getCurrentBlockHeight(): Promise<number | undefined> {
+    const result = await this.sql<{ block_height: number }[]>`
+      SELECT block_height FROM chain_tip LIMIT 1
+    `;
+    if (result.count) {
+      return result[0].block_height;
     }
   }
 

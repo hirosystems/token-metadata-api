@@ -26,12 +26,18 @@ const PgSmartContractLogPayload = Type.Object({ txId: Type.String(), eventIndex:
 const PgSmartContractPayloadLogCType = TypeCompiler.Compile(PgSmartContractLogPayload);
 type PgSmartContractPayloadLogType = Static<typeof PgSmartContractLogPayload>;
 
+const PgBlockPayload = Type.Object({ blockHash: Type.String() });
+const PgBlockPayloadCType = TypeCompiler.Compile(PgBlockPayload);
+type PgBlockPayloadType = Static<typeof PgBlockPayload>;
+
 /**
- * Listens for postgres notifications emitted from the API database when new contracts are deployed
- * or contract logs are registered. It will analyze each of them to determine if:
+ * Listens for postgres notifications emitted from the API database when new contracts are deployed,
+ * contract logs are registered, or new blocks are produced. It will analyze each of them to
+ * determine if:
  * - A new token contract needs indexing
  * - A SIP-019 notifications calls for a token metadata refresh
  * - A SIP-013 mint event declared a new SFT that needs metadata processing
+ * - `dynamic` token metadata needs to be refreshed.
  */
 export class BlockchainSmartContractMonitor {
   private readonly db: PgStore;
@@ -81,6 +87,15 @@ export class BlockchainSmartContractMonitor {
               await this.handleSmartContractLog(messageJson.payload);
             } catch (error) {
               logger.error(`BlockchainSmartContractMonitor error handling contract log`, error);
+            }
+          }
+          break;
+        case 'blockUpdate':
+          if (PgBlockPayloadCType.Check(messageJson.payload)) {
+            try {
+              await this.handleBlock(messageJson.payload);
+            } catch (error) {
+              logger.error(`BlockchainSmartContractMonitor error handling block`, error);
             }
           }
           break;
@@ -144,5 +159,16 @@ export class BlockchainSmartContractMonitor {
         );
       }
     }
+  }
+
+  private async handleBlock(payload: PgBlockPayloadType) {
+    const block = await this.apiDb.getBlock({ blockHash: payload.blockHash });
+    if (!block) {
+      return;
+    }
+    // Keep latest observed block height so we can know the last synchronization point for this
+    // service.
+    await this.db.updateChainTipBlockHeight({ blockHeight: block.block_height });
+    await this.db.enqueueDynamicTokensDueForRefresh();
   }
 }

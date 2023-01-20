@@ -66,4 +66,7 @@ export function up(pgm: MigrationBuilder): void {
     'UNIQUE(smart_contract_id, token_number)'
   );
   pgm.createIndex('tokens', ['smart_contract_id']);
+  pgm.createIndex('tokens', 'COALESCE(updated_at, created_at)', {
+    where: "update_mode = 'dynamic'",
+  });
 }

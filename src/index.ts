@@ -16,11 +16,17 @@ async function initApp() {
   const db = await PgStore.connect({ skipMigrations: false });
   const apiDb = await PgBlockchainApiStore.connect();
 
-  if (process.env['NODE_ENV'] === 'production') {
+  if (process.env.NODE_ENV === 'production') {
     new TokenProcessorMetrics({ db });
   }
 
-  const contractImporter = new BlockchainImporter({ db, apiDb });
+  const lastObservedBlockHeight = (await db.getChainTipBlockHeight()) ?? 1;
+  const contractImporter = new BlockchainImporter({
+    db,
+    apiDb,
+    // Start importing from the last block height seen by this service.
+    startingBlockHeight: lastObservedBlockHeight,
+  });
   registerShutdownConfig({
     name: 'Contract Importer',
     forceKillable: false,
@@ -71,10 +77,10 @@ async function initApp() {
     },
   });
 
-  // Start services in order.
+  // Start services.
+  await contractMonitor.start();
   await contractImporter.import();
   jobQueue.start();
-  await contractMonitor.start();
   await apiServer.listen({ host: ENV.API_HOST, port: ENV.API_PORT });
 }
 

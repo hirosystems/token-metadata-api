@@ -84,21 +84,6 @@ export class PgStore extends BasePgStore {
     return result[0];
   }
 
-  /**
-   * Retrieves the latest block height of imported contracts. Useful for when we want to only import
-   * remaining contracts from the Stacks chain.
-   * @returns Max block height
-   */
-  async getSmartContractsMaxBlockHeight(): Promise<number | undefined> {
-    const result = await this.sql<{ max: number }[]>`
-      SELECT MAX(block_height) FROM smart_contracts;
-    `;
-    if (result.count === 0) {
-      return undefined;
-    }
-    return result[0].max;
-  }
-
   async updateSmartContractTokenCount(args: { id: number; count: bigint }): Promise<void> {
     await this.sql`
       UPDATE smart_contracts SET token_count = ${args.count.toString()} WHERE id = ${args.id}
@@ -321,6 +306,33 @@ export class PgStore extends BasePgStore {
           break;
       }
     });
+  }
+
+  async updateChainTipBlockHeight(args: { blockHeight: number }): Promise<void> {
+    await this.sql`UPDATE chain_tip SET block_height = ${args.blockHeight}`;
+  }
+
+  async getChainTipBlockHeight(): Promise<number> {
+    const result = await this.sql<{ block_height: number }[]>`SELECT block_height FROM chain_tip`;
+    return result[0].block_height;
+  }
+
+  async enqueueDynamicTokensDueForRefresh(): Promise<void> {
+    const interval = ENV.METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL.toString();
+    await this.sql`
+      UPDATE jobs
+      SET status = 'pending', updated_at = NOW()
+      WHERE status IN ('done', 'failed') AND token_id = (
+        SELECT id FROM tokens
+        WHERE update_mode = 'dynamic'
+        AND CASE
+          WHEN ttl IS NOT NULL THEN
+            COALESCE(updated_at, created_at) < (NOW() - INTERVAL '1 seconds' * ttl)
+          ELSE
+            COALESCE(updated_at, created_at) < (NOW() - INTERVAL '${this.sql(interval)} seconds')
+        END
+      )
+    `;
   }
 
   /**
