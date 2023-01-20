@@ -7,6 +7,7 @@ import {
   tupleCV,
   uintCV,
 } from '@stacks/transactions';
+import { principalCV } from '@stacks/transactions/dist/clarity/types/principalCV';
 import { BlockchainDbContractLog } from '../src/pg/blockchain-api/pg-blockchain-api-store';
 import { getContractLogMetadataUpdateNotification } from '../src/token-processor/util/sip-validation';
 
@@ -20,7 +21,7 @@ describe('SIP Validation', () => {
       notification: bufferCV(Buffer.from('token-metadata-update')),
       payload: tupleCV({
         'token-class': bufferCV(Buffer.from('ft')),
-        'contract-id': bufferCV(Buffer.from(contractId)),
+        'contract-id': principalCV(contractId),
       }),
     });
     const event1: BlockchainDbContractLog = {
@@ -117,7 +118,7 @@ describe('SIP Validation', () => {
     expect(notification2).not.toBeUndefined();
     expect(notification2?.contract_id).toBe(contractId);
     expect(notification2?.token_class).toBe('nft');
-    expect(notification2?.token_ids).toStrictEqual([1, 2]);
+    expect(notification2?.token_ids).toEqual([1n, 2n]);
   });
 
   test('SIP-019 notification with update mode', () => {
@@ -144,7 +145,7 @@ describe('SIP Validation', () => {
     expect(notification).not.toBeUndefined();
     expect(notification?.contract_id).toBe(contractId);
     expect(notification?.token_class).toBe('nft');
-    expect(notification?.token_ids).toStrictEqual([1, 2]);
+    expect(notification?.token_ids).toEqual([1n, 2n]);
     expect(notification?.update_mode).toBe('dynamic');
     expect(notification?.ttl).toBe(9999n);
   });

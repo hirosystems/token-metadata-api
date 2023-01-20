@@ -15,6 +15,12 @@ import {
   DbMetadataProperty,
   DbMetadataLocaleBundle,
   DbTokenUpdateMode,
+  SMART_CONTRACTS_COLUMNS,
+  TOKENS_COLUMNS,
+  JOBS_COLUMNS,
+  METADATA_COLUMNS,
+  METADATA_ATTRIBUTES_COLUMNS,
+  METADATA_PROPERTIES_COLUMNS,
 } from './types';
 import { connectPostgres } from './postgres-tools';
 import { BasePgStore } from './postgres-tools/base-pg-store';
@@ -64,9 +70,13 @@ export class PgStore extends BasePgStore {
     return result[0];
   }
 
-  async getSmartContract(args: { id: number }): Promise<DbSmartContract | undefined> {
+  async getSmartContract(
+    args: { id: number } | { principal: string }
+  ): Promise<DbSmartContract | undefined> {
     const result = await this.sql<DbSmartContract[]>`
-      SELECT * FROM smart_contracts WHERE id = ${args.id}
+      SELECT ${this.sql(SMART_CONTRACTS_COLUMNS)}
+      FROM smart_contracts
+      WHERE ${'id' in args ? this.sql`id = ${args.id}` : this.sql`principal = ${args.principal}`}
     `;
     if (result.count === 0) {
       return undefined;
@@ -89,39 +99,40 @@ export class PgStore extends BasePgStore {
     return result[0].max;
   }
 
-  async updateSmartContractTokenCount(args: { id: number; count: number }): Promise<void> {
+  async updateSmartContractTokenCount(args: { id: number; count: bigint }): Promise<void> {
     await this.sql`
-      UPDATE smart_contracts SET token_count = ${args.count} WHERE id = ${args.id}
+      UPDATE smart_contracts SET token_count = ${args.count.toString()} WHERE id = ${args.id}
     `;
   }
 
   /**
    * Returns a cursor that inserts new tokens and new token queue entries until `token_count` items
-   * are created. A cursor is preferred because `token_count` could be in the tens of thousands.
+   * are created, usually used when processing an NFT contract. A cursor is preferred because
+   * `token_count` could be in the tens of thousands.
    * @param smart_contract_id - smart contract id
    * @param token_count - how many tokens to insert
-   * @param type - token type (ft, nft, sft)
-   * @returns `DbTokenQueueEntry` cursor
+   * @param type - token type
+   * @returns `DbJob` array for all inserted tokens
    */
-  async insertAndEnqueueTokens(args: {
+  async insertAndEnqueueSequentialTokens(args: {
     smart_contract_id: number;
-    token_count: number;
+    token_count: bigint;
     type: DbTokenType;
   }): Promise<DbJob[]> {
     const tokenValues: DbTokenInsert[] = [];
     for (let index = 1; index <= args.token_count; index++) {
       tokenValues.push({
         smart_contract_id: args.smart_contract_id,
-        token_number: index,
+        token_number: index.toString(),
         type: args.type,
       });
     }
-    return this.insertAndEnqueueTokensInternal(tokenValues);
+    return this.insertAndEnqueueTokenArray(tokenValues);
   }
 
   async getToken(args: { id: number }): Promise<DbToken | undefined> {
     const result = await this.sql<DbToken[]>`
-      SELECT * FROM tokens WHERE id = ${args.id}
+      SELECT ${this.sql(TOKENS_COLUMNS)} FROM tokens WHERE id = ${args.id}
     `;
     if (result.count === 0) {
       return undefined;
@@ -133,27 +144,7 @@ export class PgStore extends BasePgStore {
     };
   }
 
-  async getFtMetadataBundle(args: {
-    contractPrincipal: string;
-    locale?: string;
-  }): Promise<DbTokenMetadataLocaleBundle> {
-    return await this.sqlTransaction(async sql => {
-      const tokenIdRes = await sql<{ id: number }[]>`
-        SELECT tokens.id FROM tokens
-        INNER JOIN smart_contracts ON tokens.smart_contract_id = smart_contracts.id
-        WHERE smart_contracts.principal = ${args.contractPrincipal}
-      `;
-      if (tokenIdRes.count === 0) {
-        throw new TokenNotFoundError();
-      }
-      if (args.locale && !(await this.isTokenLocaleAvailable(tokenIdRes[0].id, args.locale))) {
-        throw new TokenLocaleNotFoundError();
-      }
-      return await this.getTokenMetadataBundle(tokenIdRes[0].id, args.locale);
-    });
-  }
-
-  async getNftMetadataBundle(args: {
+  async getTokenMetadataBundle(args: {
     contractPrincipal: string;
     tokenNumber: number;
     locale?: string;
@@ -172,7 +163,7 @@ export class PgStore extends BasePgStore {
       if (args.locale && !(await this.isTokenLocaleAvailable(tokenIdRes[0].id, args.locale))) {
         throw new TokenLocaleNotFoundError();
       }
-      return await this.getTokenMetadataBundle(tokenIdRes[0].id, args.locale);
+      return await this.getTokenMetadataBundleInternal(tokenIdRes[0].id, args.locale);
     });
   }
 
@@ -243,7 +234,7 @@ export class PgStore extends BasePgStore {
    */
   async getPendingJobBatch(args: { limit: number }): Promise<DbJob[]> {
     return this.sql<DbJob[]>`
-      SELECT * FROM jobs
+      SELECT ${this.sql(JOBS_COLUMNS)} FROM jobs
       WHERE status = 'pending'
       ORDER BY COALESCE(updated_at, created_at) ASC
       LIMIT ${args.limit}
@@ -256,7 +247,7 @@ export class PgStore extends BasePgStore {
    */
   async getQueuedJobs(args: { excludingIds: number[] }): Promise<DbJob[]> {
     return this.sql<DbJob[]>`
-      SELECT * FROM jobs
+      SELECT ${this.sql(JOBS_COLUMNS)} FROM jobs
       WHERE status = 'queued'
       ${
         args.excludingIds.length
@@ -268,7 +259,9 @@ export class PgStore extends BasePgStore {
   }
 
   async getJob(args: { id: number }): Promise<DbJob | undefined> {
-    const result = await this.sql<DbJob[]>`SELECT * FROM jobs WHERE id = ${args.id}`;
+    const result = await this.sql<DbJob[]>`
+      SELECT ${this.sql(JOBS_COLUMNS)} FROM jobs WHERE id = ${args.id}
+    `;
     if (result.count) {
       return result[0];
     }
@@ -293,9 +286,9 @@ export class PgStore extends BasePgStore {
       }
       const contractId = contractResult[0].id;
 
-      const refreshTokens = async (tokenIds: number[]) => {
+      const refreshTokens = async (tokenIds: bigint[]) => {
         const tokens = await sql<DbToken[]>`
-          SELECT * FROM tokens
+          SELECT ${this.sql(TOKENS_COLUMNS)} FROM tokens
           WHERE smart_contract_id = ${contractId}
           ${tokenIds.length ? sql`AND token_number IN ${sql(tokenIds)}` : sql``}
         `;
@@ -324,7 +317,7 @@ export class PgStore extends BasePgStore {
           await refreshTokens(args.notification.token_ids ?? []);
           break;
         case 'ft':
-          await refreshTokens([1]);
+          await refreshTokens([1n]);
           break;
       }
     });
@@ -397,7 +390,7 @@ export class PgStore extends BasePgStore {
     `;
   }
 
-  private async insertAndEnqueueTokensInternal(tokenValues: DbTokenInsert[]): Promise<DbJob[]> {
+  async insertAndEnqueueTokenArray(tokenValues: DbTokenInsert[]): Promise<DbJob[]> {
     return this.sql<DbJob[]>`
       WITH token_inserts AS (
         INSERT INTO tokens ${this.sql(tokenValues)}
@@ -427,12 +420,12 @@ export class PgStore extends BasePgStore {
     return tokenLocale.count !== 0;
   }
 
-  private async getTokenMetadataBundle(
+  private async getTokenMetadataBundleInternal(
     tokenId: number,
     locale?: string
   ): Promise<DbTokenMetadataLocaleBundle> {
     const tokenRes = await this.sql<DbToken[]>`
-      SELECT * FROM tokens WHERE id = ${tokenId}
+      SELECT ${this.sql(TOKENS_COLUMNS)} FROM tokens WHERE id = ${tokenId}
     `;
     if (tokenRes.count === 0) {
       throw new TokenNotFoundError();
@@ -443,16 +436,20 @@ export class PgStore extends BasePgStore {
     }
     let localeBundle: DbMetadataLocaleBundle | undefined;
     const metadataRes = await this.sql<DbMetadata[]>`
-      SELECT * FROM metadata
+      SELECT ${this.sql(METADATA_COLUMNS)} FROM metadata
       WHERE token_id = ${token.id}
       AND ${locale ? this.sql`l10n_locale = ${locale}` : this.sql`l10n_default = TRUE`}
     `;
     if (metadataRes.count > 0) {
       const attributes = await this.sql<DbMetadataAttribute[]>`
-        SELECT * FROM metadata_attributes WHERE metadata_id = ${metadataRes[0].id}
+        SELECT ${this.sql(
+          METADATA_ATTRIBUTES_COLUMNS
+        )} FROM metadata_attributes WHERE metadata_id = ${metadataRes[0].id}
       `;
       const properties = await this.sql<DbMetadataProperty[]>`
-        SELECT * FROM metadata_properties WHERE metadata_id = ${metadataRes[0].id}
+        SELECT ${this.sql(
+          METADATA_PROPERTIES_COLUMNS
+        )} FROM metadata_properties WHERE metadata_id = ${metadataRes[0].id}
       `;
       localeBundle = {
         metadata: metadataRes[0],

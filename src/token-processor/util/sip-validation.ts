@@ -1,13 +1,12 @@
+import { ClarityAbiFunction, ClarityAbi } from '@stacks/transactions';
 import {
-  ClarityAbi,
-  ClarityAbiFunction,
-  ClarityType,
+  ClarityTypeID,
   ClarityValue,
-  hexToCV,
-  TupleCV,
-  UIntCV,
-} from '@stacks/transactions';
-import { principalToString } from '@stacks/transactions/dist/clarity/types/principalCV';
+  ClarityValueTuple,
+  ClarityValueList,
+  ClarityValueUInt,
+  decodeClarityValue,
+} from 'stacks-encoding-native-js';
 import { BlockchainDbContractLog } from '../../pg/blockchain-api/pg-blockchain-api-store';
 import { DbSipNumber } from '../../pg/types';
 
@@ -221,7 +220,6 @@ export function getSmartContractSip(abi: ClarityAbi): DbSipNumber | undefined {
   if (!abi) {
     return;
   }
-  // TODO: Will stacks.js support SFTs?
   if (abiContains(abi, SftTraitFunctions)) {
     return DbSipNumber.sip013;
   }
@@ -252,6 +250,24 @@ function findFunction(fun: ClarityAbiFunction, functionList: ClarityAbiFunction[
   return found !== undefined;
 }
 
+function stringFromValue(value: ClarityValue): string {
+  switch (value.type_id) {
+    case ClarityTypeID.Buffer:
+      const parts = value.buffer.substring(2).match(/.{1,2}/g) ?? [];
+      const arr = Uint8Array.from(parts.map(byte => parseInt(byte, 16)));
+      return Buffer.from(arr).toString('utf8');
+    case ClarityTypeID.StringAscii:
+    case ClarityTypeID.StringUtf8:
+      return value.data;
+    case ClarityTypeID.PrincipalContract:
+      return `${value.address}.${value.contract_name}`;
+    case ClarityTypeID.PrincipalStandard:
+      return value.address;
+    default:
+      throw new Error('Invalid clarity value');
+  }
+}
+
 type TokenClass = 'ft' | 'nft' | 'sft';
 
 type MetadataUpdateMode = 'standard' | 'frozen' | 'dynamic';
@@ -260,7 +276,7 @@ export type TokenMetadataUpdateNotification = {
   token_class: TokenClass;
   contract_id: string;
   update_mode: MetadataUpdateMode;
-  token_ids?: number[];
+  token_ids?: bigint[];
   ttl?: bigint;
 };
 
@@ -271,29 +287,14 @@ export type TokenMetadataUpdateNotification = {
 export function getContractLogMetadataUpdateNotification(
   log: BlockchainDbContractLog
 ): TokenMetadataUpdateNotification | undefined {
-  const stringFromValue = (value: ClarityValue): string => {
-    switch (value.type) {
-      case ClarityType.Buffer:
-        return value.buffer.toString('utf8');
-      case ClarityType.StringASCII:
-      case ClarityType.StringUTF8:
-        return value.data;
-      case ClarityType.PrincipalContract:
-      case ClarityType.PrincipalStandard:
-        return principalToString(value);
-      default:
-        throw new Error('Invalid clarity value');
-    }
-  };
-
   try {
     // Validate that we have the correct SIP-019 payload structure.
-    const value = hexToCV(log.value) as TupleCV;
+    const value = decodeClarityValue<ClarityValueTuple>(log.value);
     const notification = stringFromValue(value.data.notification);
     if (notification !== 'token-metadata-update') {
       return;
     }
-    const payload = value.data.payload as TupleCV;
+    const payload = value.data.payload as ClarityValueTuple;
     const contractId = stringFromValue(payload.data['contract-id']);
     const tokenClass = stringFromValue(payload.data['token-class']);
     if (!['ft', 'nft'].includes(tokenClass)) {
@@ -311,11 +312,11 @@ export function getContractLogMetadataUpdateNotification(
     }
 
     // Only NFT notifications provide token ids.
-    let tokenIds: number[] | undefined;
+    let tokenIds: bigint[] | undefined;
     if (tokenClass === 'nft') {
-      const tokenIdList = payload.data['token-ids'];
-      if (tokenIdList && tokenIdList.type === ClarityType.List) {
-        tokenIds = tokenIdList.list.map(i => Number((i as UIntCV).value));
+      const tokenIdList = payload.data['token-ids'] as ClarityValueList<ClarityValueUInt>;
+      if (tokenIdList) {
+        tokenIds = tokenIdList.list.map(i => BigInt(i.value));
       }
     }
 
@@ -330,8 +331,8 @@ export function getContractLogMetadataUpdateNotification(
 
     let ttl: bigint | undefined;
     const ttlValue = payload.data['ttl'];
-    if (ttlValue && ttlValue.type === ClarityType.UInt) {
-      ttl = ttlValue.value;
+    if (ttlValue && ttlValue.type_id === ClarityTypeID.UInt) {
+      ttl = BigInt(ttlValue.value);
     }
 
     return {
@@ -341,6 +342,37 @@ export function getContractLogMetadataUpdateNotification(
       update_mode: updateMode,
       ttl: ttl,
     };
+  } catch (error) {
+    return;
+  }
+}
+
+export type SftMintEvent = {
+  contractId: string;
+  tokenId: bigint;
+  amount: bigint;
+  recipient: string;
+};
+
+export function getContractLogSftMintEvent(log: BlockchainDbContractLog): SftMintEvent | undefined {
+  try {
+    // Validate that we have the correct SIP-013 `sft-mint` payload structure.
+    const value = decodeClarityValue<ClarityValueTuple>(log.value);
+    const type = stringFromValue(value.data.type);
+    if (type !== 'sft-mint') {
+      return;
+    }
+    const recipient = stringFromValue(value.data['recipient']);
+    const tokenId = (value.data['token-id'] as ClarityValueUInt).value;
+    const amount = (value.data['amount'] as ClarityValueUInt).value;
+
+    const event: SftMintEvent = {
+      contractId: log.contract_identifier,
+      tokenId: BigInt(tokenId),
+      amount: BigInt(amount),
+      recipient: recipient,
+    };
+    return event;
   } catch (error) {
     return;
   }

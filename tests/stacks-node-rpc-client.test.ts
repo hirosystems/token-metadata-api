@@ -10,6 +10,7 @@ import { MockAgent, setGlobalDispatcher } from 'undici';
 import { ENV } from '../src/env';
 import { RetryableJobError } from '../src/token-processor/queue/errors';
 import { StacksNodeRpcClient } from '../src/token-processor/stacks-node/stacks-node-rpc-client';
+import { HttpError, JsonParseError } from '../src/token-processor/util/errors';
 
 describe('StacksNodeRpcClient', () => {
   const nodeUrl = `http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`;
@@ -68,6 +69,48 @@ describe('StacksNodeRpcClient', () => {
       RetryableJobError
     );
     await expect(client.readStringFromContract('get-token-uri', [])).rejects.toThrow();
+  });
+
+  test('http errors are thrown', async () => {
+    const agent = new MockAgent();
+    agent.disableNetConnect();
+    agent
+      .get(nodeUrl)
+      .intercept({
+        path: `/v2/contracts/call-read/${contractAddr}/${contractName}/get-token-uri`,
+        method: 'POST',
+      })
+      .reply(500, { message: 'Server Error' });
+    setGlobalDispatcher(agent);
+
+    try {
+      await client.readStringFromContract('get-token-uri', []);
+    } catch (error) {
+      expect(error).toBeInstanceOf(RetryableJobError);
+      const err = error as RetryableJobError;
+      expect(err.cause).toBeInstanceOf(HttpError);
+    }
+  });
+
+  test('json parse errors are thrown', async () => {
+    const agent = new MockAgent();
+    agent.disableNetConnect();
+    agent
+      .get(nodeUrl)
+      .intercept({
+        path: `/v2/contracts/call-read/${contractAddr}/${contractName}/get-token-uri`,
+        method: 'POST',
+      })
+      .reply(200, 'not parseable');
+    setGlobalDispatcher(agent);
+
+    try {
+      await client.readStringFromContract('get-token-uri', []);
+    } catch (error) {
+      expect(error).toBeInstanceOf(RetryableJobError);
+      const err = error as RetryableJobError;
+      expect(err.cause).toBeInstanceOf(JsonParseError);
+    }
   });
 
   test('clarity value parse errors get retried', async () => {

@@ -107,4 +107,17 @@ export class PgBlockchainApiStore extends BasePgStore {
       return result[0];
     }
   }
+
+  getSmartContractLogsByContractCursor(args: {
+    contractId: string;
+  }): AsyncIterable<BlockchainDbContractLog[]> {
+    return this.sql<BlockchainDbContractLog[]>`
+      SELECT contract_identifier, value, sender_address
+      FROM contract_logs
+      WHERE contract_identifier = ${args.contractId}
+        AND canonical = TRUE
+        AND microblock_canonical = TRUE
+      ORDER BY block_height DESC, microblock_sequence DESC, tx_index DESC, event_index DESC
+    `.cursor();
+  }
 }

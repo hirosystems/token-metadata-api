@@ -14,8 +14,10 @@
     "migrate": "ts-node node_modules/.bin/node-pg-migrate -j ts",
     "lint:eslint": "eslint . --ext .js,.jsx,.ts,.tsx -f unix",
     "lint:prettier": "prettier --check src/**/*.ts tests/**/*.ts migrations/**/*.ts",
-    "generate:openapi": "node -r ts-node/register ./util/openapi-generator.ts",
-    "generate:docs": "redoc-cli build --output ./tmp/index.html ./tmp/openapi.yaml"
+    "generate:openapi": "rimraf ./tmp && node -r ts-node/register ./util/openapi-generator.ts",
+    "generate:docs": "redoc-cli build --output ./tmp/index.html ./tmp/openapi.yaml",
+    "generate:git-info": "rimraf .git-info && node ./git-info-generator.mjs",
+    "generate:vercel": "npm run generate:git-info && npm run generate:openapi && npm run generate:docs"
   },
   "author": "",
   "license": "ISC",
@@ -45,7 +47,7 @@
     "@fastify/swagger": "^7.6.1",
     "@fastify/type-provider-typebox": "^2.3.0",
     "@sinclair/typebox": "^0.24.51",
-    "@stacks/transactions": "^4.3.8",
+    "@stacks/transactions": "^6.1.0",
     "@types/node": "^18.11.9",
     "env-schema": "^5.1.0",
     "evt": "^1.11.2",
@@ -53,8 +55,9 @@
     "fastify-metrics": "^9.2.4",
     "node-pg-migrate": "^6.2.2",
     "p-queue": "^6.6.2",
+    "pino": "^8.8.0",
     "postgres": "^3.3.1",
-    "undici": "^5.12.0",
-    "winston": "^3.8.2"
+    "stacks-encoding-native-js": "^1.0.0",
+    "undici": "^5.12.0"
   }
 }

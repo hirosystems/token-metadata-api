@@ -1,9 +1,5 @@
-import {
-  getAddressFromPrivateKey,
-  makeRandomPrivKey,
-  TransactionVersion,
-  uintCV,
-} from '@stacks/transactions';
+import { getAddressFromPrivateKey, makeRandomPrivKey } from '@stacks/transactions';
+import { ClarityValueUInt, TransactionVersion } from 'stacks-encoding-native-js';
 import { logger } from '../../../logger';
 import { PgNumeric } from '../../../pg/postgres-tools/types';
 import {
@@ -59,7 +55,7 @@ export class ProcessTokenJob extends Job {
         await this.handleNft(client, token);
         break;
       case DbTokenType.sft:
-        // TODO: Handle SFT
+        await this.handleSft(client, token);
         break;
     }
   }
@@ -114,7 +110,9 @@ export class ProcessTokenJob extends Job {
   }
 
   private async handleNft(client: StacksNodeRpcClient, token: DbToken) {
-    const uri = await client.readStringFromContract('get-token-uri', [uintCV(token.token_number)]);
+    const uri = await client.readStringFromContract('get-token-uri', [
+      { value: token.token_number.toString() } as ClarityValueUInt,
+    ]);
     let metadataLocales: DbMetadataLocaleInsertBundle[] | undefined;
     if (uri) {
       metadataLocales = await fetchAllMetadataLocalesFromBaseUri(uri, token);
@@ -123,6 +121,39 @@ export class ProcessTokenJob extends Job {
     const tokenValues: DbProcessedTokenUpdateBundle = {
       token: {
         uri: uri ? getTokenSpecificUri(uri, token.token_number) : null,
+      },
+      metadataLocales: metadataLocales,
+    };
+    await this.db.updateProcessedTokenWithMetadata({ id: token.id, values: tokenValues });
+  }
+
+  private async handleSft(client: StacksNodeRpcClient, token: DbToken) {
+    const arg = [{ value: token.token_number.toString() } as ClarityValueUInt];
+
+    const uri = await client.readStringFromContract('get-token-uri', arg);
+
+    let fDecimals: number | undefined;
+    const decimals = await client.readUIntFromContract('get-decimals', arg);
+    if (decimals) {
+      fDecimals = Number(decimals.toString());
+    }
+
+    let fTotalSupply: PgNumeric | undefined;
+    const totalSupply = await client.readUIntFromContract('get-total-supply', arg);
+    if (totalSupply) {
+      fTotalSupply = totalSupply.toString();
+    }
+
+    let metadataLocales: DbMetadataLocaleInsertBundle[] | undefined;
+    if (uri) {
+      metadataLocales = await fetchAllMetadataLocalesFromBaseUri(uri, token);
+    }
+
+    const tokenValues: DbProcessedTokenUpdateBundle = {
+      token: {
+        uri: uri ? getTokenSpecificUri(uri, token.token_number) : null,
+        decimals: fDecimals ?? null,
+        total_supply: fTotalSupply ?? null,
       },
       metadataLocales: metadataLocales,
     };

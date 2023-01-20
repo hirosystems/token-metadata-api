@@ -165,7 +165,7 @@ const NftAbi = {
 
 class MockPgBlockchainApiStore extends PgBlockchainApiStore {
   private smartContract?: BlockchainDbSmartContract;
-  private contractLog?: BlockchainDbContractLog;
+  public contractLog?: BlockchainDbContractLog;
   private block?: BlockchainDbBlock;
 
   constructor(
@@ -277,9 +277,9 @@ describe('BlockchainSmartContractMonitor', () => {
       block_height: 1,
     };
     await db.insertAndEnqueueSmartContract({ values });
-    await db.insertAndEnqueueTokens({
+    await db.insertAndEnqueueSequentialTokens({
       smart_contract_id: 1,
-      token_count: 3, // 3 tokens
+      token_count: 3n, // 3 tokens
       type: DbTokenType.nft,
     });
     // Mark jobs as done to test
@@ -328,9 +328,9 @@ describe('BlockchainSmartContractMonitor', () => {
       block_height: 1,
     };
     await db.insertAndEnqueueSmartContract({ values });
-    await db.insertAndEnqueueTokens({
+    await db.insertAndEnqueueSequentialTokens({
       smart_contract_id: 1,
-      token_count: 3, // 3 tokens
+      token_count: 3n, // 3 tokens
       type: DbTokenType.nft,
     });
     // Mark jobs as done to test
@@ -404,9 +404,9 @@ describe('BlockchainSmartContractMonitor', () => {
       block_height: 1,
     };
     await db.insertAndEnqueueSmartContract({ values });
-    await db.insertAndEnqueueTokens({
+    await db.insertAndEnqueueSequentialTokens({
       smart_contract_id: 1,
-      token_count: 1,
+      token_count: 1n,
       type: DbTokenType.nft,
     });
     // Mark jobs as done to test
@@ -460,9 +460,9 @@ describe('BlockchainSmartContractMonitor', () => {
       block_height: 1,
     };
     await db.insertAndEnqueueSmartContract({ values });
-    await db.insertAndEnqueueTokens({
+    await db.insertAndEnqueueSequentialTokens({
       smart_contract_id: 1,
-      token_count: 1,
+      token_count: 1n,
       type: DbTokenType.nft,
     });
     // Mark jobs as done to test
@@ -521,20 +521,20 @@ describe('BlockchainSmartContractMonitor', () => {
     expect(result).toBe(10);
   });
 
-  test('enqueues dynamic tokens for refresh', async () => {
-    const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
-    const contractId = `${address}.friedger-pool-nft`;
+  test('enqueues SIP-013 minted token for valid contract', async () => {
+    const address = 'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9';
+    const contractId = 'key-alex-autoalex-v1';
     const values: DbSmartContractInsert = {
-      principal: contractId,
-      sip: DbSipNumber.sip009,
+      principal: `${address}.${contractId}`,
+      sip: DbSipNumber.sip013,
       abi: '"some"',
       tx_id: '0x123456',
       block_height: 1,
     };
     await db.insertAndEnqueueSmartContract({ values });
-    await db.insertAndEnqueueTokens({
+    await db.insertAndEnqueueSequentialTokens({
       smart_contract_id: 1,
-      token_count: 1,
+      token_count: 1n,
       type: DbTokenType.nft,
     });
     // Update update_mode and updated_at for testing.
@@ -564,5 +564,48 @@ describe('BlockchainSmartContractMonitor', () => {
 
     const job = await db.getJob({ id: 2 });
     expect(job?.status).toBe('pending');
+  });
+
+  test('enqueues dynamic tokens for refresh', async () => {
+    const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
+    const contractId = `${address}.friedger-pool-nft`;
+    const values: DbSmartContractInsert = {
+      principal: contractId,
+      sip: DbSipNumber.sip009,
+      abi: '"some"',
+      tx_id: '0x123456',
+      block_height: 1,
+    };
+    await db.insertAndEnqueueSmartContract({ values });
+
+    const event: BlockchainDbContractLog = {
+      contract_identifier: `${address}.${contractId}`,
+      sender_address: address,
+      value: cvToHex(
+        tupleCV({
+          type: bufferCV(Buffer.from('sft-mint')),
+          recipient: bufferCV(Buffer.from(address)),
+          'token-id': uintCV(3),
+          amount: uintCV(1000),
+        })
+      ),
+    };
+    const apiDb = new MockPgBlockchainApiStore();
+    apiDb.contractLog = event;
+
+    const monitor = new TestBlockchainMonitor({ db, apiDb });
+    await monitor.testHandleMessage(
+      JSON.stringify({
+        type: 'smartContractLogUpdate',
+        payload: {
+          txId: '0x1234',
+          eventIndex: 1,
+        },
+      })
+    );
+
+    const token = await db.getToken({ id: 1 });
+    expect(token?.type).toBe(DbTokenType.sft);
+    expect(token?.token_number).toBe('3');
   });
 });

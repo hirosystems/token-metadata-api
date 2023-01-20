@@ -1,16 +1,10 @@
-import * as winston from 'winston';
+import pino from 'pino';
 
-export const logger = winston.createLogger({
+export const logger = pino({
+  name: 'token-metadata-service',
   level: 'info',
-  exitOnError: false,
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json(),
-    winston.format.errors({ stack: true })
-  ),
-  transports: [
-    new winston.transports.Console({
-      handleExceptions: true,
-    }),
-  ],
+  timestamp: pino.stdTimeFunctions.isoTime,
+  formatters: {
+    level: (label, number) => ({ level: label }),
+  },
 });

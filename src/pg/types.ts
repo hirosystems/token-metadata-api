@@ -1,4 +1,4 @@
-import { PgNumeric } from './postgres-tools/types';
+import { PgJsonb, PgNumeric } from './postgres-tools/types';
 
 export enum DbSipNumber {
   /** Non-Fungible Tokens */
@@ -31,7 +31,7 @@ export enum DbTokenUpdateMode {
 export type DbSmartContractInsert = {
   principal: string;
   sip: DbSipNumber;
-  abi: string;
+  abi: PgJsonb;
   tx_id: string;
   block_height: number;
 };
@@ -43,7 +43,7 @@ export type DbSmartContract = {
   abi: string;
   tx_id: string;
   block_height: number;
-  token_count?: number;
+  token_count?: bigint;
   created_at: string;
   updated_at?: string;
 };
@@ -51,14 +51,14 @@ export type DbSmartContract = {
 export type DbTokenInsert = {
   smart_contract_id: number;
   type: DbTokenType;
-  token_number: number;
+  token_number: PgNumeric;
 };
 
 export type DbToken = {
   id: number;
   smart_contract_id: number;
   type: DbTokenType;
-  token_number: number;
+  token_number: bigint;
   update_mode: DbTokenUpdateMode;
   ttl?: number;
   uri?: string;
@@ -98,10 +98,8 @@ export type DbNftInsert = {
 };
 
 export type DbSftInsert = {
-  name: string | null;
-  symbol: string | null;
   decimals: number | null;
-  total_supply: number | null;
+  total_supply: PgNumeric | null;
   uri: string | null;
 };
 
@@ -133,7 +131,7 @@ export type DbMetadata = {
 export type DbMetadataAttributeInsert = {
   // We don't require `metadata_id` because that is determined by the insertion query.
   trait_type: string;
-  value: string;
+  value: PgJsonb;
   display_type: string | null;
 };
 
@@ -148,7 +146,7 @@ export type DbMetadataAttribute = {
 export type DbMetadataPropertyInsert = {
   // We don't require `metadata_id` because that is determined by the insertion query.
   name: string;
-  value: string;
+  value: PgJsonb;
 };
 
 export type DbMetadataProperty = {
@@ -179,3 +177,64 @@ export type DbTokenMetadataLocaleBundle = {
   token: DbToken;
   metadataLocale?: DbMetadataLocaleBundle;
 };
+
+export const SMART_CONTRACTS_COLUMNS = [
+  'id',
+  'principal',
+  'sip',
+  'abi',
+  'tx_id',
+  'block_height',
+  'token_count',
+  'created_at',
+  'updated_at',
+];
+
+export const TOKENS_COLUMNS = [
+  'id',
+  'smart_contract_id',
+  'type',
+  'token_number',
+  'update_mode',
+  'ttl',
+  'uri',
+  'name',
+  'decimals',
+  'total_supply',
+  'symbol',
+  'created_at',
+  'updated_at',
+];
+
+export const JOBS_COLUMNS = [
+  'id',
+  'token_id',
+  'smart_contract_id',
+  'status',
+  'retry_count',
+  'created_at',
+  'updated_at',
+];
+
+export const METADATA_COLUMNS = [
+  'id',
+  'sip',
+  'token_id',
+  'name',
+  'l10n_locale',
+  'l10n_uri',
+  'l10n_default',
+  'description',
+  'image',
+  'cached_image',
+];
+
+export const METADATA_ATTRIBUTES_COLUMNS = [
+  'id',
+  'metadata_id',
+  'trait_type',
+  'value',
+  'display_type',
+];
+
+export const METADATA_PROPERTIES_COLUMNS = ['id', 'metadata_id', 'name', 'value'];

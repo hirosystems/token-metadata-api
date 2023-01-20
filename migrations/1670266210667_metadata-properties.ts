@@ -18,7 +18,7 @@ export function up(pgm: MigrationBuilder): void {
       notNull: true,
     },
     value: {
-      type: 'text',
+      type: 'jsonb',
       notNull: true,
     },
   });

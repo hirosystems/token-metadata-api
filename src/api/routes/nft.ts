@@ -2,7 +2,7 @@ import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { FastifyPluginCallback } from 'fastify';
 import { Server } from 'http';
-import { Metadata, SmartContractRegEx, TokenQuerystringParams } from '../types';
+import { Metadata, SmartContractRegEx, TokenQuerystringParams, TokenUri } from '../types';
 import { handleTokenCache } from '../util/cache';
 import { parseMetadataLocaleBundle } from '../util/helpers';
 import { generateTokenErrorResponse, TokenErrorResponseSchema } from '../util/errors';
@@ -30,7 +30,7 @@ export const NftRoutes: FastifyPluginCallback<Record<never, never>, Server, Type
         querystring: TokenQuerystringParams,
         response: {
           200: Type.Object({
-            token_uri: Type.Optional(Type.String({ format: 'uri' })),
+            token_uri: Type.Optional(TokenUri),
             metadata: Type.Optional(Metadata),
           }),
           ...TokenErrorResponseSchema,
@@ -39,7 +39,7 @@ export const NftRoutes: FastifyPluginCallback<Record<never, never>, Server, Type
     },
     async (request, reply) => {
       try {
-        const metadataBundle = await fastify.db.getNftMetadataBundle({
+        const metadataBundle = await fastify.db.getTokenMetadataBundle({
           contractPrincipal: request.params.principal,
           tokenNumber: request.params.token_id,
           locale: request.query.locale,

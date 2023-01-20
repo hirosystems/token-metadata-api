@@ -2,12 +2,14 @@ import Fastify, { FastifyPluginAsync } from 'fastify';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { FtRoutes } from './routes/ft';
 import { NftRoutes } from './routes/nft';
+import { SftRoutes } from './routes/sft';
 import { PgStore } from '../pg/pg-store';
 import FastifyCors from '@fastify/cors';
 import FastifySwagger, { SwaggerOptions } from '@fastify/swagger';
 import { StatusRoutes } from './routes/status';
 import FastifyMetrics from 'fastify-metrics';
 import { Server } from 'http';
+import { SERVER_VERSION } from '../server-version';
 
 export const ApiSwaggerOptions: SwaggerOptions = {
   openapi: {
@@ -15,10 +17,10 @@ export const ApiSwaggerOptions: SwaggerOptions = {
       title: 'Stacks Token Metadata Service',
       description:
         'A microservice that indexes metadata for every SIP-009, SIP-010, and SIP-013 Token in the Stacks blockchain and exposes it via REST API endpoints.',
-      version: '0.0.1',
+      version: SERVER_VERSION.tag,
     },
     externalDocs: {
-      url: 'https://github.com/rafaelcr/token-metadata-service',
+      url: 'https://github.com/hirosystems/token-metadata-service',
       description: 'Source Repository',
     },
     tags: [
@@ -41,6 +43,7 @@ export const Api: FastifyPluginAsync<Record<never, never>, Server, TypeBoxTypePr
 ) => {
   await fastify.register(FtRoutes);
   await fastify.register(NftRoutes);
+  await fastify.register(SftRoutes);
   await fastify.register(StatusRoutes);
 };
 

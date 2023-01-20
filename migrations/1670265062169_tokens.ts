@@ -20,7 +20,7 @@ export function up(pgm: MigrationBuilder): void {
       notNull: true,
     },
     token_number: {
-      type: 'int',
+      type: 'numeric',
       notNull: true,
     },
     update_mode: {

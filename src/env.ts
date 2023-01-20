@@ -54,6 +54,7 @@ interface Env {
   /**
    * Configure a script to handle image URLs during token metadata processing. Must be an executable
    * script that accepts the URL as the first program argument and outputs a result URL to stdout.
+   * Example: ./config/image-cache.js
    */
   METADATA_IMAGE_CACHE_PROCESSOR: string;
   /**

@@ -67,6 +67,8 @@ jobs:
       STACKS_NODE_RPC_PORT: 24440
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
       - name: Use Node.js
         uses: actions/setup-node@v2
@@ -89,6 +91,9 @@ jobs:
 
       - name: Install deps
         run: npm ci --audit=false
+
+      - name: Generate git info
+        run: npm run generate:git-info
 
       - name: Setup integration environment
         run: |
@@ -129,6 +134,7 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
           SEMANTIC_RELEASE_PACKAGE: ${{ github.event.repository.name }}
         with:
+          semantic_version: 19
           extra_plugins: |
             @semantic-release/changelog
             @semantic-release/git

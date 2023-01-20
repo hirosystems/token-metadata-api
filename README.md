@@ -10,6 +10,7 @@ Stacks blockchain and exposes it via JSON REST API endpoints.
 * [Quick start](#quick-start)
     * [System requirements](#system-requirements)
     * [Running the service](#running-the-service)
+    * [Using an image cache service](#using-an-image-cache-service)
 * [Service architecture](#service-architecture)
     * [External](#external)
     * [Internal](#internal)
@@ -29,15 +30,16 @@ Stacks blockchain and exposes it via JSON REST API endpoints.
     * [SIP-010](https://github.com/stacksgov/sips/blob/main/sips/sip-010/sip-010-fungible-token-standard.md)
       Fungible Tokens
     * [SIP-013](https://github.com/stacksgov/sips/blob/main/sips/sip-013/sip-013-semi-fungible-token-standard.md)
-      Semi-Fungible Tokens *(coming soon)*
+      Semi-Fungible Tokens
 * Automatic metadata refreshes via [SIP-019](https://github.com/stacksgov/sips/pull/72)
   notifications
 * Metadata localization support
-* Metadata fetching via `http:`, `https:`, `data:` URIs. Also supported:
+* Metadata fetching via `http:`, `https:`, `data:` URIs. Also supported via customizable gateways:
     * IPFS
     * Arweave
 * Easy to use REST JSON endpoints with ETag caching
 * Prometheus metrics for job queue status, contract and token counts, API performance, etc.
+* Image cache/CDN support
 
 ## API reference
 
@@ -76,6 +78,23 @@ Start the service
 ```
 npm run start
 ```
+
+### Using an image cache service
+
+The Token Metadata Service allows you to specify the path to a custom script that can pre-process
+every image URL detected by the service before it's inserted into the DB. This allows you to serve
+CDN image URLs in your metadata responses instead of raw URLs, providing key advantages such as:
+
+* Improves image load speed
+* Increases reliability in case original image becomes unavailable
+* Protects original image hosts from DDoS attacks
+* Increases user privacy
+* etc.
+
+An example IMGIX processor script is included in
+[`config/image-cache.js`](https://github.com/hirosystems/token-metadata-service/blob/develop/config/image-cache.js).
+You can customize the script path by altering the `METADATA_IMAGE_CACHE_PROCESSOR` environment
+variable.
 
 ## Service architecture
 

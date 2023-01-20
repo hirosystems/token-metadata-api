@@ -1,6 +1,8 @@
 import { MockAgent, setGlobalDispatcher } from 'undici';
 import { ENV } from '../src/env';
 import {
+  HttpError,
+  MetadataParseError,
   MetadataSizeExceededError,
   MetadataTimeoutError,
 } from '../src/token-processor/util/errors';
@@ -86,6 +88,22 @@ describe('Metadata Helpers', () => {
     await expect(getMetadataFromUri('http://test.io/1.json')).rejects.toThrow(
       /Invalid raw metadata JSON schema/
     );
+  });
+
+  test('throws metadata http errors', async () => {
+    const url = new URL('http://test.io/1.json');
+    const agent = new MockAgent();
+    agent.disableNetConnect();
+    agent
+      .get('http://test.io')
+      .intercept({
+        path: '/1.json',
+        method: 'GET',
+      })
+      .reply(500, { message: 'server error' });
+    setGlobalDispatcher(agent);
+
+    await expect(performSizeAndTimeLimitedMetadataFetch(url)).rejects.toThrow(HttpError);
   });
 
   test('does not throw on raw metadata with null or stringable values', async () => {
@@ -190,16 +208,16 @@ describe('Metadata Helpers', () => {
   test('replace URI string tokens', () => {
     const uri1 =
       'https://ipfs.io/ipfs/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn/$TOKEN_ID.json';
-    expect(getTokenSpecificUri(uri1, 7)).toBe(
+    expect(getTokenSpecificUri(uri1, 7n)).toBe(
       'https://ipfs.io/ipfs/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn/7.json'
     );
     const uri2 = 'https://ipfs.io/ipfs/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn/{id}.json';
-    expect(getTokenSpecificUri(uri2, 7)).toBe(
+    expect(getTokenSpecificUri(uri2, 7n)).toBe(
       'https://ipfs.io/ipfs/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn/7.json'
     );
     const uri3 =
       'https://ipfs.io/ipfs/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn/{id}-{locale}.json';
-    expect(getTokenSpecificUri(uri3, 7, 'es')).toBe(
+    expect(getTokenSpecificUri(uri3, 7n, 'es')).toBe(
       'https://ipfs.io/ipfs/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn/7-es.json'
     );
   });
