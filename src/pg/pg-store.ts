@@ -84,21 +84,6 @@ export class PgStore extends BasePgStore {
     return result[0];
   }
 
-  /**
-   * Retrieves the latest block height of imported contracts. Useful for when we want to only import
-   * remaining contracts from the Stacks chain.
-   * @returns Max block height
-   */
-  async getSmartContractsMaxBlockHeight(): Promise<number | undefined> {
-    const result = await this.sql<{ max: number }[]>`
-      SELECT MAX(block_height) FROM smart_contracts;
-    `;
-    if (result.count === 0) {
-      return undefined;
-    }
-    return result[0].max;
-  }
-
   async updateSmartContractTokenCount(args: { id: number; count: bigint }): Promise<void> {
     await this.sql`
       UPDATE smart_contracts SET token_count = ${args.count.toString()} WHERE id = ${args.id}

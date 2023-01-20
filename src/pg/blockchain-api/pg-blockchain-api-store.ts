@@ -45,7 +45,8 @@ export class PgBlockchainApiStore extends BasePgStore {
   }
 
   getSmartContractsCursor(args: {
-    afterBlockHeight: number;
+    fromBlockHeight: number;
+    toBlockHeight: number;
   }): AsyncIterable<BlockchainDbSmartContract[]> {
     return this.sql<BlockchainDbSmartContract[]>`
       SELECT * FROM (
@@ -54,7 +55,8 @@ export class PgBlockchainApiStore extends BasePgStore {
         WHERE
           canonical = TRUE
           AND microblock_canonical = TRUE
-          AND block_height >= ${args.afterBlockHeight}
+          AND block_height >= ${args.fromBlockHeight}
+          AND block_height <= ${args.toBlockHeight}
           AND abi <> '"null"'
         ORDER BY contract_id, block_height DESC, microblock_sequence DESC
       ) AS contract_list
@@ -105,6 +107,15 @@ export class PgBlockchainApiStore extends BasePgStore {
     `;
     if (result.count) {
       return result[0];
+    }
+  }
+
+  async getCurrentBlockHeight(): Promise<number | undefined> {
+    const result = await this.sql<{ block_height: number }[]>`
+      SELECT block_height FROM chain_tip LIMIT 1
+    `;
+    if (result.count) {
+      return result[0].block_height;
     }
   }
 
