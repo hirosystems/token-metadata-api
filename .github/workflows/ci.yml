@@ -92,9 +92,6 @@ jobs:
       - name: Install deps
         run: npm ci --audit=false
 
-      - name: Generate git info
-        run: npm run generate:git-info
-
       - name: Setup integration environment
         run: |
           sudo ufw disable

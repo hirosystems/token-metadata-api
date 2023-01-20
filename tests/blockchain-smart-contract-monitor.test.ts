@@ -1,16 +1,15 @@
 import { bufferCV, cvToHex, listCV, stringUtf8CV, tupleCV, uintCV } from '@stacks/transactions';
-import * as postgres from 'postgres';
 import { ENV } from '../src/env';
 import {
   BlockchainDbBlock,
   BlockchainDbContractLog,
   BlockchainDbSmartContract,
-  PgBlockchainApiStore,
 } from '../src/pg/blockchain-api/pg-blockchain-api-store';
 import { PgStore } from '../src/pg/pg-store';
 import { DbSipNumber, DbSmartContractInsert, DbTokenType } from '../src/pg/types';
 import { BlockchainSmartContractMonitor } from '../src/token-processor/blockchain-api/blockchain-smart-contract-monitor';
 import { cycleMigrations } from '../src/pg/migrations';
+import { MockPgBlockchainApiStore } from './helpers';
 
 const NftAbi = {
   maps: [],
@@ -163,38 +162,6 @@ const NftAbi = {
   non_fungible_tokens: [{ name: 'friedger-pool', type: 'uint128' }],
 };
 
-class MockPgBlockchainApiStore extends PgBlockchainApiStore {
-  private smartContract?: BlockchainDbSmartContract;
-  public contractLog?: BlockchainDbContractLog;
-  private block?: BlockchainDbBlock;
-
-  constructor(
-    smartContract?: BlockchainDbSmartContract,
-    contractLog?: BlockchainDbContractLog,
-    block?: BlockchainDbBlock
-  ) {
-    super(postgres());
-    this.smartContract = smartContract;
-    this.contractLog = contractLog;
-    this.block = block;
-  }
-
-  getSmartContract(args: { contractId: string }): Promise<BlockchainDbSmartContract | undefined> {
-    return Promise.resolve(this.smartContract);
-  }
-
-  getSmartContractLog(args: {
-    txId: string;
-    eventIndex: number;
-  }): Promise<BlockchainDbContractLog | undefined> {
-    return Promise.resolve(this.contractLog);
-  }
-
-  getBlock(args: { blockHash: string }): Promise<BlockchainDbBlock | undefined> {
-    return Promise.resolve(this.block);
-  }
-}
-
 class TestBlockchainMonitor extends BlockchainSmartContractMonitor {
   public async testHandleMessage(message: string) {
     return this.handleMessage(message);
@@ -221,7 +188,8 @@ describe('BlockchainSmartContractMonitor', () => {
       block_height: 1,
       abi: NftAbi,
     };
-    const apiDb = new MockPgBlockchainApiStore(contract);
+    const apiDb = new MockPgBlockchainApiStore();
+    apiDb.smartContract = contract;
     const monitor = new TestBlockchainMonitor({ db, apiDb });
     await monitor.testHandleMessage(
       JSON.stringify({
@@ -248,7 +216,8 @@ describe('BlockchainSmartContractMonitor', () => {
       block_height: 1,
       abi: { maps: [], functions: [], variables: [], fungible_tokens: [], non_fungible_tokens: [] },
     };
-    const apiDb = new MockPgBlockchainApiStore(contract);
+    const apiDb = new MockPgBlockchainApiStore();
+    apiDb.smartContract = contract;
     const monitor = new TestBlockchainMonitor({ db, apiDb });
     await monitor.testHandleMessage(
       JSON.stringify({
@@ -300,7 +269,8 @@ describe('BlockchainSmartContractMonitor', () => {
         })
       ),
     };
-    const apiDb = new MockPgBlockchainApiStore(undefined, event);
+    const apiDb = new MockPgBlockchainApiStore();
+    apiDb.contractLog = event;
     const monitor = new TestBlockchainMonitor({ db, apiDb });
 
     await monitor.testHandleMessage(
@@ -352,7 +322,8 @@ describe('BlockchainSmartContractMonitor', () => {
         })
       ),
     };
-    const apiDb = new MockPgBlockchainApiStore(undefined, event);
+    const apiDb = new MockPgBlockchainApiStore();
+    apiDb.contractLog = event;
     const monitor = new TestBlockchainMonitor({ db, apiDb });
 
     await monitor.testHandleMessage(
@@ -376,7 +347,8 @@ describe('BlockchainSmartContractMonitor', () => {
       sender_address: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60',
       value: cvToHex(stringUtf8CV('test')),
     };
-    const apiDb = new MockPgBlockchainApiStore(undefined, event);
+    const apiDb = new MockPgBlockchainApiStore();
+    apiDb.contractLog = event;
     const monitor = new TestBlockchainMonitor({ db, apiDb });
     await monitor.testHandleMessage(
       JSON.stringify({
@@ -432,7 +404,8 @@ describe('BlockchainSmartContractMonitor', () => {
         })
       ),
     };
-    const apiDb = new MockPgBlockchainApiStore(undefined, event);
+    const apiDb = new MockPgBlockchainApiStore();
+    apiDb.contractLog = event;
     const monitor = new TestBlockchainMonitor({ db, apiDb });
 
     await monitor.testHandleMessage(
@@ -484,7 +457,8 @@ describe('BlockchainSmartContractMonitor', () => {
         })
       ),
     };
-    const apiDb = new MockPgBlockchainApiStore(undefined, event);
+    const apiDb = new MockPgBlockchainApiStore();
+    apiDb.contractLog = event;
     const monitor = new TestBlockchainMonitor({ db, apiDb });
 
     await monitor.testHandleMessage(
@@ -506,7 +480,8 @@ describe('BlockchainSmartContractMonitor', () => {
       block_hash: '0x1234',
       index_block_hash: '0x1111',
     };
-    const apiDb = new MockPgBlockchainApiStore(undefined, undefined, block);
+    const apiDb = new MockPgBlockchainApiStore();
+    apiDb.block = block;
     const monitor = new TestBlockchainMonitor({ db, apiDb });
     await monitor.testHandleMessage(
       JSON.stringify({
@@ -551,7 +526,8 @@ describe('BlockchainSmartContractMonitor', () => {
       block_hash: '0x1234',
       index_block_hash: '0x1111',
     };
-    const apiDb = new MockPgBlockchainApiStore(undefined, undefined, block);
+    const apiDb = new MockPgBlockchainApiStore();
+    apiDb.block = block;
     const monitor = new TestBlockchainMonitor({ db, apiDb });
     await monitor.testHandleMessage(
       JSON.stringify({
