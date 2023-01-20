@@ -23,11 +23,10 @@ describe('Status routes', () => {
   test('returns status when nothing has been processed', async () => {
     const response = await fastify.inject({ method: 'GET', url: '/' });
     const json = response.json();
-    expect(json).toEqual(
-      expect.objectContaining({
-        status: 'ready',
-      })
-    );
+    expect(json).toStrictEqual({
+      server_version: 'token-metadata-service v0.0.1 (test:123456)',
+      status: 'ready',
+    });
   });
 
   test('returns status counts', async () => {
@@ -54,19 +53,18 @@ describe('Status routes', () => {
 
     const response = await fastify.inject({ method: 'GET', url: '/' });
     const json = response.json();
-    expect(json).toEqual(
-      expect.objectContaining({
-        status: 'ready',
-        job_queue: {
-          pending: 2,
-        },
-        token_contracts: {
-          'sip-009': 1,
-        },
-        tokens: {
-          nft: 1,
-        },
-      })
-    );
+    expect(json).toStrictEqual({
+      server_version: 'token-metadata-service v0.0.1 (test:123456)',
+      status: 'ready',
+      job_queue: {
+        pending: 2,
+      },
+      token_contracts: {
+        'sip-009': 1,
+      },
+      tokens: {
+        nft: 1,
+      },
+    });
   });
 });

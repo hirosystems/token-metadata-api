@@ -1,4 +1,3 @@
-import * as postgres from 'postgres';
 import { bufferCV, cvToHex, tupleCV, uintCV } from '@stacks/transactions';
 import { MockAgent, setGlobalDispatcher } from 'undici';
 import { PgStore } from '../src/pg/pg-store';
@@ -12,39 +11,8 @@ import {
 import { ProcessSmartContractJob } from '../src/token-processor/queue/job/process-smart-contract-job';
 import { ENV } from '../src/env';
 import { cycleMigrations } from '../src/pg/migrations';
-import {
-  BlockchainDbContractLog,
-  PgBlockchainApiStore,
-} from '../src/pg/blockchain-api/pg-blockchain-api-store';
-
-class MockPgBlockchainApiStore extends PgBlockchainApiStore {
-  private contractLogs?: BlockchainDbContractLog[];
-
-  constructor(contractLogs?: BlockchainDbContractLog[]) {
-    super(postgres());
-    this.contractLogs = contractLogs;
-  }
-
-  getSmartContractLogsByContractCursor(args: {
-    contractId: string;
-  }): AsyncIterable<BlockchainDbContractLog[]> {
-    const logs = this.contractLogs ?? [];
-    const iterable: AsyncIterable<BlockchainDbContractLog[]> = {
-      [Symbol.asyncIterator]: (): AsyncIterator<BlockchainDbContractLog[], any, undefined> => {
-        return {
-          next: () => {
-            if (logs.length) {
-              const value = logs.shift() as BlockchainDbContractLog;
-              return Promise.resolve({ value: [value], done: false });
-            }
-            return Promise.resolve({ value: [] as BlockchainDbContractLog[], done: true });
-          },
-        };
-      },
-    };
-    return iterable;
-  }
-}
+import { BlockchainDbContractLog } from '../src/pg/blockchain-api/pg-blockchain-api-store';
+import { MockPgBlockchainApiStore } from './helpers';
 
 describe('ProcessSmartContractJob', () => {
   let db: PgStore;
@@ -190,11 +158,9 @@ describe('ProcessSmartContractJob', () => {
       ),
     };
 
-    const processor = new ProcessSmartContractJob({
-      db,
-      job,
-      apiDb: new MockPgBlockchainApiStore([event1, event2]),
-    });
+    const apiDb = new MockPgBlockchainApiStore();
+    apiDb.contractLogsByContract = [event1, event2];
+    const processor = new ProcessSmartContractJob({ db, job, apiDb });
     await processor.work();
 
     const tokens = await db.sql<DbToken[]>`SELECT ${db.sql(TOKENS_COLUMNS)} FROM tokens`;
