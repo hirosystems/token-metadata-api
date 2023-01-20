@@ -507,6 +507,49 @@ describe('BlockchainSmartContractMonitor', () => {
       block_height: 1,
     };
     await db.insertAndEnqueueSmartContract({ values });
+
+    const event: BlockchainDbContractLog = {
+      contract_identifier: `${address}.${contractId}`,
+      sender_address: address,
+      value: cvToHex(
+        tupleCV({
+          type: bufferCV(Buffer.from('sft-mint')),
+          recipient: bufferCV(Buffer.from(address)),
+          'token-id': uintCV(3),
+          amount: uintCV(1000),
+        })
+      ),
+    };
+    const apiDb = new MockPgBlockchainApiStore();
+    apiDb.contractLog = event;
+
+    const monitor = new TestBlockchainMonitor({ db, apiDb });
+    await monitor.testHandleMessage(
+      JSON.stringify({
+        type: 'smartContractLogUpdate',
+        payload: {
+          txId: '0x1234',
+          eventIndex: 1,
+        },
+      })
+    );
+
+    const token = await db.getToken({ id: 1 });
+    expect(token?.type).toBe(DbTokenType.sft);
+    expect(token?.token_number).toBe('3');
+  });
+
+  test('enqueues dynamic tokens for refresh', async () => {
+    const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
+    const contractId = `${address}.friedger-pool-nft`;
+    const values: DbSmartContractInsert = {
+      principal: contractId,
+      sip: DbSipNumber.sip009,
+      abi: '"some"',
+      tx_id: '0x123456',
+      block_height: 1,
+    };
+    await db.insertAndEnqueueSmartContract({ values });
     await db.insertAndEnqueueSequentialTokens({
       smart_contract_id: 1,
       token_count: 1n,
@@ -540,48 +583,5 @@ describe('BlockchainSmartContractMonitor', () => {
 
     const job = await db.getJob({ id: 2 });
     expect(job?.status).toBe('pending');
-  });
-
-  test('enqueues dynamic tokens for refresh', async () => {
-    const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
-    const contractId = `${address}.friedger-pool-nft`;
-    const values: DbSmartContractInsert = {
-      principal: contractId,
-      sip: DbSipNumber.sip009,
-      abi: '"some"',
-      tx_id: '0x123456',
-      block_height: 1,
-    };
-    await db.insertAndEnqueueSmartContract({ values });
-
-    const event: BlockchainDbContractLog = {
-      contract_identifier: `${address}.${contractId}`,
-      sender_address: address,
-      value: cvToHex(
-        tupleCV({
-          type: bufferCV(Buffer.from('sft-mint')),
-          recipient: bufferCV(Buffer.from(address)),
-          'token-id': uintCV(3),
-          amount: uintCV(1000),
-        })
-      ),
-    };
-    const apiDb = new MockPgBlockchainApiStore();
-    apiDb.contractLog = event;
-
-    const monitor = new TestBlockchainMonitor({ db, apiDb });
-    await monitor.testHandleMessage(
-      JSON.stringify({
-        type: 'smartContractLogUpdate',
-        payload: {
-          txId: '0x1234',
-          eventIndex: 1,
-        },
-      })
-    );
-
-    const token = await db.getToken({ id: 1 });
-    expect(token?.type).toBe(DbTokenType.sft);
-    expect(token?.token_number).toBe('3');
   });
 });
