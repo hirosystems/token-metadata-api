@@ -319,15 +319,19 @@ export class PgStore extends BasePgStore {
 
   async enqueueDynamicTokensDueForRefresh(): Promise<void> {
     await this.sqlWriteTransaction(async sql => {
-      const defaultInterval = ENV.METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL.toString();
+      const interval = ENV.METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL.toString();
       await sql`
         UPDATE jobs
         SET status = 'pending', updated_at = NOW()
         WHERE status IN ('done', 'failed') AND token_id = (
           SELECT id FROM tokens
           WHERE update_mode = 'dynamic'
-            AND COALESCE(updated_at, created_at)
-              < (NOW() - INTERVAL '${sql(defaultInterval)} seconds')
+          AND CASE
+            WHEN ttl IS NOT NULL THEN
+              COALESCE(updated_at, created_at) < (NOW() - INTERVAL '1 seconds' * ttl)
+            ELSE
+              COALESCE(updated_at, created_at) < (NOW() - INTERVAL '${sql(interval)} seconds')
+          END
         )
       `;
       await sql`UPDATE chain_tip SET last_dynamic_token_refresh_at = NOW()`;

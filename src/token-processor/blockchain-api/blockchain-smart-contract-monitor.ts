@@ -31,12 +31,13 @@ const PgBlockPayloadCType = TypeCompiler.Compile(PgBlockPayload);
 type PgBlockPayloadType = Static<typeof PgBlockPayload>;
 
 /**
- * Listens for postgres notifications emitted from the API database when new contracts are deployed
- * or contract logs are registered. It will analyze each of them to determine if:
+ * Listens for postgres notifications emitted from the API database when new contracts are deployed,
+ * contract logs are registered, or new blocks are produced. It will analyze each of them to
+ * determine if:
  * - A new token contract needs indexing
  * - A SIP-019 notifications calls for a token metadata refresh
  * - A SIP-013 mint event declared a new SFT that needs metadata processing
- * - `dynamic` token metadata needs to be refreshed from a new block.
+ * - `dynamic` token metadata needs to be refreshed.
  */
 export class BlockchainSmartContractMonitor {
   private readonly db: PgStore;

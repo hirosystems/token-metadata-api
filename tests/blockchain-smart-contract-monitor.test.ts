@@ -9,158 +9,7 @@ import { PgStore } from '../src/pg/pg-store';
 import { DbSipNumber, DbSmartContractInsert, DbTokenType } from '../src/pg/types';
 import { BlockchainSmartContractMonitor } from '../src/token-processor/blockchain-api/blockchain-smart-contract-monitor';
 import { cycleMigrations } from '../src/pg/migrations';
-import { MockPgBlockchainApiStore } from './helpers';
-
-const NftAbi = {
-  maps: [],
-  functions: [
-    {
-      args: [
-        { name: 'user', type: 'principal' },
-        {
-          name: 'ctx',
-          type: {
-            tuple: [
-              { name: 'index', type: 'uint128' },
-              { name: 'member', type: 'principal' },
-              { name: 'result', type: 'uint128' },
-            ],
-          },
-        },
-      ],
-      name: 'find',
-      access: 'private',
-      outputs: {
-        type: {
-          tuple: [
-            { name: 'index', type: 'uint128' },
-            { name: 'member', type: 'principal' },
-            { name: 'result', type: 'uint128' },
-          ],
-        },
-      },
-    },
-    {
-      args: [
-        { name: 'token-id', type: 'uint128' },
-        { name: 'user', type: 'principal' },
-      ],
-      name: 'is-owner',
-      access: 'private',
-      outputs: { type: 'bool' },
-    },
-    {
-      args: [{ name: 'amount-in-stx', type: 'uint128' }],
-      name: 'claim',
-      access: 'public',
-      outputs: {
-        type: {
-          response: {
-            ok: 'bool',
-            error: {
-              tuple: [
-                { name: 'code', type: 'uint128' },
-                { name: 'kind', type: { 'string-ascii': { length: 17 } } },
-              ],
-            },
-          },
-        },
-      },
-    },
-    {
-      args: [
-        { name: 'token-id', type: 'uint128' },
-        { name: 'sender', type: 'principal' },
-        { name: 'recipient', type: 'principal' },
-      ],
-      name: 'transfer',
-      access: 'public',
-      outputs: {
-        type: {
-          response: {
-            ok: 'bool',
-            error: {
-              tuple: [
-                { name: 'code', type: 'uint128' },
-                { name: 'kind', type: { 'string-ascii': { length: 19 } } },
-              ],
-            },
-          },
-        },
-      },
-    },
-    {
-      args: [],
-      name: 'get-last-token-id',
-      access: 'read_only',
-      outputs: { type: { response: { ok: 'uint128', error: 'none' } } },
-    },
-    {
-      args: [{ name: 'id', type: 'uint128' }],
-      name: 'get-meta',
-      access: 'read_only',
-      outputs: {
-        type: {
-          response: {
-            ok: {
-              tuple: [
-                { name: 'mime-type', type: { 'string-ascii': { length: 9 } } },
-                { name: 'name', type: { 'string-ascii': { length: 26 } } },
-                { name: 'uri', type: { 'string-ascii': { length: 32 } } },
-              ],
-            },
-            error: 'none',
-          },
-        },
-      },
-    },
-    {
-      args: [],
-      name: 'get-nft-meta',
-      access: 'read_only',
-      outputs: {
-        type: {
-          response: {
-            ok: {
-              tuple: [
-                { name: 'mime-type', type: { 'string-ascii': { length: 9 } } },
-                { name: 'name', type: { 'string-ascii': { length: 13 } } },
-                { name: 'uri', type: { 'string-ascii': { length: 32 } } },
-              ],
-            },
-            error: 'none',
-          },
-        },
-      },
-    },
-    {
-      args: [{ name: 'token-id', type: 'uint128' }],
-      name: 'get-owner',
-      access: 'read_only',
-      outputs: { type: { response: { ok: { optional: 'principal' }, error: 'none' } } },
-    },
-    {
-      args: [{ name: 'token-id', type: 'uint128' }],
-      name: 'get-token-uri',
-      access: 'read_only',
-      outputs: {
-        type: {
-          response: { ok: { optional: { 'string-ascii': { length: 33 } } }, error: 'none' },
-        },
-      },
-    },
-  ],
-  variables: [
-    { name: 'err-permission-denied', type: 'uint128', access: 'constant' },
-    {
-      name: 'initial-members',
-      type: { list: { type: 'principal', length: 375 } },
-      access: 'constant',
-    },
-  ],
-  fungible_tokens: [],
-  non_fungible_tokens: [{ name: 'friedger-pool', type: 'uint128' }],
-};
+import { MockPgBlockchainApiStore, SIP_009_ABI } from './helpers';
 
 class TestBlockchainMonitor extends BlockchainSmartContractMonitor {
   public async testHandleMessage(message: string) {
@@ -186,7 +35,7 @@ describe('BlockchainSmartContractMonitor', () => {
       contract_id: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft',
       tx_id: '0x1234',
       block_height: 1,
-      abi: NftAbi,
+      abi: SIP_009_ABI,
     };
     const apiDb = new MockPgBlockchainApiStore();
     apiDb.smartContract = contract;
@@ -539,9 +388,10 @@ describe('BlockchainSmartContractMonitor', () => {
     expect(token?.token_number).toBe('3');
   });
 
-  test('enqueues dynamic tokens for refresh', async () => {
+  test('enqueues dynamic tokens for refresh with standard interval', async () => {
     const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
     const contractId = `${address}.friedger-pool-nft`;
+    ENV.METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL = 86400;
     const values: DbSmartContractInsert = {
       principal: contractId,
       sip: DbSipNumber.sip009,
@@ -555,10 +405,57 @@ describe('BlockchainSmartContractMonitor', () => {
       token_count: 1n,
       type: DbTokenType.nft,
     });
-    // Update update_mode and updated_at for testing.
+    // Set update_mode and updated_at for testing.
     await db.sql`
       UPDATE tokens
       SET update_mode = 'dynamic', updated_at = NOW() - INTERVAL '2 days'
+      WHERE id = 1
+    `;
+    // Mark jobs as done.
+    await db.sql`UPDATE jobs SET status = 'done'`;
+
+    const block: BlockchainDbBlock = {
+      block_height: 10,
+      block_hash: '0x1234',
+      index_block_hash: '0x1111',
+    };
+    const apiDb = new MockPgBlockchainApiStore();
+    apiDb.block = block;
+    const monitor = new TestBlockchainMonitor({ db, apiDb });
+    await monitor.testHandleMessage(
+      JSON.stringify({
+        type: 'blockUpdate',
+        payload: {
+          blockHash: '0x1234',
+        },
+      })
+    );
+
+    const job = await db.getJob({ id: 2 });
+    expect(job?.status).toBe('pending');
+  });
+
+  test('enqueues dynamic tokens for refresh with ttl', async () => {
+    const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
+    const contractId = `${address}.friedger-pool-nft`;
+    ENV.METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL = 99999;
+    const values: DbSmartContractInsert = {
+      principal: contractId,
+      sip: DbSipNumber.sip009,
+      abi: '"some"',
+      tx_id: '0x123456',
+      block_height: 1,
+    };
+    await db.insertAndEnqueueSmartContract({ values });
+    await db.insertAndEnqueueSequentialTokens({
+      smart_contract_id: 1,
+      token_count: 1n,
+      type: DbTokenType.nft,
+    });
+    // Set update_mode and updated_at for testing. Set TTL to 1 hour.
+    await db.sql`
+      UPDATE tokens
+      SET update_mode = 'dynamic', updated_at = NOW() - INTERVAL '2 hours', ttl = 3600
       WHERE id = 1
     `;
     // Mark jobs as done.
