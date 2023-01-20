@@ -58,8 +58,9 @@ interface Env {
    */
   METADATA_IMAGE_CACHE_PROCESSOR: string;
   /**
-   * How often will token metadata that is marked `dynamic` will be refreshed (seconds). See SIP-019
-   * for more information. Defaults to 86400 seconds (24 hours).
+   * How often will token metadata that is marked `dynamic` will be refreshed if it doesn't specify
+   * an explicit TTL (seconds). See SIP-019 for more information. Defaults to 86400 seconds (24
+   * hours).
    */
   METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL: number;
 
