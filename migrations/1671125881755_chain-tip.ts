@@ -15,9 +15,6 @@ export function up(pgm: MigrationBuilder): void {
       notNull: true,
       default: 0,
     },
-    last_dynamic_token_refresh_at: {
-      type: 'timestamp',
-    },
   });
   // Ensure only a single row can exist
   pgm.addConstraint('chain_tip', 'chain_tip_one_row', 'CHECK(id)');

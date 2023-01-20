@@ -90,7 +90,7 @@ export class BlockchainImporter {
         }
         const sip = getSmartContractSip(row.abi as ClarityAbi);
         if (!sip) {
-          return; // Not a token contract.
+          continue; // Not a token contract.
         }
         await this.db.insertAndEnqueueSmartContract({
           values: {

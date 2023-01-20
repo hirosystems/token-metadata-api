@@ -23,7 +23,6 @@ describe('BlockchainImporter', () => {
 
   afterEach(async () => {
     await db.close();
-    await apiDb.close();
   });
 
   test('discriminates token contracts correctly', async () => {
