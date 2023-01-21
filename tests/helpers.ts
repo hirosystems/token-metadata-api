@@ -81,6 +81,14 @@ export class MockPgBlockchainApiStore extends PgBlockchainApiStore {
   getCurrentBlockHeight(): Promise<number | undefined> {
     return Promise.resolve(this.currentBlockHeight);
   }
+
+  public smartContractLogs?: BlockchainDbContractLog[];
+  getSmartContractLogsCursor(args: {
+    fromBlockHeight: number;
+    toBlockHeight: number;
+  }): AsyncIterable<BlockchainDbContractLog[]> {
+    return this.cursor(this.smartContractLogs ?? []);
+  }
 }
 
 export const SIP_009_ABI = {

@@ -1,10 +1,14 @@
 import { ENV } from '../src/env';
 import { PgStore } from '../src/pg/pg-store';
 import { cycleMigrations } from '../src/pg/migrations';
-import { BlockchainDbSmartContract } from '../src/pg/blockchain-api/pg-blockchain-api-store';
-import { DbSipNumber } from '../src/pg/types';
+import {
+  BlockchainDbContractLog,
+  BlockchainDbSmartContract,
+} from '../src/pg/blockchain-api/pg-blockchain-api-store';
+import { DbSipNumber, DbSmartContractInsert, DbTokenType } from '../src/pg/types';
 import { MockPgBlockchainApiStore, SIP_009_ABI, SIP_010_ABI, SIP_013_ABI } from './helpers';
 import { BlockchainImporter } from '../src/token-processor/blockchain-api/blockchain-importer';
+import { cvToHex, tupleCV, bufferCV, listCV, uintCV } from '@stacks/transactions';
 
 describe('BlockchainImporter', () => {
   let db: PgStore;
@@ -76,5 +80,47 @@ describe('BlockchainImporter', () => {
     expect(autoAlex?.principal).toBe(
       'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1'
     );
+  });
+
+  test('imports token metadata refresh notifications', async () => {
+    const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
+    const contractId = `${address}.friedger-pool-nft`;
+    const values: DbSmartContractInsert = {
+      principal: contractId,
+      sip: DbSipNumber.sip009,
+      abi: '"some"',
+      tx_id: '0x123456',
+      block_height: 1,
+    };
+    await db.insertAndEnqueueSmartContract({ values });
+    await db.insertAndEnqueueSequentialTokens({
+      smart_contract_id: 1,
+      token_count: 3n, // 3 tokens
+      type: DbTokenType.nft,
+    });
+    // Mark jobs as done to test
+    await db.sql`UPDATE jobs SET status = 'done' WHERE TRUE`;
+
+    const event: BlockchainDbContractLog = {
+      contract_identifier: contractId,
+      sender_address: address,
+      value: cvToHex(
+        tupleCV({
+          notification: bufferCV(Buffer.from('token-metadata-update')),
+          payload: tupleCV({
+            'token-class': bufferCV(Buffer.from('nft')),
+            'contract-id': bufferCV(Buffer.from(contractId)),
+            'token-ids': listCV([uintCV(1), uintCV(2)]),
+          }),
+        })
+      ),
+    };
+    apiDb.smartContractLogs = [event];
+    await importer.import();
+
+    const jobs2 = await db.getPendingJobBatch({ limit: 10 });
+    expect(jobs2.length).toBe(2); // Only two tokens
+    expect(jobs2[0].token_id).toBe(1);
+    expect(jobs2[1].token_id).toBe(2);
   });
 });

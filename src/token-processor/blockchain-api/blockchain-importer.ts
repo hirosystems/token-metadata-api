@@ -1,14 +1,14 @@
 import { ClarityAbi } from '@stacks/transactions';
 import { logger } from '../../logger';
-import {
-  BlockchainDbSmartContract,
-  PgBlockchainApiStore,
-} from '../../pg/blockchain-api/pg-blockchain-api-store';
+import { PgBlockchainApiStore } from '../../pg/blockchain-api/pg-blockchain-api-store';
 import { PgStore } from '../../pg/pg-store';
 import { isPgConnectionError } from '../../pg/postgres-tools/errors';
 import { timeout } from '../../pg/postgres-tools/helpers';
 import { waiter, Waiter } from '../util/helpers';
-import { getSmartContractSip } from '../util/sip-validation';
+import {
+  getContractLogMetadataUpdateNotification,
+  getSmartContractSip,
+} from '../util/sip-validation';
 
 export class SmartContractImportInterruptedError extends Error {
   constructor() {
@@ -50,7 +50,7 @@ export class BlockchainImporter {
       try {
         const currentBlockHeight = (await this.apiDb.getCurrentBlockHeight()) ?? 1;
         await this.importSmartContracts(this.startingBlockHeight, currentBlockHeight);
-        // TODO: Import SIP-019 notifications.
+        await this.importSip019Notifications(this.startingBlockHeight, currentBlockHeight);
         this.importFinished = true;
       } catch (error) {
         if (isPgConnectionError(error)) {
@@ -105,5 +105,38 @@ export class BlockchainImporter {
       }
     }
     logger.info(`BlockchainImporter smart contract import finished`);
+  }
+
+  /**
+   * Scans the `contract_logs` table in the API DB looking for SIP-019 notifications we might have
+   * missed while the service was unavailable. It enqueues tokens for refresh if it finds any.
+   * @param fromBlockHeight - Minimum block height
+   * @param toBlockHeight - Maximum block height
+   */
+  private async importSip019Notifications(fromBlockHeight: number, toBlockHeight: number) {
+    logger.info(
+      `BlockchainImporter token metadata update notification import at block heights ${fromBlockHeight} to ${toBlockHeight}`
+    );
+    const cursor = this.apiDb.getSmartContractLogsCursor({ fromBlockHeight, toBlockHeight });
+    for await (const rows of cursor) {
+      for (const row of rows) {
+        if (this.importInterrupted) {
+          // We've received a SIGINT, so stop the import and throw an error so we don't proceed with
+          // booting the rest of the service.
+          throw new SmartContractImportInterruptedError();
+        }
+        const notification = getContractLogMetadataUpdateNotification(row);
+        if (!notification) {
+          continue; // Not a token contract.
+        }
+        await this.db.enqueueTokenMetadataUpdateNotification({ notification });
+        logger.info(
+          `BlockchainImporter detected SIP-019 notification for ${notification.contract_id} ${
+            notification.token_ids ?? []
+          }`
+        );
+      }
+    }
+    logger.info(`BlockchainImporter token metadata update notification import finished`);
   }
 }
