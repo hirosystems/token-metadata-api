@@ -131,4 +131,19 @@ export class PgBlockchainApiStore extends BasePgStore {
       ORDER BY block_height DESC, microblock_sequence DESC, tx_index DESC, event_index DESC
     `.cursor();
   }
+
+  getSmartContractLogsCursor(args: {
+    fromBlockHeight: number;
+    toBlockHeight: number;
+  }): AsyncIterable<BlockchainDbContractLog[]> {
+    return this.sql<BlockchainDbContractLog[]>`
+      SELECT contract_identifier, value, sender_address
+      FROM contract_logs
+      WHERE canonical = TRUE
+        AND microblock_canonical = TRUE
+        AND block_height >= ${args.fromBlockHeight}
+        AND block_height <= ${args.toBlockHeight}
+      ORDER BY block_height ASC
+    `.cursor();
+  }
 }
