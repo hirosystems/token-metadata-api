@@ -183,7 +183,7 @@ async function parseMetadataForInsertion(
         if (trait_type && value) {
           attributes.push({
             trait_type: trait_type,
-            value: JSON.stringify(value),
+            value: value,
             display_type: display_type ?? null,
           });
         }
@@ -197,11 +197,11 @@ async function parseMetadataForInsertion(
         if (key && value) {
           const defaultProp = properties.find(p => p.name === key);
           if (defaultProp) {
-            defaultProp.value = JSON.stringify(value);
+            defaultProp.value = value;
           } else {
             properties.push({
               name: key,
-              value: JSON.stringify(value),
+              value: value,
             });
           }
         }

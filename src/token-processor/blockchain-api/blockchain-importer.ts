@@ -118,7 +118,7 @@ export class BlockchainImporter {
           values: {
             principal: row.contract_id,
             sip: sip,
-            abi: JSON.stringify(row.abi),
+            abi: row.abi,
             tx_id: row.tx_id,
             block_height: row.block_height,
           },
