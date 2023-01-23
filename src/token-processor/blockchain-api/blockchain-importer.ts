@@ -49,8 +49,16 @@ export class BlockchainImporter {
     while (!this.importFinished) {
       try {
         const currentBlockHeight = (await this.apiDb.getCurrentBlockHeight()) ?? 1;
+        if (this.startingBlockHeight > currentBlockHeight) {
+          throw new Error(
+            `BlockchainImporter starting block height ${this.startingBlockHeight} is greater than the API's block height ${currentBlockHeight}`
+          );
+        }
         await this.importSmartContracts(this.startingBlockHeight, currentBlockHeight);
-        await this.importSip019Notifications(this.startingBlockHeight, currentBlockHeight);
+        await this.importTokenMetadataRefreshNotifications(
+          this.startingBlockHeight,
+          currentBlockHeight
+        );
         this.importFinished = true;
       } catch (error) {
         if (isPgConnectionError(error)) {
@@ -113,7 +121,15 @@ export class BlockchainImporter {
    * @param fromBlockHeight - Minimum block height
    * @param toBlockHeight - Maximum block height
    */
-  private async importSip019Notifications(fromBlockHeight: number, toBlockHeight: number) {
+  private async importTokenMetadataRefreshNotifications(
+    fromBlockHeight: number,
+    toBlockHeight: number
+  ) {
+    if (fromBlockHeight === 1) {
+      // There's no point in importing refresh notifications if we're only just making the initial
+      // blockchain import and we don't have any previous tokens that might need refreshing.
+      return;
+    }
     logger.info(
       `BlockchainImporter token metadata update notification import at block heights ${fromBlockHeight} to ${toBlockHeight}`
     );

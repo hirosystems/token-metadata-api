@@ -115,7 +115,9 @@ describe('BlockchainImporter', () => {
         })
       ),
     };
+    importer = new BlockchainImporter({ db, apiDb, startingBlockHeight: 2 });
     apiDb.smartContractLogs = [event];
+    apiDb.currentBlockHeight = 2;
     await importer.import();
 
     const jobs2 = await db.getPendingJobBatch({ limit: 10 });
