@@ -198,6 +198,10 @@ export function getEnvVars(): Env {
         type: 'number',
         default: 5,
       },
+      METADATA_MAX_IMMEDIATE_URI_RETRIES: {
+        type: 'number',
+        default: 1,
+      },
       METADATA_FETCH_TIMEOUT_MS: {
         type: 'number',
         default: 10_000,

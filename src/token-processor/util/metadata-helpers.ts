@@ -228,20 +228,21 @@ async function parseMetadataForInsertion(
 export async function performSizeAndTimeLimitedMetadataFetch(
   httpUrl: URL
 ): Promise<string | undefined> {
+  const url = httpUrl.toString();
   const ctrl = new AbortController();
   let abortReason: Error | undefined;
 
   const timer = setTimeout(() => {
-    abortReason = new MetadataTimeoutError();
+    abortReason = new MetadataTimeoutError(url);
     ctrl.abort();
   }, ENV.METADATA_FETCH_TIMEOUT_MS);
   try {
-    const networkResult = await fetch(httpUrl.toString(), {
+    const networkResult = await fetch(url, {
       method: 'GET',
       signal: ctrl.signal,
     });
     if (networkResult.status >= 400) {
-      throw new HttpError(`Fetch error from ${httpUrl.toString()} (${networkResult.status})`);
+      throw new HttpError(`Fetch error from ${url} (${networkResult.status})`);
     }
     if (networkResult.body) {
       const decoder = new TextDecoder();
@@ -249,13 +250,13 @@ export async function performSizeAndTimeLimitedMetadataFetch(
       let bytesWritten = 0;
       const reportedContentLength = Number(networkResult.headers.get('content-length') ?? 0);
       if (reportedContentLength > ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE) {
-        abortReason = new MetadataSizeExceededError();
+        abortReason = new MetadataSizeExceededError(url);
         ctrl.abort();
       }
       for await (const chunk of networkResult.body) {
         bytesWritten += chunk.byteLength;
         if (bytesWritten > ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE) {
-          abortReason = new MetadataSizeExceededError();
+          abortReason = new MetadataSizeExceededError(url);
           ctrl.abort();
         }
         responseText += decoder.decode(chunk as ArrayBuffer, { stream: true });
