@@ -1,5 +1,9 @@
-import { getAddressFromPrivateKey, makeRandomPrivKey } from '@stacks/transactions';
-import { ClarityValueUInt, TransactionVersion } from 'stacks-encoding-native-js';
+import { cvToHex, getAddressFromPrivateKey, makeRandomPrivKey, uintCV } from '@stacks/transactions';
+import {
+  ClarityValueUInt,
+  decodeClarityValueToRepr,
+  TransactionVersion,
+} from 'stacks-encoding-native-js';
 import { logger } from '../../../logger';
 import { PgNumeric } from '../../../pg/postgres-tools/types';
 import {
@@ -111,7 +115,7 @@ export class ProcessTokenJob extends Job {
 
   private async handleNft(client: StacksNodeRpcClient, token: DbToken) {
     const uri = await client.readStringFromContract('get-token-uri', [
-      { value: token.token_number.toString() } as ClarityValueUInt,
+      this.uIntCv(token.token_number),
     ]);
     let metadataLocales: DbMetadataLocaleInsertBundle[] | undefined;
     if (uri) {
@@ -128,7 +132,7 @@ export class ProcessTokenJob extends Job {
   }
 
   private async handleSft(client: StacksNodeRpcClient, token: DbToken) {
-    const arg = [{ value: token.token_number.toString() } as ClarityValueUInt];
+    const arg = [this.uIntCv(token.token_number)];
 
     const uri = await client.readStringFromContract('get-token-uri', arg);
 
@@ -158,5 +162,15 @@ export class ProcessTokenJob extends Job {
       metadataLocales: metadataLocales,
     };
     await this.db.updateProcessedTokenWithMetadata({ id: token.id, values: tokenValues });
+  }
+
+  private uIntCv(n: bigint): ClarityValueUInt {
+    const cv = uintCV(n);
+    const hex = cvToHex(cv);
+    return {
+      value: n.toString(),
+      hex: hex,
+      repr: decodeClarityValueToRepr(hex),
+    } as ClarityValueUInt;
   }
 }
