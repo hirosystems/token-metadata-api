@@ -35,6 +35,8 @@ export class HttpError extends Error {
   }
 }
 
+export class TooManyRequestsHttpError extends HttpError {}
+
 export class JsonParseError extends Error {
   constructor(message: string) {
     super();

@@ -192,15 +192,15 @@ export function getEnvVars(): Env {
       },
       JOB_QUEUE_STRICT_MODE: {
         type: 'boolean',
-        default: true,
+        default: false,
       },
       JOB_QUEUE_MAX_RETRIES: {
         type: 'number',
-        default: 5,
+        default: 10,
       },
       METADATA_MAX_IMMEDIATE_URI_RETRIES: {
         type: 'number',
-        default: 1,
+        default: 3,
       },
       METADATA_FETCH_TIMEOUT_MS: {
         type: 'number',

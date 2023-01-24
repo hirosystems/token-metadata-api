@@ -16,7 +16,9 @@ import {
   MetadataParseError,
   MetadataSizeExceededError,
   MetadataTimeoutError,
+  TooManyRequestsHttpError,
 } from './errors';
+import { RetryableJobError } from '../queue/errors';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
 import { Static, Type } from '@sinclair/typebox';
 import { logger } from '../../logger';
@@ -242,7 +244,10 @@ export async function performSizeAndTimeLimitedMetadataFetch(
       signal: ctrl.signal,
     });
     if (networkResult.status >= 400) {
-      throw new HttpError(`Fetch error from ${url} (${networkResult.status})`);
+      if (networkResult.status === 429) {
+        throw new TooManyRequestsHttpError(url);
+      }
+      throw new HttpError(`${url} (${networkResult.status})`);
     }
     if (networkResult.body) {
       const decoder = new TextDecoder();
@@ -302,9 +307,11 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
     }
   }
   const httpUrl = getFetchableUrl(token_uri);
+  const urlStr = httpUrl.toString();
 
   let fetchImmediateRetryCount = 0;
   let result: JSON | undefined;
+  let fetchError: unknown;
   // We'll try to fetch metadata and give it `METADATA_MAX_IMMEDIATE_URI_RETRIES` attempts
   // for the external service to return a reasonable response, otherwise we'll consider the
   // metadata as dead.
@@ -315,7 +322,16 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
       break;
     } catch (error) {
       fetchImmediateRetryCount++;
-      if (
+      fetchError = error;
+      if (error instanceof MetadataTimeoutError && isUriFromDecentralizedGateway(token_uri)) {
+        // Gateways like IPFS and Arweave commonly time out when a resource can't be found quickly.
+        // Try again later if this is the case.
+        throw new RetryableJobError(`Gateway timeout for ${urlStr}`, error);
+      } else if (error instanceof TooManyRequestsHttpError) {
+        // 429 status codes are common when fetching metadata for thousands of tokens in the same
+        // server.
+        throw new RetryableJobError(`Too many requests for ${urlStr}`, error);
+      } else if (
         error instanceof MetadataSizeExceededError ||
         fetchImmediateRetryCount >= ENV.METADATA_MAX_IMMEDIATE_URI_RETRIES
       ) {
@@ -327,9 +343,9 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
     if (RawMetadataCType.Check(result)) {
       return result;
     }
-    throw new MetadataParseError(`Invalid raw metadata JSON schema from ${httpUrl.toString()}}`);
+    throw new MetadataParseError(`Invalid raw metadata JSON schema from ${urlStr}}`);
   }
-  throw new MetadataParseError(`Unable to fetch metadata from ${httpUrl.toString()}`);
+  throw new MetadataParseError(`Unable to fetch metadata from ${urlStr}: ${fetchError}`);
 }
 
 function getImageUrl(uri: string): string {
@@ -415,6 +431,15 @@ export function getFetchableUrl(uri: string): URL {
     return new URL(`${ENV.PUBLIC_GATEWAY_ARWEAVE}/${parsedUri.host}${parsedUri.pathname}`);
   }
   throw new MetadataParseError(`Unsupported uri protocol: ${uri}`);
+}
+
+function isUriFromDecentralizedGateway(uri: string): boolean {
+  return (
+    uri.startsWith('ipfs:') ||
+    uri.startsWith('ipns:') ||
+    uri.startsWith('ar:') ||
+    uri.startsWith('https://cloudflare-ipfs.com')
+  );
 }
 
 function parseDataUrl(
