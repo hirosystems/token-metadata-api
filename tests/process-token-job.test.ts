@@ -131,6 +131,7 @@ describe('ProcessTokenJob', () => {
     });
 
     test('parses metadata with arbitrary types', async () => {
+      ENV.METADATA_IMAGE_CACHE_PROCESSOR = './tests/test-image-cache.js';
       const metadata = {
         name: 'Mutant Monkeys #1',
         image:
@@ -194,6 +195,9 @@ describe('ProcessTokenJob', () => {
       expect(bundle?.metadataLocale?.metadata.name).toBe('Mutant Monkeys #1');
       expect(bundle?.metadataLocale?.metadata.image).toBe(
         'https://byzantion.mypinata.cloud/ipfs/QmWAYP9LJD15mgrnapfpJhBArG6T3J4XKTM77tzqggvP7w'
+      );
+      expect(bundle?.metadataLocale?.metadata.cached_image).toBe(
+        'https://byzantion.mypinata.cloud/ipfs/QmWAYP9LJD15mgrnapfpJhBArG6T3J4XKTM77tzqggvP7w?processed=true'
       );
       expect(bundle?.metadataLocale?.metadata.description).toBeNull();
 
