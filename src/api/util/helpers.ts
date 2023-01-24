@@ -15,7 +15,7 @@ export function parseMetadataLocaleBundle(
     if (locale.attributes.length > 0) {
       response.attributes = locale.attributes.map(item => ({
         trait_type: item.trait_type,
-        value: JSON.parse(item.value) as MetadataValueType,
+        value: item.value as MetadataValueType,
         display_type: item.display_type ?? undefined,
       }));
     }
@@ -23,7 +23,7 @@ export function parseMetadataLocaleBundle(
       const mergedProperties: MetadataPropertiesType = {};
       for (const property of locale.properties) {
         if (property.value) {
-          mergedProperties[property.name] = JSON.parse(property.value) as MetadataValueType;
+          mergedProperties[property.name] = property.value as MetadataValueType;
         }
       }
       response.properties = mergedProperties;
