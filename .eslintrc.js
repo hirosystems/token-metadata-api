@@ -9,7 +9,7 @@ module.exports = {
     ecmaVersion: 2020,
     sourceType: 'module',
   },
-  ignorePatterns: ['*.config.js', 'config/*', '*.mjs'],
+  ignorePatterns: ['*.config.js', 'config/*', '*.mjs', 'tests/*.js'],
   plugins: ['@typescript-eslint', 'eslint-plugin-tsdoc', 'prettier'],
   rules: {
     'prettier/prettier': 'error',

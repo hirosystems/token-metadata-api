@@ -1,6 +1,4 @@
 import * as querystring from 'querystring';
-import * as child_process from 'child_process';
-import * as path from 'path';
 import { fetch } from 'undici';
 import {
   DbMetadataAttributeInsert,
@@ -19,58 +17,15 @@ import {
   TooManyRequestsHttpError,
 } from './errors';
 import { RetryableJobError } from '../queue/errors';
-import { TypeCompiler } from '@sinclair/typebox/compiler';
-import { Static, Type } from '@sinclair/typebox';
-import { logger } from '../../logger';
-
-/**
- * Raw metadata object types. We will allow `any` types here and validate each field towards its
- * expected value later.
- */
-const RawMetadata = Type.Object(
-  {
-    name: Type.Optional(Type.Any()),
-    description: Type.Optional(Type.Any()),
-    image: Type.Optional(Type.Any()),
-    attributes: Type.Optional(Type.Any()),
-    properties: Type.Optional(Type.Any()),
-    localization: Type.Optional(Type.Any()),
-    // Properties below are not SIP-016 compliant.
-    imageUrl: Type.Optional(Type.Any()),
-    image_url: Type.Optional(Type.Any()),
-  },
-  { additionalProperties: true }
-);
-type RawMetadataType = Static<typeof RawMetadata>;
-const RawMetadataCType = TypeCompiler.Compile(RawMetadata);
-
-// Raw metadata localization types.
-const RawMetadataLocalization = Type.Object({
-  uri: Type.String(),
-  default: Type.String(),
-  locales: Type.Array(Type.String()),
-});
-const RawMetadataLocalizationCType = TypeCompiler.Compile(RawMetadataLocalization);
-
-// Raw metadata attribute types.
-const RawMetadataAttribute = Type.Object({
-  trait_type: Type.String(),
-  value: Type.Any(),
-  display_type: Type.Optional(Type.String()),
-});
-const RawMetadataAttributes = Type.Array(RawMetadataAttribute);
-const RawMetadataAttributesCType = TypeCompiler.Compile(RawMetadataAttributes);
-
-// Raw metadata property types.
-const RawMetadataProperties = Type.Record(Type.String(), Type.Any());
-const RawMetadataPropertiesCType = TypeCompiler.Compile(RawMetadataProperties);
-
-type RawMetadataLocale = {
-  metadata: RawMetadataType;
-  locale?: string;
-  default: boolean;
-  uri: string;
-};
+import { getImageUrl, processImageUrl } from './image-cache';
+import {
+  RawMetadataLocale,
+  RawMetadataLocalizationCType,
+  RawMetadataAttributesCType,
+  RawMetadataPropertiesCType,
+  RawMetadataCType,
+  RawMetadataType,
+} from './types';
 
 /**
  * Fetches all the localized metadata JSONs for a token. First, it downloads the default metadata
@@ -348,66 +303,6 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
   throw new MetadataParseError(`Unable to fetch metadata from ${urlStr}: ${fetchError}`);
 }
 
-function getImageUrl(uri: string): string {
-  // Support images embedded in a Data URL
-  if (new URL(uri).protocol === 'data:') {
-    // const dataUrl = ParseDataUrl(uri);
-    const dataUrl = parseDataUrl(uri);
-    if (!dataUrl) {
-      throw new MetadataParseError(`Data URL could not be parsed: ${uri}`);
-    }
-    if (!dataUrl.mediaType?.startsWith('image/')) {
-      throw new MetadataParseError(`Token image is a Data URL with a non-image media type: ${uri}`);
-    }
-    return uri;
-  }
-  const fetchableUrl = getFetchableUrl(uri);
-  return fetchableUrl.toString();
-}
-
-/**
- * If an external image processor script is configured, then it will process the given image URL for the purpose
- * of caching on a CDN (or whatever else it may be created to do). The script is expected to return a new URL
- * for the image.
- * If the script is not configured, then the original URL is returned immediately.
- * If a data-uri is passed, it is also immediately returned without being passed to the script.
- */
-async function processImageUrl(imgUrl: string): Promise<string> {
-  const imageCacheProcessor = ENV.METADATA_IMAGE_CACHE_PROCESSOR;
-  if (!imageCacheProcessor) {
-    return imgUrl;
-  }
-  if (imgUrl.startsWith('data:')) {
-    return imgUrl;
-  }
-  const repoDir = path.dirname(__dirname);
-  const { code, stdout, stderr } = await new Promise<{
-    code: number;
-    stdout: string;
-    stderr: string;
-  }>((resolve, reject) => {
-    const cp = child_process.spawn(imageCacheProcessor, [imgUrl], { cwd: repoDir });
-    let stdout = '';
-    let stderr = '';
-    cp.stdout.on('data', data => (stdout += data));
-    cp.stderr.on('data', data => (stderr += data));
-    cp.on('close', code => resolve({ code: code ?? 0, stdout, stderr }));
-    cp.on('error', error => reject(error));
-  });
-  if (code !== 0 && stderr) {
-    logger.warn(`METADATA_IMAGE_CACHE_PROCESSOR error: ${stderr}`);
-  }
-  const result = stdout.trim();
-  try {
-    const url = new URL(result);
-    return url.toString();
-  } catch (error) {
-    throw new Error(
-      `Image processing script returned an invalid url for ${imgUrl}: ${result}, stderr: ${stderr}`
-    );
-  }
-}
-
 /**
  * Helper method for creating http/s url for supported protocols.
  * * URLs with `http` or `https` protocols are returned as-is.
@@ -442,7 +337,7 @@ function isUriFromDecentralizedGateway(uri: string): boolean {
   );
 }
 
-function parseDataUrl(
+export function parseDataUrl(
   s: string
 ):
   | { mediaType?: string; contentType?: string; charset?: string; base64: boolean; data: string }
