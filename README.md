@@ -79,6 +79,12 @@ Start the service
 npm run start
 ```
 
+### Stopping the service
+
+When shutting down, you should always prefer to send the `SIGINT` signal instead of `SIGKILL` so
+the service has time to finish any pending background work and all dependencies are gracefully
+disconnected.
+
 ### Using an image cache service
 
 The Token Metadata Service allows you to specify the path to a custom script that can pre-process
