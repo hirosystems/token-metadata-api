@@ -131,6 +131,7 @@ describe('ProcessTokenJob', () => {
     });
 
     test('parses metadata with arbitrary types', async () => {
+      ENV.METADATA_IMAGE_CACHE_PROCESSOR = './tests/test-image-cache.js';
       const metadata = {
         name: 'Mutant Monkeys #1',
         image:
@@ -195,30 +196,33 @@ describe('ProcessTokenJob', () => {
       expect(bundle?.metadataLocale?.metadata.image).toBe(
         'https://byzantion.mypinata.cloud/ipfs/QmWAYP9LJD15mgrnapfpJhBArG6T3J4XKTM77tzqggvP7w'
       );
+      expect(bundle?.metadataLocale?.metadata.cached_image).toBe(
+        'https://byzantion.mypinata.cloud/ipfs/QmWAYP9LJD15mgrnapfpJhBArG6T3J4XKTM77tzqggvP7w?processed=true'
+      );
       expect(bundle?.metadataLocale?.metadata.description).toBeNull();
 
       const attr0 = bundle?.metadataLocale?.attributes[0];
       expect(attr0?.trait_type).toBe('Background');
-      expect(JSON.parse(attr0?.value as string)).toBe('MM1 Purple');
+      expect(attr0?.value as string).toBe('MM1 Purple');
       expect(attr0?.display_type).toBeNull();
 
       const attr1 = bundle?.metadataLocale?.attributes[1];
       expect(attr1?.trait_type).toBe('Fur');
-      expect(JSON.parse(attr1?.value as string)).toBe(5050);
+      expect(attr1?.value as string).toBe(5050);
       expect(attr1?.display_type).toBe('Number');
 
       const attr2 = bundle?.metadataLocale?.attributes[2];
       expect(attr2?.trait_type).toBe('Clothes');
-      expect(JSON.parse(attr2?.value as string)).toStrictEqual(['hello', 'world']);
+      expect(attr2?.value as string).toStrictEqual(['hello', 'world']);
       expect(attr2?.display_type).toBeNull();
 
       const properties = bundle?.metadataLocale?.properties as DbMetadataProperty[];
       expect(properties[0].name).toBe('external_url');
-      expect(JSON.parse(properties[0].value)).toBe('https://bitcoinmonkeys.io/');
+      expect(properties[0].value).toBe('https://bitcoinmonkeys.io/');
       expect(properties[4].name).toBe('collection_size');
-      expect(JSON.parse(properties[4].value)).toBe(5000);
+      expect(properties[4].value).toBe(5000);
       expect(properties[6].name).toBe('prop');
-      expect(JSON.parse(properties[6].value)).toStrictEqual({ a: 1, b: 2 });
+      expect(properties[6].value).toStrictEqual({ a: 1, b: 2 });
     });
 
     test('parses metadata with localizations', async () => {
@@ -328,18 +332,16 @@ describe('ProcessTokenJob', () => {
       const attributes = mexicanBundle?.metadataLocale?.attributes as DbMetadataAttribute[];
       expect(attributes.length).toBe(1);
       expect(attributes[0].trait_type).toBe('Fondo');
-      expect(JSON.parse(attributes[0].value)).toBe('MM1 Morado');
+      expect(attributes[0].value).toBe('MM1 Morado');
       const properties = mexicanBundle?.metadataLocale?.properties as DbMetadataProperty[];
       expect(properties[0].name).toBe('external_url');
-      expect(JSON.parse(properties[0].value)).toBe('https://bitcoinmonkeys.io/');
+      expect(properties[0].value).toBe('https://bitcoinmonkeys.io/');
       expect(properties[1].name).toBe('description');
-      expect(JSON.parse(properties[1].value)).toBe(
-        "Changos Mutantes es una colección de 5,000 NFT's"
-      );
+      expect(properties[1].value).toBe("Changos Mutantes es una colección de 5,000 NFT's");
       expect(properties[2].name).toBe('colection_name');
-      expect(JSON.parse(properties[2].value)).toBe('Changos Mutantes');
+      expect(properties[2].value).toBe('Changos Mutantes');
       expect(properties[3].name).toBe('artist');
-      expect(JSON.parse(properties[3].value)).toBe('Bitcoin Monkeys');
+      expect(properties[3].value).toBe('Bitcoin Monkeys');
     });
 
     test('metadata refresh replaces previous metadata entries for token', async () => {
@@ -407,16 +409,14 @@ describe('ProcessTokenJob', () => {
       );
       expect(bundle1?.metadataLocale?.attributes.length).toBe(1);
       expect(bundle1?.metadataLocale?.attributes[0].trait_type).toBe('Background');
-      expect(JSON.parse(bundle1?.metadataLocale?.attributes[0].value as string)).toBe('MM1 Purple');
+      expect(bundle1?.metadataLocale?.attributes[0].value as string).toBe('MM1 Purple');
       expect(bundle1?.metadataLocale?.properties.length).toBe(2);
       expect(bundle1?.metadataLocale?.properties[0].name).toBe('external_url');
-      expect(JSON.parse(bundle1?.metadataLocale?.properties[0].value as string)).toBe(
+      expect(bundle1?.metadataLocale?.properties[0].value as string).toBe(
         'https://bitcoinmonkeys.io/'
       );
       expect(bundle1?.metadataLocale?.properties[1].name).toBe('colection_name');
-      expect(JSON.parse(bundle1?.metadataLocale?.properties[1].value as string)).toBe(
-        'Mutant Monkeys'
-      );
+      expect(bundle1?.metadataLocale?.properties[1].value as string).toBe('Mutant Monkeys');
 
       // Process again with different metadata
       agent
@@ -451,10 +451,10 @@ describe('ProcessTokenJob', () => {
       );
       expect(bundle2?.metadataLocale?.attributes.length).toBe(1);
       expect(bundle2?.metadataLocale?.attributes[0].trait_type).toBe('New Background');
-      expect(JSON.parse(bundle2?.metadataLocale?.attributes[0].value as string)).toBe('MM1 Red');
+      expect(bundle2?.metadataLocale?.attributes[0].value as string).toBe('MM1 Red');
       expect(bundle2?.metadataLocale?.properties.length).toBe(1);
       expect(bundle2?.metadataLocale?.properties[0].name).toBe('colection_name');
-      expect(JSON.parse(bundle2?.metadataLocale?.properties[0].value as string)).toBe(
+      expect(bundle2?.metadataLocale?.properties[0].value as string).toBe(
         'Mutant Monkeys Reloaded'
       );
     });

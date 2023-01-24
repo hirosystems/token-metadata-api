@@ -84,13 +84,14 @@ export class PgBlockchainApiStore extends BasePgStore {
     eventIndex: number;
   }): Promise<BlockchainDbContractLog | undefined> {
     const result = await this.sql<BlockchainDbContractLog[]>`
-      SELECT contract_identifier, value, sender_address
-      FROM contract_logs
-      WHERE canonical = TRUE
-        AND microblock_canonical = true
-        AND tx_id = ${args.txId}
-        AND event_index = ${args.eventIndex}
-      ORDER BY block_height DESC, microblock_sequence DESC, tx_index DESC, event_index DESC
+      SELECT l.contract_identifier, l.value, t.sender_address
+      FROM contract_logs AS l
+      INNER JOIN txs AS t USING (tx_id, index_block_hash, microblock_hash)
+      WHERE l.canonical = TRUE
+        AND l.microblock_canonical = true
+        AND l.tx_id = ${args.txId}
+        AND l.event_index = ${args.eventIndex}
+      ORDER BY l.block_height DESC, l.microblock_sequence DESC, l.tx_index DESC, l.event_index DESC
       LIMIT 1
     `;
     if (result.count) {
@@ -123,12 +124,13 @@ export class PgBlockchainApiStore extends BasePgStore {
     contractId: string;
   }): AsyncIterable<BlockchainDbContractLog[]> {
     return this.sql<BlockchainDbContractLog[]>`
-      SELECT contract_identifier, value, sender_address
-      FROM contract_logs
-      WHERE contract_identifier = ${args.contractId}
-        AND canonical = TRUE
-        AND microblock_canonical = TRUE
-      ORDER BY block_height DESC, microblock_sequence DESC, tx_index DESC, event_index DESC
+      SELECT l.contract_identifier, l.value, t.sender_address
+      FROM contract_logs AS l
+      INNER JOIN txs AS t USING (tx_id, index_block_hash, microblock_hash)
+      WHERE l.contract_identifier = ${args.contractId}
+        AND l.canonical = TRUE
+        AND l.microblock_canonical = TRUE
+      ORDER BY l.block_height DESC, l.microblock_sequence DESC, l.tx_index DESC, l.event_index DESC
     `.cursor();
   }
 
@@ -137,13 +139,14 @@ export class PgBlockchainApiStore extends BasePgStore {
     toBlockHeight: number;
   }): AsyncIterable<BlockchainDbContractLog[]> {
     return this.sql<BlockchainDbContractLog[]>`
-      SELECT contract_identifier, value, sender_address
-      FROM contract_logs
-      WHERE canonical = TRUE
-        AND microblock_canonical = TRUE
-        AND block_height >= ${args.fromBlockHeight}
-        AND block_height <= ${args.toBlockHeight}
-      ORDER BY block_height ASC
+      SELECT l.contract_identifier, l.value, t.sender_address
+      FROM contract_logs AS l
+      INNER JOIN txs AS t USING (tx_id, index_block_hash, microblock_hash)
+      WHERE l.canonical = TRUE
+        AND l.microblock_canonical = TRUE
+        AND l.block_height >= ${args.fromBlockHeight}
+        AND l.block_height <= ${args.toBlockHeight}
+      ORDER BY l.block_height ASC
     `.cursor();
   }
 }

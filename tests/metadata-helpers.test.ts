@@ -135,7 +135,7 @@ describe('Metadata Helpers', () => {
         path: '/1.json',
         method: 'GET',
       })
-      .reply(200, JSON.stringify(crashPunks1));
+      .reply(200, crashPunks1);
     setGlobalDispatcher(agent);
 
     await expect(getMetadataFromUri('http://test.io/1.json')).resolves.not.toThrow();
@@ -171,7 +171,7 @@ describe('Metadata Helpers', () => {
         path: '/1.json',
         method: 'GET',
       })
-      .reply(200, JSON.stringify(json));
+      .reply(200, json);
     setGlobalDispatcher(agent);
 
     const metadata = await getMetadataFromUri('http://test.io/1.json');

@@ -78,8 +78,8 @@ async function initApp() {
   });
 
   // Start services.
-  await contractMonitor.start();
   await contractImporter.import();
+  await contractMonitor.start();
   jobQueue.start();
   await apiServer.listen({ host: ENV.API_HOST, port: ENV.API_PORT });
 }
@@ -94,6 +94,6 @@ initApp()
       // SIGINT/SIGTERM while contract importer was running, ignore.
       return;
     }
-    logger.error(`App failed to start`, error);
+    logger.error(`App failed to start: ${error}`, error);
     process.exit(1);
   });

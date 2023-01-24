@@ -24,7 +24,7 @@ export class SmartContractImportInterruptedError extends Error {
 export class BlockchainImporter {
   private readonly db: PgStore;
   private readonly apiDb: PgBlockchainApiStore;
-  private readonly startingBlockHeight: number;
+  private startingBlockHeight: number;
   private importInterruptWaiter: Waiter<void>;
   private importInterrupted = false;
   private importFinished = false;
@@ -48,18 +48,22 @@ export class BlockchainImporter {
   async import() {
     while (!this.importFinished) {
       try {
-        const currentBlockHeight = (await this.apiDb.getCurrentBlockHeight()) ?? 1;
-        if (this.startingBlockHeight > currentBlockHeight) {
-          throw new Error(
-            `BlockchainImporter starting block height ${this.startingBlockHeight} is greater than the API's block height ${currentBlockHeight}`
-          );
-        }
-        await this.importSmartContracts(this.startingBlockHeight, currentBlockHeight);
+        const apiBlockHeight = await this.getApiBlockHeight();
+        await this.importSmartContracts(this.startingBlockHeight, apiBlockHeight);
         await this.importTokenMetadataRefreshNotifications(
           this.startingBlockHeight,
-          currentBlockHeight
+          apiBlockHeight
         );
-        this.importFinished = true;
+        await this.db.updateChainTipBlockHeight({ blockHeight: apiBlockHeight });
+
+        // Did the Stacks chain advance while we were importing? If so, run the loop again from our
+        // last seen block height to the new block height.
+        const newApiBlockHeight = await this.getApiBlockHeight();
+        if (apiBlockHeight === newApiBlockHeight) {
+          this.importFinished = true;
+        } else {
+          this.startingBlockHeight = apiBlockHeight;
+        }
       } catch (error) {
         if (isPgConnectionError(error)) {
           logger.error(
@@ -75,6 +79,16 @@ export class BlockchainImporter {
         }
       }
     }
+  }
+
+  private async getApiBlockHeight(): Promise<number> {
+    const blockHeight = (await this.apiDb.getCurrentBlockHeight()) ?? 1;
+    if (this.startingBlockHeight > blockHeight) {
+      throw new Error(
+        `BlockchainImporter starting block height ${this.startingBlockHeight} is greater than the API's block height ${blockHeight}`
+      );
+    }
+    return blockHeight;
   }
 
   /**
@@ -104,7 +118,7 @@ export class BlockchainImporter {
           values: {
             principal: row.contract_id,
             sip: sip,
-            abi: JSON.stringify(row.abi),
+            abi: row.abi,
             tx_id: row.tx_id,
             block_height: row.block_height,
           },

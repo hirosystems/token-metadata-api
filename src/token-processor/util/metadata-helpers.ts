@@ -1,6 +1,4 @@
 import * as querystring from 'querystring';
-import * as child_process from 'child_process';
-import * as path from 'path';
 import { fetch } from 'undici';
 import {
   DbMetadataAttributeInsert,
@@ -16,59 +14,18 @@ import {
   MetadataParseError,
   MetadataSizeExceededError,
   MetadataTimeoutError,
+  TooManyRequestsHttpError,
 } from './errors';
-import { TypeCompiler } from '@sinclair/typebox/compiler';
-import { Static, Type } from '@sinclair/typebox';
-import { logger } from '../../logger';
-
-/**
- * Raw metadata object types. We will allow `any` types here and validate each field towards its
- * expected value later.
- */
-const RawMetadata = Type.Object(
-  {
-    name: Type.Optional(Type.Any()),
-    description: Type.Optional(Type.Any()),
-    image: Type.Optional(Type.Any()),
-    attributes: Type.Optional(Type.Any()),
-    properties: Type.Optional(Type.Any()),
-    localization: Type.Optional(Type.Any()),
-    // Properties below are not SIP-016 compliant.
-    imageUrl: Type.Optional(Type.Any()),
-    image_url: Type.Optional(Type.Any()),
-  },
-  { additionalProperties: true }
-);
-type RawMetadataType = Static<typeof RawMetadata>;
-const RawMetadataCType = TypeCompiler.Compile(RawMetadata);
-
-// Raw metadata localization types.
-const RawMetadataLocalization = Type.Object({
-  uri: Type.String(),
-  default: Type.String(),
-  locales: Type.Array(Type.String()),
-});
-const RawMetadataLocalizationCType = TypeCompiler.Compile(RawMetadataLocalization);
-
-// Raw metadata attribute types.
-const RawMetadataAttribute = Type.Object({
-  trait_type: Type.String(),
-  value: Type.Any(),
-  display_type: Type.Optional(Type.String()),
-});
-const RawMetadataAttributes = Type.Array(RawMetadataAttribute);
-const RawMetadataAttributesCType = TypeCompiler.Compile(RawMetadataAttributes);
-
-// Raw metadata property types.
-const RawMetadataProperties = Type.Record(Type.String(), Type.Any());
-const RawMetadataPropertiesCType = TypeCompiler.Compile(RawMetadataProperties);
-
-type RawMetadataLocale = {
-  metadata: RawMetadataType;
-  locale?: string;
-  default: boolean;
-  uri: string;
-};
+import { RetryableJobError } from '../queue/errors';
+import { getImageUrl, processImageUrl } from './image-cache';
+import {
+  RawMetadataLocale,
+  RawMetadataLocalizationCType,
+  RawMetadataAttributesCType,
+  RawMetadataPropertiesCType,
+  RawMetadataCType,
+  RawMetadataType,
+} from './types';
 
 /**
  * Fetches all the localized metadata JSONs for a token. First, it downloads the default metadata
@@ -183,7 +140,7 @@ async function parseMetadataForInsertion(
         if (trait_type && value) {
           attributes.push({
             trait_type: trait_type,
-            value: JSON.stringify(value),
+            value: value,
             display_type: display_type ?? null,
           });
         }
@@ -197,11 +154,11 @@ async function parseMetadataForInsertion(
         if (key && value) {
           const defaultProp = properties.find(p => p.name === key);
           if (defaultProp) {
-            defaultProp.value = JSON.stringify(value);
+            defaultProp.value = value;
           } else {
             properties.push({
               name: key,
-              value: JSON.stringify(value),
+              value: value,
             });
           }
         }
@@ -228,20 +185,24 @@ async function parseMetadataForInsertion(
 export async function performSizeAndTimeLimitedMetadataFetch(
   httpUrl: URL
 ): Promise<string | undefined> {
+  const url = httpUrl.toString();
   const ctrl = new AbortController();
   let abortReason: Error | undefined;
 
   const timer = setTimeout(() => {
-    abortReason = new MetadataTimeoutError();
+    abortReason = new MetadataTimeoutError(url);
     ctrl.abort();
   }, ENV.METADATA_FETCH_TIMEOUT_MS);
   try {
-    const networkResult = await fetch(httpUrl.toString(), {
+    const networkResult = await fetch(url, {
       method: 'GET',
       signal: ctrl.signal,
     });
     if (networkResult.status >= 400) {
-      throw new HttpError(`Fetch error from ${httpUrl.toString()} (${networkResult.status})`);
+      if (networkResult.status === 429) {
+        throw new TooManyRequestsHttpError(url);
+      }
+      throw new HttpError(`${url} (${networkResult.status})`);
     }
     if (networkResult.body) {
       const decoder = new TextDecoder();
@@ -249,13 +210,13 @@ export async function performSizeAndTimeLimitedMetadataFetch(
       let bytesWritten = 0;
       const reportedContentLength = Number(networkResult.headers.get('content-length') ?? 0);
       if (reportedContentLength > ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE) {
-        abortReason = new MetadataSizeExceededError();
+        abortReason = new MetadataSizeExceededError(url);
         ctrl.abort();
       }
       for await (const chunk of networkResult.body) {
         bytesWritten += chunk.byteLength;
         if (bytesWritten > ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE) {
-          abortReason = new MetadataSizeExceededError();
+          abortReason = new MetadataSizeExceededError(url);
           ctrl.abort();
         }
         responseText += decoder.decode(chunk as ArrayBuffer, { stream: true });
@@ -301,9 +262,11 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
     }
   }
   const httpUrl = getFetchableUrl(token_uri);
+  const urlStr = httpUrl.toString();
 
   let fetchImmediateRetryCount = 0;
   let result: JSON | undefined;
+  let fetchError: unknown;
   // We'll try to fetch metadata and give it `METADATA_MAX_IMMEDIATE_URI_RETRIES` attempts
   // for the external service to return a reasonable response, otherwise we'll consider the
   // metadata as dead.
@@ -314,7 +277,16 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
       break;
     } catch (error) {
       fetchImmediateRetryCount++;
-      if (
+      fetchError = error;
+      if (error instanceof MetadataTimeoutError && isUriFromDecentralizedGateway(token_uri)) {
+        // Gateways like IPFS and Arweave commonly time out when a resource can't be found quickly.
+        // Try again later if this is the case.
+        throw new RetryableJobError(`Gateway timeout for ${urlStr}`, error);
+      } else if (error instanceof TooManyRequestsHttpError) {
+        // 429 status codes are common when fetching metadata for thousands of tokens in the same
+        // server.
+        throw new RetryableJobError(`Too many requests for ${urlStr}`, error);
+      } else if (
         error instanceof MetadataSizeExceededError ||
         fetchImmediateRetryCount >= ENV.METADATA_MAX_IMMEDIATE_URI_RETRIES
       ) {
@@ -326,69 +298,9 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
     if (RawMetadataCType.Check(result)) {
       return result;
     }
-    throw new MetadataParseError(`Invalid raw metadata JSON schema from ${httpUrl.toString()}}`);
+    throw new MetadataParseError(`Invalid raw metadata JSON schema from ${urlStr}}`);
   }
-  throw new MetadataParseError(`Unable to fetch metadata from ${httpUrl.toString()}`);
-}
-
-function getImageUrl(uri: string): string {
-  // Support images embedded in a Data URL
-  if (new URL(uri).protocol === 'data:') {
-    // const dataUrl = ParseDataUrl(uri);
-    const dataUrl = parseDataUrl(uri);
-    if (!dataUrl) {
-      throw new MetadataParseError(`Data URL could not be parsed: ${uri}`);
-    }
-    if (!dataUrl.mediaType?.startsWith('image/')) {
-      throw new MetadataParseError(`Token image is a Data URL with a non-image media type: ${uri}`);
-    }
-    return uri;
-  }
-  const fetchableUrl = getFetchableUrl(uri);
-  return fetchableUrl.toString();
-}
-
-/**
- * If an external image processor script is configured, then it will process the given image URL for the purpose
- * of caching on a CDN (or whatever else it may be created to do). The script is expected to return a new URL
- * for the image.
- * If the script is not configured, then the original URL is returned immediately.
- * If a data-uri is passed, it is also immediately returned without being passed to the script.
- */
-async function processImageUrl(imgUrl: string): Promise<string> {
-  const imageCacheProcessor = ENV.METADATA_IMAGE_CACHE_PROCESSOR;
-  if (!imageCacheProcessor) {
-    return imgUrl;
-  }
-  if (imgUrl.startsWith('data:')) {
-    return imgUrl;
-  }
-  const repoDir = path.dirname(__dirname);
-  const { code, stdout, stderr } = await new Promise<{
-    code: number;
-    stdout: string;
-    stderr: string;
-  }>((resolve, reject) => {
-    const cp = child_process.spawn(imageCacheProcessor, [imgUrl], { cwd: repoDir });
-    let stdout = '';
-    let stderr = '';
-    cp.stdout.on('data', data => (stdout += data));
-    cp.stderr.on('data', data => (stderr += data));
-    cp.on('close', code => resolve({ code: code ?? 0, stdout, stderr }));
-    cp.on('error', error => reject(error));
-  });
-  if (code !== 0 && stderr) {
-    logger.warn(`METADATA_IMAGE_CACHE_PROCESSOR error: ${stderr}`);
-  }
-  const result = stdout.trim();
-  try {
-    const url = new URL(result);
-    return url.toString();
-  } catch (error) {
-    throw new Error(
-      `Image processing script returned an invalid url for ${imgUrl}: ${result}, stderr: ${stderr}`
-    );
-  }
+  throw new MetadataParseError(`Unable to fetch metadata from ${urlStr}: ${fetchError}`);
 }
 
 /**
@@ -416,7 +328,16 @@ export function getFetchableUrl(uri: string): URL {
   throw new MetadataParseError(`Unsupported uri protocol: ${uri}`);
 }
 
-function parseDataUrl(
+function isUriFromDecentralizedGateway(uri: string): boolean {
+  return (
+    uri.startsWith('ipfs:') ||
+    uri.startsWith('ipns:') ||
+    uri.startsWith('ar:') ||
+    uri.startsWith('https://cloudflare-ipfs.com')
+  );
+}
+
+export function parseDataUrl(
   s: string
 ):
   | { mediaType?: string; contentType?: string; charset?: string; base64: boolean; data: string }

@@ -149,22 +149,22 @@ describe('FT routes', () => {
               {
                 trait_type: 'strength',
                 display_type: 'number',
-                value: JSON.stringify(105),
+                value: 105,
               },
               {
                 trait_type: 'powers',
                 display_type: 'array',
-                value: JSON.stringify([1, 2, 4]),
+                value: [1, 2, 4],
               },
             ],
             properties: [
               {
                 name: 'prop1',
-                value: JSON.stringify('ABC'),
+                value: 'ABC',
               },
               {
                 name: 'prop2',
-                value: JSON.stringify(1),
+                value: 1,
               },
             ],
           },

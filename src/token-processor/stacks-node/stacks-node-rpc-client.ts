@@ -84,7 +84,7 @@ export class StacksNodeRpcClient {
       }
     } catch (error) {
       if (error instanceof errors.UndiciError) {
-        throw new HttpError(url, error);
+        throw new HttpError(`${url}: ${error}`, error);
       }
       throw error;
     }
@@ -98,7 +98,7 @@ export class StacksNodeRpcClient {
     try {
       result = await this.sendReadOnlyContractCall(functionName, functionArgs);
     } catch (error) {
-      throw new RetryableJobError(`Error making read-only contract call`, error);
+      throw new RetryableJobError(`Error making read-only contract call: ${error}`, error);
     }
     if (!result.okay) {
       // Only runtime errors reported by the Stacks node should be retryable.

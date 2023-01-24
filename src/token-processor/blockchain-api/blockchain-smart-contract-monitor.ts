@@ -118,7 +118,7 @@ export class BlockchainSmartContractMonitor {
       values: {
         principal: contract.contract_id,
         sip: sip,
-        abi: JSON.stringify(contract.abi),
+        abi: contract.abi,
         tx_id: contract.tx_id,
         block_height: contract.block_height,
       },

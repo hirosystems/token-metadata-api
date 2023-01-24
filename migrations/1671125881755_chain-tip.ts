@@ -13,7 +13,7 @@ export function up(pgm: MigrationBuilder): void {
     block_height: {
       type: 'int',
       notNull: true,
-      default: 0,
+      default: 1,
     },
   });
   // Ensure only a single row can exist

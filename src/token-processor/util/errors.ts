@@ -1,17 +1,17 @@
 /** Thrown when fetching metadata exceeds the max allowed byte size */
 export class MetadataSizeExceededError extends Error {
-  constructor() {
+  constructor(url: string) {
     super();
-    this.message = 'Fetch size limit exceeded';
+    this.message = `Fetch size limit exceeded: ${url}`;
     this.name = this.constructor.name;
   }
 }
 
 /** Thrown when fetching metadata exceeds the max allowed timeout */
 export class MetadataTimeoutError extends Error {
-  constructor() {
+  constructor(url: string) {
     super();
-    this.message = 'Time limit exceeded';
+    this.message = `Time limit exceeded: ${url}`;
     this.name = this.constructor.name;
   }
 }
@@ -34,6 +34,8 @@ export class HttpError extends Error {
     this.cause = cause;
   }
 }
+
+export class TooManyRequestsHttpError extends HttpError {}
 
 export class JsonParseError extends Error {
   constructor(message: string) {
