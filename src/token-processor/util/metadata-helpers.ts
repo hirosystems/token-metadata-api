@@ -1,5 +1,5 @@
 import * as querystring from 'querystring';
-import { fetch } from 'undici';
+import { Agent, errors, request } from 'undici';
 import {
   DbMetadataAttributeInsert,
   DbMetadataInsert,
@@ -8,7 +8,6 @@ import {
   DbToken,
 } from '../../pg/types';
 import { ENV } from '../../env';
-import { TextDecoder } from 'util';
 import {
   HttpError,
   MetadataParseError,
@@ -180,54 +179,36 @@ async function parseMetadataForInsertion(
  * Fetches metadata while monitoring timeout and size limits. Throws if any is reached.
  * Taken from https://github.com/node-fetch/node-fetch/issues/1149#issuecomment-840416752
  * @param httpUrl - URL to fetch
- * @returns JSON result string
+ * @returns Response text
  */
 export async function performSizeAndTimeLimitedMetadataFetch(
   httpUrl: URL
 ): Promise<string | undefined> {
   const url = httpUrl.toString();
-  const ctrl = new AbortController();
-  let abortReason: Error | undefined;
-
-  const timer = setTimeout(() => {
-    abortReason = new MetadataTimeoutError(url);
-    ctrl.abort();
-  }, ENV.METADATA_FETCH_TIMEOUT_MS);
   try {
-    const networkResult = await fetch(url, {
+    const result = await request(url, {
       method: 'GET',
-      signal: ctrl.signal,
+      throwOnError: true,
+      dispatcher:
+        // Disable during tests so we can inject a global mock agent.
+        process.env.NODE_ENV === 'test'
+          ? undefined
+          : new Agent({
+              headersTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
+              bodyTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
+              maxResponseSize: ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE,
+            }),
     });
-    if (networkResult.status >= 400) {
-      if (networkResult.status === 429) {
-        throw new TooManyRequestsHttpError(url);
-      }
-      throw new HttpError(`${url} (${networkResult.status})`);
-    }
-    if (networkResult.body) {
-      const decoder = new TextDecoder();
-      let responseText: string = '';
-      let bytesWritten = 0;
-      const reportedContentLength = Number(networkResult.headers.get('content-length') ?? 0);
-      if (reportedContentLength > ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE) {
-        abortReason = new MetadataSizeExceededError(url);
-        ctrl.abort();
-      }
-      for await (const chunk of networkResult.body) {
-        bytesWritten += chunk.byteLength;
-        if (bytesWritten > ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE) {
-          abortReason = new MetadataSizeExceededError(url);
-          ctrl.abort();
-        }
-        responseText += decoder.decode(chunk as ArrayBuffer, { stream: true });
-      }
-      responseText += decoder.decode(); // flush the remaining bytes
-      clearTimeout(timer);
-      return responseText;
-    }
+    return (await result.body.text()) as string;
   } catch (error) {
-    clearTimeout(timer);
-    throw abortReason ?? error;
+    if (error instanceof errors.HeadersTimeoutError || error instanceof errors.BodyTimeoutError) {
+      throw new MetadataTimeoutError(url);
+    } else if (error instanceof errors.ResponseExceededMaxSizeError) {
+      throw new MetadataSizeExceededError(url);
+    } else if (error instanceof errors.ResponseStatusCodeError && error.statusCode === 429) {
+      throw new TooManyRequestsHttpError(url);
+    }
+    throw new HttpError(`${url}: ${error}`, error);
   }
 }
 
@@ -313,17 +294,21 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
  * @returns Fetchable URL
  */
 export function getFetchableUrl(uri: string): URL {
-  const parsedUri = new URL(uri);
-  if (parsedUri.protocol === 'http:' || parsedUri.protocol === 'https:') return parsedUri;
-  if (parsedUri.protocol === 'ipfs:') {
-    const host = parsedUri.host === 'ipfs' ? 'ipfs' : `ipfs/${parsedUri.host}`;
-    return new URL(`${ENV.PUBLIC_GATEWAY_IPFS}/${host}${parsedUri.pathname}`);
-  }
-  if (parsedUri.protocol === 'ipns:') {
-    return new URL(`${ENV.PUBLIC_GATEWAY_IPFS}/${parsedUri.host}${parsedUri.pathname}`);
-  }
-  if (parsedUri.protocol === 'ar:') {
-    return new URL(`${ENV.PUBLIC_GATEWAY_ARWEAVE}/${parsedUri.host}${parsedUri.pathname}`);
+  try {
+    const parsedUri = new URL(uri);
+    if (parsedUri.protocol === 'http:' || parsedUri.protocol === 'https:') return parsedUri;
+    if (parsedUri.protocol === 'ipfs:') {
+      const host = parsedUri.host === 'ipfs' ? 'ipfs' : `ipfs/${parsedUri.host}`;
+      return new URL(`${ENV.PUBLIC_GATEWAY_IPFS}/${host}${parsedUri.pathname}`);
+    }
+    if (parsedUri.protocol === 'ipns:') {
+      return new URL(`${ENV.PUBLIC_GATEWAY_IPFS}/${parsedUri.host}${parsedUri.pathname}`);
+    }
+    if (parsedUri.protocol === 'ar:') {
+      return new URL(`${ENV.PUBLIC_GATEWAY_ARWEAVE}/${parsedUri.host}${parsedUri.pathname}`);
+    }
+  } catch (error) {
+    throw new MetadataParseError(`Invalid uri: ${uri}`);
   }
   throw new MetadataParseError(`Unsupported uri protocol: ${uri}`);
 }

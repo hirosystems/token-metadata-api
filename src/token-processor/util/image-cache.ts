@@ -49,7 +49,7 @@ export async function processImageUrl(imgUrl: string): Promise<string> {
 
 export function getImageUrl(uri: string): string {
   // Support images embedded in a Data URL
-  if (new URL(uri).protocol === 'data:') {
+  if (uri.startsWith('data:')) {
     const dataUrl = parseDataUrl(uri);
     if (!dataUrl) {
       throw new MetadataParseError(`Data URL could not be parsed: ${uri}`);

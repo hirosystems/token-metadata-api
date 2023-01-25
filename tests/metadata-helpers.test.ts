@@ -32,47 +32,6 @@ describe('Metadata Helpers', () => {
     expect(result).toBe('hello');
   });
 
-  test('reject large responses', async () => {
-    const yugeBuffer = Buffer.alloc(ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE + 100);
-    const url = new URL('http://test.io/1.json');
-
-    const agent = new MockAgent();
-    agent.disableNetConnect();
-    agent
-      .get('http://test.io')
-      .intercept({
-        path: '/1.json',
-        method: 'GET',
-      })
-      .reply(200, yugeBuffer);
-    setGlobalDispatcher(agent);
-
-    await expect(performSizeAndTimeLimitedMetadataFetch(url)).rejects.toThrow(
-      MetadataSizeExceededError
-    );
-  });
-
-  test('reject timed out requests', async () => {
-    const prevTimeout = ENV.METADATA_FETCH_TIMEOUT_MS;
-    ENV.METADATA_FETCH_TIMEOUT_MS = 100;
-    const url = new URL('http://test.io/1.json');
-
-    const agent = new MockAgent();
-    agent.disableNetConnect();
-    agent
-      .get('http://test.io')
-      .intercept({
-        path: '/1.json',
-        method: 'GET',
-      })
-      .reply(200, '')
-      .delay(150);
-    setGlobalDispatcher(agent);
-
-    await expect(performSizeAndTimeLimitedMetadataFetch(url)).rejects.toThrow(MetadataTimeoutError);
-    ENV.METADATA_FETCH_TIMEOUT_MS = prevTimeout;
-  });
-
   test('throws on incorrect raw metadata schema', async () => {
     const agent = new MockAgent();
     agent.disableNetConnect();

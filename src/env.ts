@@ -38,7 +38,11 @@ interface Env {
    * before declaring the failure as a non-retryable error.
    */
   METADATA_MAX_IMMEDIATE_URI_RETRIES: number;
-  /** Timeout period for a token metadata URL fetch (milliseconds) */
+  /**
+   * Timeout period for a token metadata URL fetch in milliseconds. You should not make this
+   * timeout very short as usually IPFS and other gateways take a few seconds to respond with the
+   * requested resource. Defaults to 30 seconds.
+   */
   METADATA_FETCH_TIMEOUT_MS: number;
   /**
    * The maximum number of bytes of metadata to fetch. If the fetch encounters more bytes than this
@@ -204,7 +208,7 @@ export function getEnvVars(): Env {
       },
       METADATA_FETCH_TIMEOUT_MS: {
         type: 'number',
-        default: 10_000,
+        default: 30_000,
       },
       METADATA_MAX_PAYLOAD_BYTE_SIZE: {
         type: 'number',
