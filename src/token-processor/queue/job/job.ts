@@ -56,7 +56,9 @@ export abstract class Job {
           retries <= ENV.JOB_QUEUE_MAX_RETRIES
         ) {
           logger.info(
-            `Job ${this.description()} recoverable error, trying again later: ${error.message}`
+            `Job ${this.description()} recoverable error after ${sw.getElapsed()}ms, trying again later: ${
+              error.message
+            }`
           );
           await this.db.updateJobStatus({ id: this.job.id, status: DbJobStatus.pending });
         } else {

@@ -55,7 +55,7 @@ export class JobQueue {
    * begin.
    */
   start() {
-    console.log(`JobQueue starting queue...`);
+    logger.info(`JobQueue starting queue...`);
     this.isRunning = true;
     this.queue.start();
     void this.runQueueLoop();
@@ -65,7 +65,7 @@ export class JobQueue {
    * Shuts down the queue and waits for its current work to be complete.
    */
   async close() {
-    console.log(`JobQueue closing, waiting on ${this.queue.pending} jobs to finish...`);
+    logger.info(`JobQueue closing, waiting on ${this.queue.pending} pending jobs...`);
     this.isRunning = false;
     await this.queue.onIdle();
     this.queue.pause();
@@ -88,10 +88,14 @@ export class JobQueue {
     this.jobIds.add(job.id);
     await this.db.updateJobStatus({ id: job.id, status: DbJobStatus.queued });
     void this.queue.add(async () => {
-      if (job.token_id) {
-        await new ProcessTokenJob({ db: this.db, job: job }).work();
-      } else if (job.smart_contract_id) {
-        await new ProcessSmartContractJob({ db: this.db, apiDb: this.apiDb, job: job }).work();
+      if (this.isRunning) {
+        if (job.token_id) {
+          await new ProcessTokenJob({ db: this.db, job: job }).work();
+        } else if (job.smart_contract_id) {
+          await new ProcessSmartContractJob({ db: this.db, apiDb: this.apiDb, job: job }).work();
+        }
+      } else {
+        logger.info(`JobQueue cancelling job ${job.id}, queue is now closed`);
       }
       this.jobIds.delete(job.id);
     });
