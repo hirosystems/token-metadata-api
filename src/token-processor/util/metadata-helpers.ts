@@ -201,7 +201,12 @@ export async function performSizeAndTimeLimitedMetadataFetch(
     });
     return (await result.body.text()) as string;
   } catch (error) {
-    if (error instanceof errors.HeadersTimeoutError || error instanceof errors.BodyTimeoutError) {
+    if (
+      error instanceof errors.HeadersTimeoutError ||
+      error instanceof errors.BodyTimeoutError ||
+      (error as any).code === 'UND_ERR_SOCKET_TIMEOUT' ||
+      (error as any).code === 'UND_ERR_CONNECT_TIMEOUT'
+    ) {
       throw new MetadataTimeoutError(url);
     } else if (error instanceof errors.ResponseExceededMaxSizeError) {
       throw new MetadataSizeExceededError(url);
