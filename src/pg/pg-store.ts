@@ -197,7 +197,7 @@ export class PgStore extends BasePgStore {
   async updateJobStatus(args: { id: number; status: DbJobStatus }): Promise<void> {
     await this.sql`
       UPDATE jobs
-      SET status = ${args.status}
+      SET status = ${args.status}, updated_at = NOW()
       WHERE id = ${args.id}
     `;
   }
@@ -205,7 +205,7 @@ export class PgStore extends BasePgStore {
   async increaseJobRetryCount(args: { id: number }): Promise<number> {
     const result = await this.sql<{ retry_count: number }[]>`
       UPDATE jobs
-      SET retry_count = retry_count + 1
+      SET retry_count = retry_count + 1, updated_at = NOW()
       WHERE id = ${args.id}
       RETURNING retry_count
     `;
