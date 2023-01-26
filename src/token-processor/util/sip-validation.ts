@@ -356,10 +356,10 @@ export type SftMintEvent = {
 
 export function getContractLogSftMintEvent(log: BlockchainDbContractLog): SftMintEvent | undefined {
   try {
-    // Validate that we have the correct SIP-013 `sft-mint` payload structure.
+    // Validate that we have the correct SIP-013 `sft_mint` payload structure.
     const value = decodeClarityValue<ClarityValueTuple>(log.value);
     const type = stringFromValue(value.data.type);
-    if (type !== 'sft-mint') {
+    if (type !== 'sft_mint') {
       return;
     }
     const recipient = stringFromValue(value.data['recipient']);

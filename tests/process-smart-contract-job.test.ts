@@ -138,7 +138,7 @@ describe('ProcessSmartContractJob', () => {
       sender_address: address,
       value: cvToHex(
         tupleCV({
-          type: bufferCV(Buffer.from('sft-mint')),
+          type: bufferCV(Buffer.from('sft_mint')),
           recipient: bufferCV(Buffer.from(address)),
           'token-id': uintCV(3),
           amount: uintCV(1000),
@@ -150,7 +150,7 @@ describe('ProcessSmartContractJob', () => {
       sender_address: address,
       value: cvToHex(
         tupleCV({
-          type: bufferCV(Buffer.from('sft-mint')),
+          type: bufferCV(Buffer.from('sft_mint')),
           recipient: bufferCV(Buffer.from(address)),
           'token-id': uintCV(7),
           amount: uintCV(2000),

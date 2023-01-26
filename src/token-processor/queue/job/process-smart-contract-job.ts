@@ -71,24 +71,25 @@ export class ProcessSmartContractJob extends Job {
   }
 
   private async enqueueSftContractTokenIds(contract: DbSmartContract): Promise<void> {
-    const tokenInserts: DbTokenInsert[] = [];
-    // Scan for `sft-mint` events emitted by the SFT contract.
+    // Scan for `sft_mint` events emitted by the SFT contract.
     const cursor = this.apiDb.getSmartContractLogsByContractCursor({
       contractId: contract.principal,
     });
+    const tokenNumbers = new Set<string>();
     for await (const rows of cursor) {
       for (const row of rows) {
         const event = getContractLogSftMintEvent(row);
         if (!event) {
           continue;
         }
-        tokenInserts.push({
-          smart_contract_id: contract.id,
-          type: DbTokenType.sft,
-          token_number: event.tokenId.toString(), // Not necessarily sequential.
-        });
+        tokenNumbers.add(event.tokenId.toString());
       }
     }
+    const tokenInserts: DbTokenInsert[] = [...tokenNumbers].map(n => ({
+      smart_contract_id: contract.id,
+      type: DbTokenType.sft,
+      token_number: n,
+    }));
     if (tokenInserts.length) {
       await this.db.insertAndEnqueueTokenArray(tokenInserts);
     }
