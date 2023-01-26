@@ -26,6 +26,12 @@ import {
   RawMetadataType,
 } from './types';
 
+const METADATA_FETCH_HTTP_AGENT = new Agent({
+  headersTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
+  bodyTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
+  maxResponseSize: ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE,
+});
+
 /**
  * Fetches all the localized metadata JSONs for a token. First, it downloads the default metadata
  * JSON and parses it looking for other localizations. If those are found, each of them is then
@@ -191,13 +197,7 @@ export async function performSizeAndTimeLimitedMetadataFetch(
       throwOnError: true,
       dispatcher:
         // Disable during tests so we can inject a global mock agent.
-        process.env.NODE_ENV === 'test'
-          ? undefined
-          : new Agent({
-              headersTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
-              bodyTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
-              maxResponseSize: ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE,
-            }),
+        process.env.NODE_ENV === 'test' ? undefined : METADATA_FETCH_HTTP_AGENT,
     });
     return await result.body.text();
   } catch (error) {
