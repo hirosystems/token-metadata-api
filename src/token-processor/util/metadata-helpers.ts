@@ -199,7 +199,7 @@ export async function performSizeAndTimeLimitedMetadataFetch(
               maxResponseSize: ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE,
             }),
     });
-    return (await result.body.text()) as string;
+    return await result.body.text();
   } catch (error) {
     if (
       error instanceof errors.HeadersTimeoutError ||
@@ -286,7 +286,9 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
     }
     throw new MetadataParseError(`Invalid raw metadata JSON schema from ${urlStr}}`);
   }
-  throw new MetadataParseError(`Unable to fetch metadata from ${urlStr}: ${fetchError}`);
+  throw new MetadataParseError(
+    `Unable to fetch metadata from ${urlStr}: ${fetchError ?? 'blank response'}`
+  );
 }
 
 /**

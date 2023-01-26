@@ -76,7 +76,7 @@ export class StacksNodeRpcClient {
         body: JSON.stringify(body),
         throwOnError: true,
       });
-      const text = (await result.body.text()) as string;
+      const text = await result.body.text();
       try {
         return JSON.parse(text) as ReadOnlyContractCallResponse;
       } catch (error) {
