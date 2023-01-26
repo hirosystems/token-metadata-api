@@ -20,6 +20,15 @@ async function initApp() {
     new TokenProcessorMetrics({ db });
   }
 
+  const jobQueue = new JobQueue({ db, apiDb });
+  registerShutdownConfig({
+    name: 'Job Queue',
+    forceKillable: false,
+    handler: async () => {
+      await jobQueue.close();
+    },
+  });
+
   const lastObservedBlockHeight = (await db.getChainTipBlockHeight()) ?? 1;
   const contractImporter = new BlockchainImporter({
     db,
@@ -41,15 +50,6 @@ async function initApp() {
     forceKillable: false,
     handler: async () => {
       await contractMonitor.stop();
-    },
-  });
-
-  const jobQueue = new JobQueue({ db, apiDb });
-  registerShutdownConfig({
-    name: 'Job Queue',
-    forceKillable: false,
-    handler: async () => {
-      await jobQueue.close();
     },
   });
 
