@@ -77,7 +77,9 @@ export class BlockchainSmartContractMonitor {
             try {
               await this.handleSmartContract(messageJson.payload);
             } catch (error) {
-              logger.error(`BlockchainSmartContractMonitor error handling contract deploy`, error);
+              logger.error(
+                `BlockchainSmartContractMonitor error handling contract deploy: ${error}`
+              );
             }
           }
           break;
@@ -86,7 +88,7 @@ export class BlockchainSmartContractMonitor {
             try {
               await this.handleSmartContractLog(messageJson.payload);
             } catch (error) {
-              logger.error(`BlockchainSmartContractMonitor error handling contract log`, error);
+              logger.error(`BlockchainSmartContractMonitor error handling contract log: ${error}`);
             }
           }
           break;
@@ -95,7 +97,7 @@ export class BlockchainSmartContractMonitor {
             try {
               await this.handleBlock(messageJson.payload);
             } catch (error) {
-              logger.error(`BlockchainSmartContractMonitor error handling block`, error);
+              logger.error(`BlockchainSmartContractMonitor error handling block: ${error}`);
             }
           }
           break;
