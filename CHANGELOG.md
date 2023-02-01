@@ -1,3 +1,10 @@
+## [0.1.0-beta.2](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.1...v0.1.0-beta.2) (2023-02-01)
+
+
+### Bug Fixes
+
+* dockerfile CMD path ([#91](https://github.com/hirosystems/token-metadata-service/issues/91)) ([de60556](https://github.com/hirosystems/token-metadata-service/commit/de605568415582f2b8c8451b02864827099d5b66))
+
 ## [0.1.0-beta.1](https://github.com/hirosystems/token-metadata-service/compare/v0.0.1...v0.1.0-beta.1) (2023-01-26)
 
 
