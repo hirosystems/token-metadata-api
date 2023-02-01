@@ -1,3 +1,10 @@
+## [0.1.0-beta.3](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.2...v0.1.0-beta.3) (2023-02-01)
+
+
+### Bug Fixes
+
+* generate git info on docker build ([#93](https://github.com/hirosystems/token-metadata-service/issues/93)) ([9808b47](https://github.com/hirosystems/token-metadata-service/commit/9808b47d37d8a7ce2c720a96ddcd5e0db2e7ff5a))
+
 ## [0.1.0-beta.2](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.1...v0.1.0-beta.2) (2023-02-01)
 
 
