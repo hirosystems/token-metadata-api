@@ -1,3 +1,10 @@
+## [0.1.0-beta.4](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.3...v0.1.0-beta.4) (2023-02-01)
+
+
+### Bug Fixes
+
+* ignore ts type maps when migrating ([#95](https://github.com/hirosystems/token-metadata-service/issues/95)) ([b92b9d8](https://github.com/hirosystems/token-metadata-service/commit/b92b9d80f8ebe5b7e0d15b22a55900d389ee20b1))
+
 ## [0.1.0-beta.3](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.2...v0.1.0-beta.3) (2023-02-01)
 
 
