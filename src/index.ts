@@ -94,6 +94,6 @@ initApp()
       // SIGINT/SIGTERM while contract importer was running, ignore.
       return;
     }
-    logger.error(`App failed to start: ${error}`, error);
+    logger.error(error, `App failed to start`);
     process.exit(1);
   });

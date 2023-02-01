@@ -85,7 +85,7 @@ async function startShutdown() {
       }
     } catch (error) {
       errorEncountered = true;
-      logger.error(`Error running ${config.name} shutdown handler`, error);
+      logger.error(error, `Error running ${config.name} shutdown handler`);
     }
   }
   if (errorEncountered) {
@@ -110,17 +110,17 @@ function registerShutdownSignals() {
     });
   });
   process.once('unhandledRejection', error => {
-    logger.error(`unhandledRejection ${(error as any)?.message ?? error}`, error as Error);
-    logger.error(`Shutting down... received unhandledRejection.`);
+    logger.error(error, 'unhandledRejection');
+    logger.error('Shutting down... received unhandledRejection.');
     void startShutdown();
   });
   process.once('uncaughtException', error => {
-    logger.error(`Received uncaughtException: ${error}`, error);
-    logger.error(`Shutting down... received uncaughtException.`);
+    logger.error(error, 'uncaughtException');
+    logger.error('Shutting down... received uncaughtException.');
     void startShutdown();
   });
   process.once('beforeExit', () => {
-    logger.error(`Shutting down... received beforeExit.`);
+    logger.error('Shutting down... received beforeExit.');
     void startShutdown();
   });
 }

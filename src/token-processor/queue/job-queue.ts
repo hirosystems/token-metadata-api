@@ -141,7 +141,7 @@ export class JobQueue {
         }
         await this.queue.onIdle();
       } catch (error) {
-        logger.error(`JobQueue loop error`, error);
+        logger.error(error, 'JobQueue loop error');
         await timeout(1_000);
       }
     }
