@@ -1,5 +1,5 @@
 import * as path from 'path';
-import PgMigrate, { RunnerOption } from 'node-pg-migrate';
+import PgMigrate from 'node-pg-migrate';
 import { MigrationDirection } from 'node-pg-migrate/dist/types';
 import { ENV } from '../env';
 import { logger } from '../logger';
@@ -8,6 +8,7 @@ export async function runMigrations(direction: MigrationDirection) {
   await PgMigrate({
     direction: direction,
     count: Infinity,
+    ignorePattern: '.*map',
     databaseUrl: {
       host: ENV.PGHOST,
       port: ENV.PGPORT,
