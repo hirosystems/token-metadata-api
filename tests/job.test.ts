@@ -9,8 +9,17 @@ class TestRetryableJob extends Job {
   description(): string {
     return 'test';
   }
-  protected handler(): Promise<void> {
+  handler(): Promise<void> {
     throw new RetryableJobError('test');
+  }
+}
+
+class TestDbJob extends Job {
+  description(): string {
+    return 'test';
+  }
+  async handler(): Promise<void> {
+    await this.db.sql<{ version: string }[]>`SELECT version()`;
   }
 }
 
@@ -69,5 +78,11 @@ describe('Job', () => {
     const jobs1 = await db.getPendingJobBatch({ limit: 1 });
     expect(jobs1[0].retry_count).toBe(1);
     expect(jobs1[0].status).toBe('pending');
+  });
+
+  test('db errors are not re-thrown', async () => {
+    await db.close();
+    const job = new TestDbJob({ db, job: dbJob });
+    await expect(job.work()).resolves.not.toThrow();
   });
 });
