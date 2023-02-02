@@ -39,6 +39,8 @@ export function isPgConnectionError(error: any): string | false {
       return 'Postgres connection failed due to a DNS lookup error';
     } else if (msg.includes('terminating connection due to administrator command')) {
       return 'Postgres connection closed due to administrator command';
+    } else if (msg.includes('password authentication failed')) {
+      return 'Postgres authentication failed';
     }
   }
   return false;

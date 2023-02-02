@@ -85,19 +85,22 @@ export class JobQueue {
     ) {
       return;
     }
-    this.jobIds.add(job.id);
     await this.db.updateJobStatus({ id: job.id, status: DbJobStatus.queued });
+    this.jobIds.add(job.id);
     void this.queue.add(async () => {
-      if (this.isRunning) {
-        if (job.token_id) {
-          await new ProcessTokenJob({ db: this.db, job: job }).work();
-        } else if (job.smart_contract_id) {
-          await new ProcessSmartContractJob({ db: this.db, apiDb: this.apiDb, job: job }).work();
+      try {
+        if (this.isRunning) {
+          if (job.token_id) {
+            await new ProcessTokenJob({ db: this.db, job: job }).work();
+          } else if (job.smart_contract_id) {
+            await new ProcessSmartContractJob({ db: this.db, apiDb: this.apiDb, job: job }).work();
+          }
+        } else {
+          logger.info(`JobQueue cancelling job ${job.id}, queue is now closed`);
         }
-      } else {
-        logger.info(`JobQueue cancelling job ${job.id}, queue is now closed`);
+      } finally {
+        this.jobIds.delete(job.id);
       }
-      this.jobIds.delete(job.id);
     });
   }
 

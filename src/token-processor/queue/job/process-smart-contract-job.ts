@@ -105,14 +105,16 @@ export class ProcessSmartContractJob extends Job {
       );
       return;
     }
-    await this.db.updateSmartContractTokenCount({ id: contract.id, count: tokenCount });
-    logger.info(
-      `ProcessSmartContractJob enqueueing ${tokenCount} tokens for ${this.description()}`
-    );
-    await this.db.insertAndEnqueueSequentialTokens({
-      smart_contract_id: contract.id,
-      token_count: tokenCount,
-      type: dbSipNumberToDbTokenType(contract.sip),
+    await this.db.sqlWriteTransaction(async sql => {
+      logger.info(
+        `ProcessSmartContractJob enqueueing ${tokenCount} tokens for ${this.description()}`
+      );
+      await this.db.updateSmartContractTokenCount({ id: contract.id, count: tokenCount });
+      await this.db.insertAndEnqueueSequentialTokens({
+        smart_contract_id: contract.id,
+        token_count: tokenCount,
+        type: dbSipNumberToDbTokenType(contract.sip),
+      });
     });
   }
 }

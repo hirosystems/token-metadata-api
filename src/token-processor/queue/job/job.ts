@@ -38,16 +38,13 @@ export abstract class Job {
     let finishedWithError = false;
     const sw = stopwatch();
 
-    // This sql transaction will catch any and all errors that are generated while processing the
-    // job. Each of them were previously tagged as retryable or not retryable so we'll make a
-    // decision here about what to do in each case. If we choose to retry, this queue entry will
-    // simply not be marked as `processed = true` so it can be picked up by the queue at a later
-    // time.
+    // This block will catch any and all errors that are generated while processing the job. Each of
+    // them were previously tagged as retryable or not retryable so we'll make a decision here about
+    // what to do in each case. If we choose to retry, this queue entry will simply not be marked as
+    // `processed = true` so it can be picked up by the queue at a later time.
     try {
-      await this.db.sqlWriteTransaction(async sql => {
-        await this.handler();
-        processingFinished = true;
-      });
+      await this.handler();
+      processingFinished = true;
     } catch (error) {
       if (error instanceof RetryableJobError) {
         const retries = await this.db.increaseJobRetryCount({ id: this.job.id });
@@ -59,7 +56,7 @@ export abstract class Job {
             error,
             `Job ${this.description()} recoverable error after ${sw.getElapsed()}ms, trying again later`
           );
-          await this.db.updateJobStatus({ id: this.job.id, status: DbJobStatus.pending });
+          await this.updateStatus(DbJobStatus.pending);
         } else {
           logger.warn(error, `Job ${this.description()} max retries reached, giving up`);
           processingFinished = true;
@@ -74,12 +71,20 @@ export abstract class Job {
     } finally {
       if (processingFinished) {
         const status = finishedWithError ? DbJobStatus.failed : DbJobStatus.done;
-        await this.db.updateJobStatus({
-          id: this.job.id,
-          status: status,
-        });
-        logger.info(`Job ${this.description()} ${status} in ${sw.getElapsed()}ms`);
+        if (await this.updateStatus(status)) {
+          logger.info(`Job ${this.description()} ${status} in ${sw.getElapsed()}ms`);
+        }
       }
+    }
+  }
+
+  private async updateStatus(status: DbJobStatus): Promise<boolean> {
+    try {
+      await this.db.updateJobStatus({ id: this.job.id, status: status });
+      return true;
+    } catch (error) {
+      logger.error(`Job ${this.description()} could not update status to ${status}: ${error}`);
+      return false;
     }
   }
 }
