@@ -67,8 +67,8 @@ export class BlockchainImporter {
       } catch (error) {
         if (isPgConnectionError(error)) {
           logger.error(
-            `BlockchainImporter encountered a PG connection error during import, retrying...`,
-            error
+            error,
+            'BlockchainImporter encountered a PG connection error during import, retrying...'
           );
           await timeout(100);
         } else if (error instanceof SmartContractImportInterruptedError) {

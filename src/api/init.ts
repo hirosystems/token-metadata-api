@@ -10,6 +10,7 @@ import { StatusRoutes } from './routes/status';
 import FastifyMetrics from 'fastify-metrics';
 import { Server } from 'http';
 import { SERVER_VERSION } from '../server-version';
+import { PINO_CONFIG } from '../logger';
 
 export const ApiSwaggerOptions: SwaggerOptions = {
   openapi: {
@@ -50,7 +51,7 @@ export const Api: FastifyPluginAsync<Record<never, never>, Server, TypeBoxTypePr
 export async function buildApiServer(args: { db: PgStore }) {
   const fastify = Fastify({
     trustProxy: true,
-    logger: true,
+    logger: PINO_CONFIG,
   }).withTypeProvider<TypeBoxTypeProvider>();
 
   fastify.decorate('db', args.db);

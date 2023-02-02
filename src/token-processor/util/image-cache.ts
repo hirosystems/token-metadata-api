@@ -34,7 +34,7 @@ export async function processImageUrl(imgUrl: string): Promise<string> {
     cp.on('error', error => reject(error));
   });
   if (code !== 0 && stderr) {
-    logger.warn(`METADATA_IMAGE_CACHE_PROCESSOR error: ${stderr}`);
+    logger.warn(stderr, `METADATA_IMAGE_CACHE_PROCESSOR error`);
   }
   const result = stdout.trim();
   try {

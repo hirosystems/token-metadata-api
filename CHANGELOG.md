@@ -1,3 +1,24 @@
+## [0.1.0-beta.4](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.3...v0.1.0-beta.4) (2023-02-01)
+
+
+### Bug Fixes
+
+* ignore ts type maps when migrating ([#95](https://github.com/hirosystems/token-metadata-service/issues/95)) ([b92b9d8](https://github.com/hirosystems/token-metadata-service/commit/b92b9d80f8ebe5b7e0d15b22a55900d389ee20b1))
+
+## [0.1.0-beta.3](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.2...v0.1.0-beta.3) (2023-02-01)
+
+
+### Bug Fixes
+
+* generate git info on docker build ([#93](https://github.com/hirosystems/token-metadata-service/issues/93)) ([9808b47](https://github.com/hirosystems/token-metadata-service/commit/9808b47d37d8a7ce2c720a96ddcd5e0db2e7ff5a))
+
+## [0.1.0-beta.2](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.1...v0.1.0-beta.2) (2023-02-01)
+
+
+### Bug Fixes
+
+* dockerfile CMD path ([#91](https://github.com/hirosystems/token-metadata-service/issues/91)) ([de60556](https://github.com/hirosystems/token-metadata-service/commit/de605568415582f2b8c8451b02864827099d5b66))
+
 ## [0.1.0-beta.1](https://github.com/hirosystems/token-metadata-service/compare/v0.0.1...v0.1.0-beta.1) (2023-01-26)
 
 
