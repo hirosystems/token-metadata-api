@@ -1,3 +1,10 @@
+## [0.1.0-beta.5](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.4...v0.1.0-beta.5) (2023-02-02)
+
+
+### Bug Fixes
+
+* handle pg disconnections and transaction management ([#92](https://github.com/hirosystems/token-metadata-service/issues/92)) ([201d813](https://github.com/hirosystems/token-metadata-service/commit/201d813241731bb634951e9534ad40f84842c6f9))
+
 ## [0.1.0-beta.4](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.3...v0.1.0-beta.4) (2023-02-01)
 
 
