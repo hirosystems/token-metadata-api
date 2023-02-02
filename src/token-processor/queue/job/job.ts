@@ -55,20 +55,19 @@ export abstract class Job {
           getJobQueueProcessingMode() === JobQueueProcessingMode.strict ||
           retries <= ENV.JOB_QUEUE_MAX_RETRIES
         ) {
-          logger.info(
-            `Job ${this.description()} recoverable error after ${sw.getElapsed()}ms, trying again later: ${
-              error.message
-            }`
+          logger.warn(
+            error,
+            `Job ${this.description()} recoverable error after ${sw.getElapsed()}ms, trying again later`
           );
           await this.db.updateJobStatus({ id: this.job.id, status: DbJobStatus.pending });
         } else {
-          logger.warn(`Job ${this.description()} max retries reached, giving up: ${error.message}`);
+          logger.warn(error, `Job ${this.description()} max retries reached, giving up`);
           processingFinished = true;
           finishedWithError = true;
         }
       } else {
         // Something more serious happened, mark this token as failed.
-        logger.error(`Job ${this.description()}: ${error}`);
+        logger.error(error, `Job ${this.description()}`);
         processingFinished = true;
         finishedWithError = true;
       }
