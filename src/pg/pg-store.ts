@@ -400,9 +400,13 @@ export class PgStore extends BasePgStore {
     `;
   }
 
-  async insertRateLimitedHost(values: DbRateLimitedHostInsert): Promise<DbRateLimitedHost> {
+  async insertRateLimitedHost(args: {
+    values: DbRateLimitedHostInsert;
+  }): Promise<DbRateLimitedHost> {
+    const retryAfter = args.values.retry_after.toString();
     const results = await this.sql<DbRateLimitedHost[]>`
-      INSERT INTO rate_limited_hosts ${this.sql(values)}
+      INSERT INTO rate_limited_hosts (hostname, created_at, retry_after)
+      VALUES (${args.values.hostname}, DEFAULT, NOW() + INTERVAL '${this.sql(retryAfter)} seconds')
       ON CONFLICT ON CONSTRAINT rate_limited_hosts_hostname_unique DO
         UPDATE SET retry_after = EXCLUDED.retry_after
       RETURNING ${this.sql(RATE_LIMITED_HOSTS_COLUMNS)}
@@ -410,11 +414,11 @@ export class PgStore extends BasePgStore {
     return results[0];
   }
 
-  async getRateLimitedHost(hostname: string): Promise<DbRateLimitedHost | undefined> {
+  async getRateLimitedHost(args: { hostname: string }): Promise<DbRateLimitedHost | undefined> {
     const results = await this.sql<DbRateLimitedHost[]>`
       SELECT ${this.sql(RATE_LIMITED_HOSTS_COLUMNS)}
       FROM rate_limited_hosts
-      WHERE hostname = ${hostname}
+      WHERE hostname = ${args.hostname}
     `;
     if (results.count > 0) {
       return results[0];

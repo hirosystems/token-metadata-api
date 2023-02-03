@@ -21,6 +21,7 @@ import {
   getFetchableUrl,
   getTokenSpecificUri,
 } from '../../util/metadata-helpers';
+import { RetryableJobError } from '../errors';
 import { Job } from './job';
 
 /**
@@ -71,8 +72,10 @@ export class ProcessTokenJob extends Job {
           break;
       }
     } catch (error) {
-      if (error instanceof TooManyRequestsHttpError) {
-        await this.saveRateLimitedHost(error);
+      // If we got rate limited, save this host so we can skip further calls even from jobs for
+      // other tokens.
+      if (error instanceof RetryableJobError && error.cause instanceof TooManyRequestsHttpError) {
+        await this.saveRateLimitedHost(error.cause);
       }
       throw error;
     }
@@ -179,7 +182,7 @@ export class ProcessTokenJob extends Job {
     const hostname = error.url.hostname;
     const retryAfter = error.retryAfter ?? ENV.METADATA_RATE_LIMITED_HOST_RETRY_AFTER;
     logger.info(`ProcessTokenJob saving rate limited host ${hostname}, retry after ${retryAfter}s`);
-    await this.db.insertRateLimitedHost({ hostname, retry_after: retryAfter });
+    await this.db.insertRateLimitedHost({ values: { hostname, retry_after: retryAfter } });
   }
 
   private async getTokenUri(
@@ -193,8 +196,10 @@ export class ProcessTokenJob extends Job {
     if (!uri) {
       return;
     }
+    // Before we return the uri, check if its fetchable hostname is not already rate limited. If so,
+    // throw an error so we can skip this job and retry later.
     const fetchable = getFetchableUrl(uri);
-    const rateLimitedHost = await this.db.getRateLimitedHost(fetchable.hostname);
+    const rateLimitedHost = await this.db.getRateLimitedHost({ hostname: fetchable.hostname });
     if (rateLimitedHost) {
       // TODO: check if retry after has elapsed.
     }

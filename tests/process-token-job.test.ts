@@ -1,5 +1,5 @@
 import { cvToHex, noneCV, stringUtf8CV, uintCV } from '@stacks/transactions';
-import { MockAgent, setGlobalDispatcher } from 'undici';
+import { errors, MockAgent, setGlobalDispatcher } from 'undici';
 import { PgStore } from '../src/pg/pg-store';
 import {
   DbJob,
@@ -13,6 +13,7 @@ import {
 import { ENV } from '../src/env';
 import { cycleMigrations } from '../src/pg/migrations';
 import { ProcessTokenJob } from '../src/token-processor/queue/job/process-token-job';
+import { parseRetryAfterResponseHeader } from '../src/token-processor/util/helpers';
 
 describe('ProcessTokenJob', () => {
   let db: PgStore;
@@ -568,6 +569,68 @@ describe('ProcessTokenJob', () => {
       expect(token?.uri).toBeNull();
       expect(token?.decimals).toBe(6);
       expect(token?.total_supply).toBe(200200200n);
+    });
+  });
+
+  describe('Rate limits', () => {
+    test('parses Retry-After response header correctly', () => {
+      const error1 = new errors.ResponseStatusCodeError('rate limited');
+      error1.statusCode = 429;
+      error1.headers = { 'retry-after': '120' };
+      expect(parseRetryAfterResponseHeader(error1)).toBe(120);
+
+      const now = Date.now();
+      jest.useFakeTimers().setSystemTime(now);
+
+      const inOneHour = now + 3600 * 1000;
+      const error2 = new errors.ResponseStatusCodeError('rate limited');
+      error2.statusCode = 429;
+      error2.headers = { 'retry-after': new Date(inOneHour).toUTCString() };
+      expect(parseRetryAfterResponseHeader(error2)).toBe(3600);
+
+      jest.useRealTimers();
+    });
+
+    test('saves rate limited hosts', async () => {
+      const values: DbSmartContractInsert = {
+        principal: 'ABCD.test-nft',
+        sip: DbSipNumber.sip009,
+        abi: '"some"',
+        tx_id: '0x123456',
+        block_height: 1,
+      };
+      await db.insertAndEnqueueSmartContract({ values });
+      const [tokenJob] = await db.insertAndEnqueueSequentialTokens({
+        smart_contract_id: 1,
+        token_count: 1n,
+        type: DbTokenType.nft,
+      });
+
+      const agent = new MockAgent();
+      agent.disableNetConnect();
+      agent
+        .get(`http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`)
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-nft/get-token-uri',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(stringUtf8CV('http://m.io/{id}.json')),
+        });
+      agent
+        .get(`http://m.io`)
+        .intercept({
+          path: '/1.json',
+          method: 'GET',
+        })
+        .reply(429, 'nope', { headers: { 'retry-after': '999' } });
+      setGlobalDispatcher(agent);
+
+      await new ProcessTokenJob({ db, job: tokenJob }).work();
+
+      const host = await db.getRateLimitedHost({ hostname: 'm.io' });
+      expect(host).not.toBeUndefined();
     });
   });
 });
