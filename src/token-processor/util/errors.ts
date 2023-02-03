@@ -35,7 +35,16 @@ export class HttpError extends Error {
   }
 }
 
-export class TooManyRequestsHttpError extends HttpError {}
+export class TooManyRequestsHttpError extends HttpError {
+  public url: URL;
+  public retryAfter?: number;
+  constructor(url: URL, retryAfter?: number) {
+    super(url.toString());
+    this.name = this.constructor.name;
+    this.url = url;
+    this.retryAfter = retryAfter;
+  }
+}
 
 export class JsonParseError extends Error {
   constructor(message: string) {

@@ -4,6 +4,7 @@ import {
   decodeClarityValueToRepr,
   TransactionVersion,
 } from 'stacks-encoding-native-js';
+import { ENV } from '../../../env';
 import { logger } from '../../../logger';
 import { PgNumeric } from '../../../pg/postgres-tools/types';
 import {
@@ -14,8 +15,10 @@ import {
   DbTokenType,
 } from '../../../pg/types';
 import { StacksNodeRpcClient } from '../../stacks-node/stacks-node-rpc-client';
+import { TooManyRequestsHttpError } from '../../util/errors';
 import {
   fetchAllMetadataLocalesFromBaseUri,
+  getFetchableUrl,
   getTokenSpecificUri,
 } from '../../util/metadata-helpers';
 import { Job } from './job';
@@ -55,16 +58,23 @@ export class ProcessTokenJob extends Job {
       senderAddress: senderAddress,
     });
     logger.info(`ProcessTokenJob processing ${this.description()}`);
-    switch (token.type) {
-      case DbTokenType.ft:
-        await this.handleFt(client, token);
-        break;
-      case DbTokenType.nft:
-        await this.handleNft(client, token);
-        break;
-      case DbTokenType.sft:
-        await this.handleSft(client, token);
-        break;
+    try {
+      switch (token.type) {
+        case DbTokenType.ft:
+          await this.handleFt(client, token);
+          break;
+        case DbTokenType.nft:
+          await this.handleNft(client, token);
+          break;
+        case DbTokenType.sft:
+          await this.handleSft(client, token);
+          break;
+      }
+    } catch (error) {
+      if (error instanceof TooManyRequestsHttpError) {
+        await this.saveRateLimitedHost(error);
+      }
+      throw error;
     }
   }
 
@@ -83,8 +93,8 @@ export class ProcessTokenJob extends Job {
   }
 
   private async handleFt(client: StacksNodeRpcClient, token: DbToken) {
+    const uri = await this.getTokenUri(client);
     const name = await client.readStringFromContract('get-name');
-    const uri = await client.readStringFromContract('get-token-uri');
     const symbol = await client.readStringFromContract('get-symbol');
 
     let fDecimals: number | undefined;
@@ -118,9 +128,7 @@ export class ProcessTokenJob extends Job {
   }
 
   private async handleNft(client: StacksNodeRpcClient, token: DbToken) {
-    const uri = await client.readStringFromContract('get-token-uri', [
-      this.uIntCv(token.token_number),
-    ]);
+    const uri = await this.getTokenUri(client, token.token_number);
     let metadataLocales: DbMetadataLocaleInsertBundle[] | undefined;
     if (uri) {
       metadataLocales = await fetchAllMetadataLocalesFromBaseUri(uri, token);
@@ -136,9 +144,8 @@ export class ProcessTokenJob extends Job {
   }
 
   private async handleSft(client: StacksNodeRpcClient, token: DbToken) {
+    const uri = await this.getTokenUri(client, token.token_number);
     const arg = [this.uIntCv(token.token_number)];
-
-    const uri = await client.readStringFromContract('get-token-uri', arg);
 
     let fDecimals: number | undefined;
     const decimals = await client.readUIntFromContract('get-decimals', arg);
@@ -166,6 +173,32 @@ export class ProcessTokenJob extends Job {
       metadataLocales: metadataLocales,
     };
     await this.db.updateProcessedTokenWithMetadata({ id: token.id, values: tokenValues });
+  }
+
+  private async saveRateLimitedHost(error: TooManyRequestsHttpError) {
+    const hostname = error.url.hostname;
+    const retryAfter = error.retryAfter ?? ENV.METADATA_RATE_LIMITED_HOST_RETRY_AFTER;
+    logger.info(`ProcessTokenJob saving rate limited host ${hostname}, retry after ${retryAfter}s`);
+    await this.db.insertRateLimitedHost({ hostname, retry_after: retryAfter });
+  }
+
+  private async getTokenUri(
+    client: StacksNodeRpcClient,
+    tokenNumber?: bigint
+  ): Promise<string | undefined> {
+    const uri = await client.readStringFromContract(
+      'get-token-uri',
+      tokenNumber ? [this.uIntCv(tokenNumber)] : undefined
+    );
+    if (!uri) {
+      return;
+    }
+    const fetchable = getFetchableUrl(uri);
+    const rateLimitedHost = await this.db.getRateLimitedHost(fetchable.hostname);
+    if (rateLimitedHost) {
+      // TODO: check if retry after has elapsed.
+    }
+    return uri;
   }
 
   private uIntCv(n: bigint): ClarityValueUInt {

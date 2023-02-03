@@ -1,4 +1,5 @@
 import * as querystring from 'querystring';
+import { IncomingHttpHeaders } from 'http';
 import { Agent, errors, request } from 'undici';
 import {
   DbMetadataAttributeInsert,
@@ -181,6 +182,10 @@ async function parseMetadataForInsertion(
   return inserts;
 }
 
+function parseRetryAfterResponseHeader(error: errors.ResponseStatusCodeError): number | undefined {
+  if (error.headers instanceof IncomingHttpHeaders)
+}
+
 /**
  * Fetches metadata while monitoring timeout and size limits. Throws if any is reached.
  * Taken from https://github.com/node-fetch/node-fetch/issues/1149#issuecomment-840416752
@@ -211,7 +216,8 @@ export async function performSizeAndTimeLimitedMetadataFetch(
     } else if (error instanceof errors.ResponseExceededMaxSizeError) {
       throw new MetadataSizeExceededError(url);
     } else if (error instanceof errors.ResponseStatusCodeError && error.statusCode === 429) {
-      throw new TooManyRequestsHttpError(url);
+      const retryAfter = parseRetryAfterResponseHeader(error);
+      throw new TooManyRequestsHttpError(httpUrl, );
     }
     throw new HttpError(`${url}: ${error}`, error);
   }

@@ -67,6 +67,10 @@ interface Env {
    * hours).
    */
   METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL: number;
+  /**
+   * xasdfsdf
+   */
+  METADATA_RATE_LIMITED_HOST_RETRY_AFTER: number;
 
   /** Whether or not the `JobQueue` will continue to try retryable failed jobs indefinitely. */
   JOB_QUEUE_STRICT_MODE: boolean;
