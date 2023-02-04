@@ -196,14 +196,26 @@ export class ProcessTokenJob extends Job {
     if (!uri) {
       return;
     }
-    // Before we return the uri, check if its fetchable hostname is not already rate limited. If so,
-    // throw an error so we can skip this job and retry later.
+    // Before we return the uri, check if its fetchable hostname is not already rate limited.
     const fetchable = getFetchableUrl(uri);
     const rateLimitedHost = await this.db.getRateLimitedHost({ hostname: fetchable.hostname });
     if (rateLimitedHost) {
-      // TODO: check if retry after has elapsed.
+      const retryAfter = Date.parse(rateLimitedHost.retry_after);
+      if (retryAfter > Date.now()) {
+        // Retry-After has passed, we can proceed.
+        await this.db.deleteRateLimitedHost({ hostname: fetchable.hostname });
+        logger.info(
+          `ProcessTokenJob Retry-After has passed for rate limited hostname ${fetchable.hostname}, resuming fetches`
+        );
+        return uri;
+      } else {
+        throw new RetryableJobError(
+          `ProcessTokenJob skipping fetch to rate-limited hostname ${fetchable.hostname}`
+        );
+      }
+    } else {
+      return uri;
     }
-    return uri;
   }
 
   private uIntCv(n: bigint): ClarityValueUInt {

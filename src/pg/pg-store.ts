@@ -425,6 +425,12 @@ export class PgStore extends BasePgStore {
     }
   }
 
+  async deleteRateLimitedHost(args: { hostname: string }): Promise<void> {
+    await this.sql`
+      DELETE FROM rate_limited_hosts WHERE hostname = ${args.hostname}
+    `;
+  }
+
   private async isTokenLocaleAvailable(tokenId: number, locale: string): Promise<boolean> {
     const tokenLocale = await this.sql<{ id: number }[]>`
       SELECT id FROM metadata

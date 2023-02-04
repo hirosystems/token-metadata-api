@@ -68,7 +68,9 @@ interface Env {
    */
   METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL: number;
   /**
-   * xasdfsdf
+   * Time that must elapse between a 429 'Too many requests' response returned by a hostname and the
+   * next request that is sent to it (seconds). This value will be overridden by the `Retry-After`
+   * header returned by the domain, if any.
    */
   METADATA_RATE_LIMITED_HOST_RETRY_AFTER: number;
 
