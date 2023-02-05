@@ -14,12 +14,12 @@ export function up(pgm: MigrationBuilder): void {
       notNull: true,
     },
     created_at: {
-      type: 'timestamp',
+      type: 'timestamptz',
       default: pgm.func('(NOW())'),
       notNull: true,
     },
     retry_after: {
-      type: 'timestamp',
+      type: 'timestamptz',
       notNull: true,
     },
   });
