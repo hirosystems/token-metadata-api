@@ -201,7 +201,8 @@ export class ProcessTokenJob extends Job {
     const rateLimitedHost = await this.db.getRateLimitedHost({ hostname: fetchable.hostname });
     if (rateLimitedHost) {
       const retryAfter = Date.parse(rateLimitedHost.retry_after);
-      if (retryAfter > Date.now()) {
+      const now = Date.now();
+      if (retryAfter <= now) {
         // Retry-After has passed, we can proceed.
         await this.db.deleteRateLimitedHost({ hostname: fetchable.hostname });
         logger.info(

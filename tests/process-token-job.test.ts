@@ -14,6 +14,8 @@ import { ENV } from '../src/env';
 import { cycleMigrations } from '../src/pg/migrations';
 import { ProcessTokenJob } from '../src/token-processor/queue/job/process-token-job';
 import { parseRetryAfterResponseHeader } from '../src/token-processor/util/helpers';
+import { RetryableJobError } from '../src/token-processor/queue/errors';
+import { TooManyRequestsHttpError } from '../src/token-processor/util/errors';
 
 describe('ProcessTokenJob', () => {
   let db: PgStore;
@@ -573,6 +575,39 @@ describe('ProcessTokenJob', () => {
   });
 
   describe('Rate limits', () => {
+    let tokenJob: DbJob;
+    let agent: MockAgent;
+
+    beforeEach(async () => {
+      const values: DbSmartContractInsert = {
+        principal: 'ABCD.test-nft',
+        sip: DbSipNumber.sip009,
+        abi: '"some"',
+        tx_id: '0x123456',
+        block_height: 1,
+      };
+      await db.insertAndEnqueueSmartContract({ values });
+      [tokenJob] = await db.insertAndEnqueueSequentialTokens({
+        smart_contract_id: 1,
+        token_count: 1n,
+        type: DbTokenType.nft,
+      });
+
+      agent = new MockAgent();
+      agent.disableNetConnect();
+      agent
+        .get(`http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`)
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-nft/get-token-uri',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(stringUtf8CV('http://m.io/{id}.json')),
+        });
+      setGlobalDispatcher(agent);
+    });
+
     test('parses Retry-After response header correctly', () => {
       // Numeric value
       const error1 = new errors.ResponseStatusCodeError('rate limited');
@@ -609,32 +644,6 @@ describe('ProcessTokenJob', () => {
     });
 
     test('saves rate limited hosts', async () => {
-      const values: DbSmartContractInsert = {
-        principal: 'ABCD.test-nft',
-        sip: DbSipNumber.sip009,
-        abi: '"some"',
-        tx_id: '0x123456',
-        block_height: 1,
-      };
-      await db.insertAndEnqueueSmartContract({ values });
-      const [tokenJob] = await db.insertAndEnqueueSequentialTokens({
-        smart_contract_id: 1,
-        token_count: 1n,
-        type: DbTokenType.nft,
-      });
-
-      const agent = new MockAgent();
-      agent.disableNetConnect();
-      agent
-        .get(`http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`)
-        .intercept({
-          path: '/v2/contracts/call-read/ABCD/test-nft/get-token-uri',
-          method: 'POST',
-        })
-        .reply(200, {
-          okay: true,
-          result: cvToHex(stringUtf8CV('http://m.io/{id}.json')),
-        });
       agent
         .get(`http://m.io`)
         .intercept({
@@ -642,16 +651,47 @@ describe('ProcessTokenJob', () => {
           method: 'GET',
         })
         .reply(429, 'nope', { headers: { 'retry-after': '999' } });
-      setGlobalDispatcher(agent);
-
-      await new ProcessTokenJob({ db, job: tokenJob }).work();
-
+      try {
+        await new ProcessTokenJob({ db, job: tokenJob }).handler();
+      } catch (error) {
+        expect(error).toBeInstanceOf(RetryableJobError);
+        const err = error as RetryableJobError;
+        expect(err.cause).toBeInstanceOf(TooManyRequestsHttpError);
+      }
       const host = await db.getRateLimitedHost({ hostname: 'm.io' });
       expect(host).not.toBeUndefined();
     });
 
-    // test('skips request to rate limited host', async () => {});
+    test('skips request to rate limited host', async () => {
+      await db.insertRateLimitedHost({
+        values: {
+          hostname: 'm.io',
+          retry_after: 99999,
+        },
+      });
+      await expect(new ProcessTokenJob({ db, job: tokenJob }).handler()).rejects.toThrow(
+        /skipping fetch to rate-limited hostname/
+      );
+      const host = await db.getRateLimitedHost({ hostname: 'm.io' });
+      expect(host).not.toBeUndefined();
+    });
 
-    // test('resumes calls if retry-after is complete', async () => {});
+    test('resumes calls if retry-after is complete', async () => {
+      agent
+        .get(`http://m.io`)
+        .intercept({
+          path: '/1.json',
+          method: 'GET',
+        })
+        .reply(200, 'ok');
+      // Insert manually so we can set date in the past
+      await db.sql`
+        INSERT INTO rate_limited_hosts (hostname, created_at, retry_after)
+        VALUES ('m.io', DEFAULT, NOW() - INTERVAL '40 minutes')
+      `;
+      await expect(new ProcessTokenJob({ db, job: tokenJob }).handler()).rejects.toThrow(
+        /skipping fetch to rate-limited hostname/
+      );
+    });
   });
 });
