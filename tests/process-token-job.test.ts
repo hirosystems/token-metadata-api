@@ -650,7 +650,7 @@ describe('ProcessTokenJob', () => {
           path: '/1.json',
           method: 'GET',
         })
-        .reply(429, 'nope', { headers: { 'retry-after': '999' } });
+        .reply(429, { error: 'nope' }, { headers: { 'retry-after': '999' } });
       try {
         await new ProcessTokenJob({ db, job: tokenJob }).handler();
       } catch (error) {
@@ -677,21 +677,40 @@ describe('ProcessTokenJob', () => {
     });
 
     test('resumes calls if retry-after is complete', async () => {
+      const metadata = {
+        name: 'Mutant Monkeys #1',
+        image:
+          'https://byzantion.mypinata.cloud/ipfs/QmWAYP9LJD15mgrnapfpJhBArG6T3J4XKTM77tzqggvP7w',
+        attributes: [
+          {
+            trait_type: 'Background',
+            value: 'MM1 Purple',
+          },
+        ],
+        properties: {
+          external_url: 'https://bitcoinmonkeys.io/',
+          colection_name: 'Mutant Monkeys',
+        },
+      };
       agent
         .get(`http://m.io`)
         .intercept({
           path: '/1.json',
           method: 'GET',
         })
-        .reply(200, 'ok');
+        .reply(200, metadata);
       // Insert manually so we can set date in the past
       await db.sql`
         INSERT INTO rate_limited_hosts (hostname, created_at, retry_after)
         VALUES ('m.io', DEFAULT, NOW() - INTERVAL '40 minutes')
       `;
-      await expect(new ProcessTokenJob({ db, job: tokenJob }).handler()).rejects.toThrow(
-        /skipping fetch to rate-limited hostname/
-      );
+
+      // Token is processed now.
+      await expect(new ProcessTokenJob({ db, job: tokenJob }).handler()).resolves.not.toThrow();
+
+      // Rate limited host is gone.
+      const host = await db.getRateLimitedHost({ hostname: 'm.io' });
+      expect(host).toBeUndefined();
     });
   });
 });
