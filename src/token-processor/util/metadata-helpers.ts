@@ -205,8 +205,7 @@ export async function performSizeAndTimeLimitedMetadataFetch(
     if (
       error instanceof errors.HeadersTimeoutError ||
       error instanceof errors.BodyTimeoutError ||
-      (error as any).code === 'UND_ERR_SOCKET_TIMEOUT' ||
-      (error as any).code === 'UND_ERR_CONNECT_TIMEOUT'
+      error instanceof errors.ConnectTimeoutError
     ) {
       throw new MetadataTimeoutError(url);
     } else if (error instanceof errors.ResponseExceededMaxSizeError) {
