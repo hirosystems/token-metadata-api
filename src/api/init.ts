@@ -61,7 +61,7 @@ export async function buildApiServer(args: { db: PgStore }) {
     await fastify.register(FastifySwagger, ApiSwaggerOptions);
   }
   await fastify.register(FastifyCors);
-  await fastify.register(Api);
+  await fastify.register(Api, { prefix: '/metadata/v1' });
 
   return fastify;
 }

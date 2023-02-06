@@ -39,7 +39,7 @@ describe('NFT routes', () => {
   test('token not found', async () => {
     const response = await fastify.inject({
       method: 'GET',
-      url: '/nft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1',
+      url: '/metadata/v1/nft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1',
     });
     expect(response.statusCode).toBe(404);
     expect(response.json()).toStrictEqual({ error: 'Token not found' });
@@ -49,7 +49,7 @@ describe('NFT routes', () => {
     await enqueueToken();
     const response = await fastify.inject({
       method: 'GET',
-      url: '/nft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1',
+      url: '/metadata/v1/nft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1',
     });
     expect(response.statusCode).toBe(422);
     expect(response.json()).toStrictEqual({ error: 'Token metadata fetch in progress' });
@@ -86,7 +86,7 @@ describe('NFT routes', () => {
     });
     const response = await fastify.inject({
       method: 'GET',
-      url: '/nft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1?locale=es',
+      url: '/metadata/v1/nft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1?locale=es',
     });
     expect(response.statusCode).toBe(422);
     expect(response.json()).toStrictEqual({ error: 'Locale not found' });
@@ -108,7 +108,7 @@ describe('NFT routes', () => {
     });
     const response = await fastify.inject({
       method: 'GET',
-      url: '/nft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1',
+      url: '/metadata/v1/nft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1',
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toStrictEqual({ token_uri: 'http://test.com/uri.json' });
@@ -167,7 +167,7 @@ describe('NFT routes', () => {
     });
     const response = await fastify.inject({
       method: 'GET',
-      url: '/nft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1',
+      url: '/metadata/v1/nft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1',
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toStrictEqual({

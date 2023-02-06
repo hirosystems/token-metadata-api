@@ -43,7 +43,7 @@ describe('SFT routes', () => {
   test('token not found', async () => {
     const response = await fastify.inject({
       method: 'GET',
-      url: '/sft/SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1/1',
+      url: '/metadata/v1/sft/SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1/1',
     });
     expect(response.statusCode).toBe(404);
     expect(response.json()).toStrictEqual({ error: 'Token not found' });
@@ -53,7 +53,7 @@ describe('SFT routes', () => {
     await enqueueToken();
     const response = await fastify.inject({
       method: 'GET',
-      url: '/sft/SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1/1',
+      url: '/metadata/v1/sft/SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1/1',
     });
     expect(response.statusCode).toBe(422);
     expect(response.json()).toStrictEqual({ error: 'Token metadata fetch in progress' });
@@ -90,7 +90,7 @@ describe('SFT routes', () => {
     });
     const response = await fastify.inject({
       method: 'GET',
-      url: '/sft/SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1/1?locale=es',
+      url: '/metadata/v1/sft/SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1/1?locale=es',
     });
     expect(response.statusCode).toBe(422);
     expect(response.json()).toStrictEqual({ error: 'Locale not found' });
@@ -112,7 +112,7 @@ describe('SFT routes', () => {
     });
     const response = await fastify.inject({
       method: 'GET',
-      url: '/sft/SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1/1',
+      url: '/metadata/v1/sft/SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1/1',
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toStrictEqual({
@@ -175,7 +175,7 @@ describe('SFT routes', () => {
     });
     const response = await fastify.inject({
       method: 'GET',
-      url: '/sft/SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1/1',
+      url: '/metadata/v1/sft/SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1/1',
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toStrictEqual({
