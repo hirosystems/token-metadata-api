@@ -1,5 +1,5 @@
 import { cvToHex, noneCV, stringUtf8CV, uintCV } from '@stacks/transactions';
-import { MockAgent, setGlobalDispatcher } from 'undici';
+import { errors, MockAgent, setGlobalDispatcher } from 'undici';
 import { PgStore } from '../src/pg/pg-store';
 import {
   DbJob,
@@ -13,6 +13,9 @@ import {
 import { ENV } from '../src/env';
 import { cycleMigrations } from '../src/pg/migrations';
 import { ProcessTokenJob } from '../src/token-processor/queue/job/process-token-job';
+import { parseRetryAfterResponseHeader } from '../src/token-processor/util/helpers';
+import { RetryableJobError } from '../src/token-processor/queue/errors';
+import { TooManyRequestsHttpError } from '../src/token-processor/util/errors';
 
 describe('ProcessTokenJob', () => {
   let db: PgStore;
@@ -568,6 +571,146 @@ describe('ProcessTokenJob', () => {
       expect(token?.uri).toBeNull();
       expect(token?.decimals).toBe(6);
       expect(token?.total_supply).toBe(200200200n);
+    });
+  });
+
+  describe('Rate limits', () => {
+    let tokenJob: DbJob;
+    let agent: MockAgent;
+
+    beforeEach(async () => {
+      const values: DbSmartContractInsert = {
+        principal: 'ABCD.test-nft',
+        sip: DbSipNumber.sip009,
+        abi: '"some"',
+        tx_id: '0x123456',
+        block_height: 1,
+      };
+      await db.insertAndEnqueueSmartContract({ values });
+      [tokenJob] = await db.insertAndEnqueueSequentialTokens({
+        smart_contract_id: 1,
+        token_count: 1n,
+        type: DbTokenType.nft,
+      });
+
+      agent = new MockAgent();
+      agent.disableNetConnect();
+      agent
+        .get(`http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`)
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-nft/get-token-uri',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(stringUtf8CV('http://m.io/{id}.json')),
+        });
+      setGlobalDispatcher(agent);
+    });
+
+    test('parses Retry-After response header correctly', () => {
+      // Numeric value
+      const error1 = new errors.ResponseStatusCodeError('rate limited');
+      error1.statusCode = 429;
+      error1.headers = { 'retry-after': '120' };
+      expect(parseRetryAfterResponseHeader(error1)).toBe(120);
+
+      // Date string
+      const now = Date.now();
+      jest.useFakeTimers().setSystemTime(now);
+      const inOneHour = now + 3600 * 1000;
+      const error2 = new errors.ResponseStatusCodeError('rate limited');
+      error2.statusCode = 429;
+      error2.headers = { 'retry-after': new Date(inOneHour).toUTCString() };
+      expect(parseRetryAfterResponseHeader(error2)).toBe(3600);
+
+      jest.useFakeTimers().setSystemTime(new Date('2015-10-21'));
+      const error5 = new errors.ResponseStatusCodeError('rate limited');
+      error5.statusCode = 429;
+      error5.headers = { 'retry-after': 'Wed, 21 Oct 2015 07:28:00 GMT' };
+      expect(parseRetryAfterResponseHeader(error5)).toBe(26880);
+
+      // Empty value
+      const error3 = new errors.ResponseStatusCodeError('rate limited');
+      error3.statusCode = 429;
+      expect(parseRetryAfterResponseHeader(error3)).toBeUndefined();
+
+      // Non-429 value
+      const error4 = new errors.ResponseStatusCodeError('rate limited');
+      error4.headers = { 'retry-after': '999' };
+      expect(parseRetryAfterResponseHeader(error4)).toBeUndefined();
+
+      jest.useRealTimers();
+    });
+
+    test('saves rate limited hosts', async () => {
+      agent
+        .get(`http://m.io`)
+        .intercept({
+          path: '/1.json',
+          method: 'GET',
+        })
+        .reply(429, { error: 'nope' }, { headers: { 'retry-after': '999' } });
+      try {
+        await new ProcessTokenJob({ db, job: tokenJob }).handler();
+      } catch (error) {
+        expect(error).toBeInstanceOf(RetryableJobError);
+        const err = error as RetryableJobError;
+        expect(err.cause).toBeInstanceOf(TooManyRequestsHttpError);
+      }
+      const host = await db.getRateLimitedHost({ hostname: 'm.io' });
+      expect(host).not.toBeUndefined();
+    });
+
+    test('skips request to rate limited host', async () => {
+      await db.insertRateLimitedHost({
+        values: {
+          hostname: 'm.io',
+          retry_after: 99999,
+        },
+      });
+      await expect(new ProcessTokenJob({ db, job: tokenJob }).handler()).rejects.toThrow(
+        /skipping fetch to rate-limited hostname/
+      );
+      const host = await db.getRateLimitedHost({ hostname: 'm.io' });
+      expect(host).not.toBeUndefined();
+    });
+
+    test('resumes calls if retry-after is complete', async () => {
+      const metadata = {
+        name: 'Mutant Monkeys #1',
+        image:
+          'https://byzantion.mypinata.cloud/ipfs/QmWAYP9LJD15mgrnapfpJhBArG6T3J4XKTM77tzqggvP7w',
+        attributes: [
+          {
+            trait_type: 'Background',
+            value: 'MM1 Purple',
+          },
+        ],
+        properties: {
+          external_url: 'https://bitcoinmonkeys.io/',
+          colection_name: 'Mutant Monkeys',
+        },
+      };
+      agent
+        .get(`http://m.io`)
+        .intercept({
+          path: '/1.json',
+          method: 'GET',
+        })
+        .reply(200, metadata);
+      // Insert manually so we can set date in the past
+      await db.sql`
+        INSERT INTO rate_limited_hosts (hostname, created_at, retry_after)
+        VALUES ('m.io', DEFAULT, NOW() - INTERVAL '40 minutes')
+      `;
+
+      // Token is processed now.
+      await expect(new ProcessTokenJob({ db, job: tokenJob }).handler()).resolves.not.toThrow();
+
+      // Rate limited host is gone.
+      const host = await db.getRateLimitedHost({ hostname: 'm.io' });
+      expect(host).toBeUndefined();
     });
   });
 });

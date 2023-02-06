@@ -1,3 +1,6 @@
+import { errors } from 'undici';
+import { parseRetryAfterResponseHeader } from './helpers';
+
 /** Thrown when fetching metadata exceeds the max allowed byte size */
 export class MetadataSizeExceededError extends Error {
   constructor(message: string) {
@@ -35,7 +38,18 @@ export class HttpError extends Error {
   }
 }
 
-export class TooManyRequestsHttpError extends HttpError {}
+export class TooManyRequestsHttpError extends HttpError {
+  public url: URL;
+  /** `Retry-After` header value in seconds, if any. */
+  public retryAfter?: number;
+
+  constructor(url: URL, error: errors.ResponseStatusCodeError) {
+    super(url.toString());
+    this.name = this.constructor.name;
+    this.url = url;
+    this.retryAfter = parseRetryAfterResponseHeader(error);
+  }
+}
 
 export class JsonParseError extends Error {
   constructor(message: string) {

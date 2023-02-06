@@ -1,4 +1,5 @@
 import * as querystring from 'querystring';
+import { IncomingHttpHeaders } from 'http';
 import { Agent, errors, request } from 'undici';
 import {
   DbMetadataAttributeInsert,
@@ -204,14 +205,13 @@ export async function performSizeAndTimeLimitedMetadataFetch(
     if (
       error instanceof errors.HeadersTimeoutError ||
       error instanceof errors.BodyTimeoutError ||
-      (error as any).code === 'UND_ERR_SOCKET_TIMEOUT' ||
-      (error as any).code === 'UND_ERR_CONNECT_TIMEOUT'
+      error instanceof errors.ConnectTimeoutError
     ) {
       throw new MetadataTimeoutError(url);
     } else if (error instanceof errors.ResponseExceededMaxSizeError) {
       throw new MetadataSizeExceededError(url);
     } else if (error instanceof errors.ResponseStatusCodeError && error.statusCode === 429) {
-      throw new TooManyRequestsHttpError(url);
+      throw new TooManyRequestsHttpError(httpUrl, error);
     }
     throw new HttpError(`${url}: ${error}`, error);
   }
