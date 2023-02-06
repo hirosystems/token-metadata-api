@@ -1,3 +1,10 @@
+## [0.1.0-beta.6](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.5...v0.1.0-beta.6) (2023-02-06)
+
+
+### Features
+
+* throttle requests to rate limited domains ([#97](https://github.com/hirosystems/token-metadata-service/issues/97)) ([5b75060](https://github.com/hirosystems/token-metadata-service/commit/5b75060157f9e8ec170176a8ba76c73eb7423cd3))
+
 ## [0.1.0-beta.5](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.4...v0.1.0-beta.5) (2023-02-02)
 
 
