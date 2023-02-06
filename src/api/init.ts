@@ -5,13 +5,12 @@ import { NftRoutes } from './routes/nft';
 import { SftRoutes } from './routes/sft';
 import { PgStore } from '../pg/pg-store';
 import FastifyCors from '@fastify/cors';
-import FastifySwagger, { SwaggerOptions } from '@fastify/swagger';
+import { SwaggerOptions } from '@fastify/swagger';
 import { StatusRoutes } from './routes/status';
 import FastifyMetrics from 'fastify-metrics';
 import { Server } from 'http';
 import { SERVER_VERSION } from '../server-version';
 import { PINO_CONFIG } from '../logger';
-import { rewriteVersionedUrl } from './util/helpers';
 
 export const ApiSwaggerOptions: SwaggerOptions = {
   openapi: {
@@ -53,19 +52,15 @@ export async function buildApiServer(args: { db: PgStore }) {
   const fastify = Fastify({
     trustProxy: true,
     logger: PINO_CONFIG,
-    rewriteUrl(req) {
-      return rewriteVersionedUrl(req.url);
-    },
   }).withTypeProvider<TypeBoxTypeProvider>();
 
   fastify.decorate('db', args.db);
   if (process.env['NODE_ENV'] === 'production') {
     await fastify.register(FastifyMetrics);
-  } else if (process.env['NODE_ENV'] === 'development') {
-    await fastify.register(FastifySwagger, ApiSwaggerOptions);
   }
   await fastify.register(FastifyCors);
   await fastify.register(Api, { prefix: '/metadata/v1' });
+  await fastify.register(Api, { prefix: '/metadata' });
 
   return fastify;
 }
