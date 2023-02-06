@@ -4,8 +4,7 @@ WORKDIR /app
 COPY . .
 
 RUN apk add --no-cache --virtual .build-deps git
-RUN npm config set unsafe-perm true && \
-    npm ci && \
+RUN npm ci && \
     npm run build && \
     npm run generate:git-info && \
     npm prune --production
