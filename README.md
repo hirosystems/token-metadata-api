@@ -147,7 +147,7 @@ The
 component constantly listens for the following Stacks Blockchain API events:
 
 * **Smart contract log events**
-    
+
     If a contract `print` event conforms to SIP-019, it finds the affected tokens and marks them for
     metadata refresh.
 
@@ -192,3 +192,7 @@ metadata ingestion.
 This job fetches the metadata JSON object for a single token as well as other relevant properties
 depending on the token type (symbol, decimals, etc.). Once fetched, it parses and ingests this data
 to save it into the local database for API endpoints to return.
+
+If a `429` (Too Many Requests) status code is returned by a hostname used to fetch metadata, the
+service will cease all further requests to it until a reasonable amount of time has passed or until
+the time specified by the host in a `Retry-After` response header.

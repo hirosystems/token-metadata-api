@@ -25,12 +25,12 @@ export function up(pgm: MigrationBuilder): void {
       default: 0,
     },
     created_at: {
-      type: 'timestamp',
+      type: 'timestamptz',
       default: pgm.func('(NOW())'),
       notNull: true,
     },
     updated_at: {
-      type: 'timestamp',
+      type: 'timestamptz',
     },
   });
   pgm.createConstraint('jobs', 'jobs_token_id_fk', 'FOREIGN KEY(token_id) REFERENCES tokens(id)');
