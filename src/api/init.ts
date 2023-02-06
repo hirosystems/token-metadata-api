@@ -11,6 +11,7 @@ import FastifyMetrics from 'fastify-metrics';
 import { Server } from 'http';
 import { SERVER_VERSION } from '../server-version';
 import { PINO_CONFIG } from '../logger';
+import { rewriteVersionedUrl } from './util/helpers';
 
 export const ApiSwaggerOptions: SwaggerOptions = {
   openapi: {
@@ -52,6 +53,9 @@ export async function buildApiServer(args: { db: PgStore }) {
   const fastify = Fastify({
     trustProxy: true,
     logger: PINO_CONFIG,
+    rewriteUrl(req) {
+      return rewriteVersionedUrl(req.url);
+    },
   }).withTypeProvider<TypeBoxTypeProvider>();
 
   fastify.decorate('db', args.db);
