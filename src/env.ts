@@ -231,6 +231,10 @@ export function getEnvVars(): Env {
         type: 'number',
         default: 86_400, // 24 hours
       },
+      METADATA_RATE_LIMITED_HOST_RETRY_AFTER: {
+        type: 'number',
+        default: 3600, // 1 hour
+      },
       JOB_QUEUE_CONCURRENCY_LIMIT: {
         type: 'number',
         default: 5,
