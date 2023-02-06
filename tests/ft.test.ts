@@ -36,6 +36,19 @@ describe('FT routes', () => {
     });
   };
 
+  test('non-versioned URLs respond', async () => {
+    const r1 = await fastify.inject({
+      method: 'GET',
+      url: '/metadata/v1/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+    });
+    const r2 = await fastify.inject({
+      method: 'GET',
+      url: '/metadata/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+    });
+    expect(r1.statusCode).toEqual(r2.statusCode);
+    expect(r1.body).toEqual(r2.body);
+  });
+
   test('token not found', async () => {
     const response = await fastify.inject({
       method: 'GET',

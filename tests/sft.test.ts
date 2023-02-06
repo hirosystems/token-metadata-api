@@ -40,6 +40,19 @@ describe('SFT routes', () => {
     ]);
   };
 
+  test('non-versioned URLs respond', async () => {
+    const r1 = await fastify.inject({
+      method: 'GET',
+      url: '/metadata/v1/sft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1',
+    });
+    const r2 = await fastify.inject({
+      method: 'GET',
+      url: '/metadata/sft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1',
+    });
+    expect(r1.statusCode).toEqual(r2.statusCode);
+    expect(r1.body).toEqual(r2.body);
+  });
+
   test('token not found', async () => {
     const response = await fastify.inject({
       method: 'GET',
