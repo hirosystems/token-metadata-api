@@ -1,4 +1,3 @@
-import { IncomingMessage } from 'http';
 import { DbMetadataLocaleBundle } from '../../pg/types';
 import { MetadataPropertiesType, MetadataType, MetadataValueType } from '../types';
 
