@@ -44,18 +44,21 @@ export function parseRetryAfterResponseHeader(
   if (error.statusCode != 429 || !error.headers || !('retry-after' in error.headers)) {
     return;
   }
-  const value = error.headers['retry-after'];
-  if (!value) return;
+  const header = error.headers['retry-after'];
+  if (!header) return;
+  const wrappedValue = Array.isArray(header) ? header : [header];
 
-  // Numerical values e.g. `Retry-After: 120`
-  const nval = Number(value);
-  if (Number.isFinite(nval) && nval > 0) {
-    return nval;
+  // Return the first valid header value we find.
+  for (const value of wrappedValue) {
+    // Numerical values e.g. `Retry-After: 120`
+    const nval = Number(value);
+    if (Number.isFinite(nval) && nval > 0) {
+      return nval;
+    }
+    // HTTP Date values e.g. `Retry-After: Wed, 21 Oct 2015 07:28:00 GMT`
+    const retryDateMS = Date.parse(value);
+    if (Number.isNaN(retryDateMS)) return;
+    const deltaMS = retryDateMS - Date.now();
+    return deltaMS > 0 ? Math.ceil(deltaMS / 1000) : undefined;
   }
-
-  // HTTP Date values e.g. `Retry-After: Wed, 21 Oct 2015 07:28:00 GMT`
-  const retryDateMS = Date.parse(value);
-  if (Number.isNaN(retryDateMS)) return;
-  const deltaMS = retryDateMS - Date.now();
-  return deltaMS > 0 ? Math.ceil(deltaMS / 1000) : undefined;
 }
