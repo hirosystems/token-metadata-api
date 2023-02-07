@@ -1,3 +1,10 @@
+## [0.1.0-beta.7](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.6...v0.1.0-beta.7) (2023-02-07)
+
+
+### Bug Fixes
+
+* add `/metadata/v1` prefix to all routes ([#100](https://github.com/hirosystems/token-metadata-service/issues/100)) ([a11d4be](https://github.com/hirosystems/token-metadata-service/commit/a11d4be8abeb08ce192ea4e3f01d1da6db960733))
+
 ## [0.1.0-beta.6](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.5...v0.1.0-beta.6) (2023-02-06)
 
 
