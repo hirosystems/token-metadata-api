@@ -39,7 +39,7 @@ describe('FT routes', () => {
   test('token not found', async () => {
     const response = await fastify.inject({
       method: 'GET',
-      url: '/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      url: '/metadata/v1/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
     });
     expect(response.statusCode).toBe(404);
     expect(response.json()).toStrictEqual({ error: 'Token not found' });
@@ -49,7 +49,7 @@ describe('FT routes', () => {
     await enqueueToken();
     const response = await fastify.inject({
       method: 'GET',
-      url: '/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      url: '/metadata/v1/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
     });
     expect(response.statusCode).toBe(422);
     expect(response.json()).toStrictEqual({ error: 'Token metadata fetch in progress' });
@@ -86,7 +86,7 @@ describe('FT routes', () => {
     });
     const response = await fastify.inject({
       method: 'GET',
-      url: '/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world?locale=es',
+      url: '/metadata/v1/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world?locale=es',
     });
     expect(response.statusCode).toBe(422);
     expect(response.json()).toStrictEqual({ error: 'Locale not found' });
@@ -108,7 +108,7 @@ describe('FT routes', () => {
     });
     const response = await fastify.inject({
       method: 'GET',
-      url: '/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      url: '/metadata/v1/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toStrictEqual({
@@ -173,7 +173,7 @@ describe('FT routes', () => {
     });
     const response = await fastify.inject({
       method: 'GET',
-      url: '/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      url: '/metadata/v1/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
     });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toStrictEqual({
@@ -204,5 +204,11 @@ describe('FT routes', () => {
         },
       },
     });
+    const noVersionResponse = await fastify.inject({
+      method: 'GET',
+      url: '/metadata/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+    });
+    expect(response.statusCode).toEqual(noVersionResponse.statusCode);
+    expect(response.json()).toStrictEqual(noVersionResponse.json());
   });
 });
