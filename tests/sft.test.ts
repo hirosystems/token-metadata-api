@@ -40,19 +40,6 @@ describe('SFT routes', () => {
     ]);
   };
 
-  test('non-versioned URLs respond', async () => {
-    const r1 = await fastify.inject({
-      method: 'GET',
-      url: '/metadata/v1/sft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1',
-    });
-    const r2 = await fastify.inject({
-      method: 'GET',
-      url: '/metadata/sft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1',
-    });
-    expect(r1.statusCode).toEqual(r2.statusCode);
-    expect(r1.body).toEqual(r2.body);
-  });
-
   test('token not found', async () => {
     const response = await fastify.inject({
       method: 'GET',
@@ -217,5 +204,11 @@ describe('SFT routes', () => {
         },
       },
     });
+    const noVersionResponse = await fastify.inject({
+      method: 'GET',
+      url: '/metadata/sft/SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1/1',
+    });
+    expect(response.statusCode).toEqual(noVersionResponse.statusCode);
+    expect(response.json()).toStrictEqual(noVersionResponse.json());
   });
 });

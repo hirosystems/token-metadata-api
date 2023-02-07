@@ -36,19 +36,6 @@ describe('NFT routes', () => {
     });
   };
 
-  test('non-versioned URLs respond', async () => {
-    const r1 = await fastify.inject({
-      method: 'GET',
-      url: '/metadata/v1/nft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1',
-    });
-    const r2 = await fastify.inject({
-      method: 'GET',
-      url: '/metadata/nft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1',
-    });
-    expect(r1.statusCode).toEqual(r2.statusCode);
-    expect(r1.body).toEqual(r2.body);
-  });
-
   test('token not found', async () => {
     const response = await fastify.inject({
       method: 'GET',
@@ -207,5 +194,11 @@ describe('NFT routes', () => {
         },
       },
     });
+    const noVersionResponse = await fastify.inject({
+      method: 'GET',
+      url: '/metadata/nft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1',
+    });
+    expect(response.statusCode).toEqual(noVersionResponse.statusCode);
+    expect(response.json()).toStrictEqual(noVersionResponse.json());
   });
 });

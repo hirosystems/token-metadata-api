@@ -20,13 +20,6 @@ describe('Status routes', () => {
     await db.close();
   });
 
-  test('non-versioned URLs respond', async () => {
-    const r1 = await fastify.inject({ method: 'GET', url: '/metadata/v1/' });
-    const r2 = await fastify.inject({ method: 'GET', url: '/metadata/' });
-    expect(r1.statusCode).toEqual(r2.statusCode);
-    expect(r1.body).toEqual(r2.body);
-  });
-
   test('returns status when nothing has been processed', async () => {
     const response = await fastify.inject({ method: 'GET', url: '/metadata/v1/' });
     const json = response.json();
@@ -34,6 +27,9 @@ describe('Status routes', () => {
       server_version: 'token-metadata-service v0.0.1 (test:123456)',
       status: 'ready',
     });
+    const noVersionResponse = await fastify.inject({ method: 'GET', url: '/metadata/' });
+    expect(response.statusCode).toEqual(noVersionResponse.statusCode);
+    expect(json).toStrictEqual(noVersionResponse.json());
   });
 
   test('returns status counts', async () => {
