@@ -17,6 +17,13 @@ export class SmartContractImportInterruptedError extends Error {
   }
 }
 
+class ApiBlockHeightNotReadyError extends Error {
+  constructor() {
+    super();
+    this.name = this.constructor.name;
+  }
+}
+
 /**
  * Imports token contracts and SIP-019 token metadata update notifications from the Stacks
  * Blockchain API database.
@@ -24,6 +31,7 @@ export class SmartContractImportInterruptedError extends Error {
 export class BlockchainImporter {
   private readonly db: PgStore;
   private readonly apiDb: PgBlockchainApiStore;
+  private apiBlockHeightRetryIntervalMs = 5000;
   private startingBlockHeight: number;
   private importInterruptWaiter: Waiter<void>;
   private importInterrupted = false;
@@ -46,6 +54,7 @@ export class BlockchainImporter {
   }
 
   async import() {
+    logger.info(`BlockchainImporter last imported block height: ${this.startingBlockHeight}`);
     while (!this.importFinished) {
       try {
         const apiBlockHeight = await this.getApiBlockHeight();
@@ -70,7 +79,10 @@ export class BlockchainImporter {
             error,
             'BlockchainImporter encountered a PG connection error during import, retrying...'
           );
-          await timeout(100);
+          await timeout(1000);
+        } else if (error instanceof ApiBlockHeightNotReadyError) {
+          logger.warn(`BlockchainImporter API block height too low, retrying...`);
+          await timeout(this.apiBlockHeightRetryIntervalMs);
         } else if (error instanceof SmartContractImportInterruptedError) {
           this.importInterruptWaiter.finish();
           throw error;
@@ -83,10 +95,9 @@ export class BlockchainImporter {
 
   private async getApiBlockHeight(): Promise<number> {
     const blockHeight = (await this.apiDb.getCurrentBlockHeight()) ?? 1;
+    logger.info(`BlockchainImporter API block height: ${blockHeight}`);
     if (this.startingBlockHeight > blockHeight) {
-      throw new Error(
-        `BlockchainImporter starting block height ${this.startingBlockHeight} is greater than the API's block height ${blockHeight}`
-      );
+      throw new ApiBlockHeightNotReadyError();
     }
     return blockHeight;
   }

@@ -23,6 +23,10 @@ export async function startTestApiServer(db: PgStore): Promise<TestFastifyServer
   return await buildApiServer({ db });
 }
 
+export const sleep = (time: number) => {
+  return new Promise(resolve => setTimeout(resolve, time));
+};
+
 export class MockPgBlockchainApiStore extends PgBlockchainApiStore {
   constructor() {
     super(postgres());
