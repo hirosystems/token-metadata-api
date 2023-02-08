@@ -31,6 +31,9 @@ const METADATA_FETCH_HTTP_AGENT = new Agent({
   headersTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
   bodyTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
   maxResponseSize: ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE,
+  connect: {
+    rejectUnauthorized: false, // Ignore SSL cert errors.
+  },
 });
 
 /**
