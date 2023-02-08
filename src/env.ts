@@ -73,6 +73,10 @@ interface Env {
    * header returned by the domain, if any.
    */
   METADATA_RATE_LIMITED_HOST_RETRY_AFTER: number;
+  /**
+   * Maximum number of HTTP redirections to follow when fetching metadata. Defaults to 5.
+   */
+  METADATA_FETCH_MAX_REDIRECTIONS: number;
 
   /** Whether or not the `JobQueue` will continue to try retryable failed jobs indefinitely. */
   JOB_QUEUE_STRICT_MODE: boolean;
@@ -234,6 +238,10 @@ export function getEnvVars(): Env {
       METADATA_RATE_LIMITED_HOST_RETRY_AFTER: {
         type: 'number',
         default: 3600, // 1 hour
+      },
+      METADATA_FETCH_MAX_REDIRECTIONS: {
+        type: 'number',
+        default: 5,
       },
       JOB_QUEUE_CONCURRENCY_LIMIT: {
         type: 'number',

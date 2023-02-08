@@ -10,7 +10,7 @@ import {
   getFetchableUrl,
   getMetadataFromUri,
   getTokenSpecificUri,
-  performSizeAndTimeLimitedMetadataFetch,
+  fetchMetadata,
 } from '../src/token-processor/util/metadata-helpers';
 
 describe('Metadata Helpers', () => {
@@ -28,7 +28,7 @@ describe('Metadata Helpers', () => {
       .reply(200, 'hello');
     setGlobalDispatcher(agent);
 
-    const result = await performSizeAndTimeLimitedMetadataFetch(url);
+    const result = await fetchMetadata(url);
     expect(result).toBe('hello');
   });
 
@@ -62,7 +62,7 @@ describe('Metadata Helpers', () => {
       .reply(500, { message: 'server error' });
     setGlobalDispatcher(agent);
 
-    await expect(performSizeAndTimeLimitedMetadataFetch(url)).rejects.toThrow(HttpError);
+    await expect(fetchMetadata(url)).rejects.toThrow(HttpError);
   });
 
   test('does not throw on raw metadata with null or stringable values', async () => {
