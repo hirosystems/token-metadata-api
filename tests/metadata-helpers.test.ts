@@ -146,6 +146,45 @@ describe('Metadata Helpers', () => {
     }
   });
 
+  test('parses valid JSON5 strings', async () => {
+    const json =
+      '{\n  "name": "Boombox [4th Edition]",\n  "description": "The first ever Boombox to exist IRL, this art was created by 3D printing a model and photographing it under some very Boomerific lighting. 💥",\n  "creator": "Official Boomboxes",\n  "image": "https://cloudflare-ipfs.com/ipfs/bafybeiggfn5e4k3lu23ibs3mgpfonsscr4nadwwkyflqk7xo5kepmfnwhu",  \n  "properties": {\n    "external_url": {\n      "display_type": "url",\n      "trait_type": "string",\n      "value": "https://app.sigle.io/boom.id.blockstack/tOja1EkEDtKlR5-CH9ogG"\n    },\n    "twitter_url": {\n      "display_type": "url",\n      "trait_type": "string",\n      "value": "https://twitter.com/boom_wallet"\n    },\n    "discord_url": {\n      "display_type": "url",\n      "trait_type": "string",\n      "value": "https://discord.gg/4PhujhCGzB"\n    },\n  },\n}\n';
+    const agent = new MockAgent();
+    agent.disableNetConnect();
+    agent
+      .get('http://test.io')
+      .intercept({
+        path: '/1.json',
+        method: 'GET',
+      })
+      .reply(200, json);
+    setGlobalDispatcher(agent);
+
+    const metadata = await getMetadataFromUri('http://test.io/1.json');
+    expect(metadata.name).toBe('Boombox [4th Edition]');
+    expect(metadata.description).toBe(
+      'The first ever Boombox to exist IRL, this art was created by 3D printing a model and photographing it under some very Boomerific lighting. 💥'
+    );
+    expect(metadata.image).toBe(
+      'https://cloudflare-ipfs.com/ipfs/bafybeiggfn5e4k3lu23ibs3mgpfonsscr4nadwwkyflqk7xo5kepmfnwhu'
+    );
+    const properties = metadata.properties;
+    expect(properties).not.toBeUndefined();
+    if (properties) {
+      expect(properties['external_url'].display_type).toBe('url');
+      expect(properties['external_url'].trait_type).toBe('string');
+      expect(properties['external_url'].value).toBe(
+        'https://app.sigle.io/boom.id.blockstack/tOja1EkEDtKlR5-CH9ogG'
+      );
+      expect(properties['twitter_url'].display_type).toBe('url');
+      expect(properties['twitter_url'].trait_type).toBe('string');
+      expect(properties['twitter_url'].value).toBe('https://twitter.com/boom_wallet');
+      expect(properties['discord_url'].display_type).toBe('url');
+      expect(properties['discord_url'].trait_type).toBe('string');
+      expect(properties['discord_url'].value).toBe('https://discord.gg/4PhujhCGzB');
+    }
+  });
+
   test('get fetchable URLs', () => {
     ENV.PUBLIC_GATEWAY_IPFS = 'https://cloudflare-ipfs.com';
     ENV.PUBLIC_GATEWAY_ARWEAVE = 'https://arweave.net';

@@ -1,4 +1,5 @@
 import * as querystring from 'querystring';
+import * as JSON5 from 'json5';
 import { Agent, errors, request } from 'undici';
 import {
   DbMetadataAttributeInsert,
@@ -31,6 +32,9 @@ const METADATA_FETCH_HTTP_AGENT = new Agent({
   bodyTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
   maxResponseSize: ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE,
   maxRedirections: ENV.METADATA_FETCH_MAX_REDIRECTIONS,
+  connect: {
+    rejectUnauthorized: false, // Ignore SSL cert errors.
+  },
 });
 
 /**
@@ -236,7 +240,7 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
       content = dataUrl.data;
     }
     try {
-      const result = JSON.parse(content);
+      const result = JSON5.parse(content);
       if (RawMetadataCType.Check(result)) {
         return result;
       }
@@ -257,7 +261,7 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
   do {
     try {
       const text = await fetchMetadata(httpUrl);
-      result = text ? JSON.parse(text) : undefined;
+      result = text ? JSON5.parse(text) : undefined;
       break;
     } catch (error) {
       fetchImmediateRetryCount++;
