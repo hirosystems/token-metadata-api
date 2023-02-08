@@ -144,8 +144,8 @@ describe('SFT routes', () => {
               l10n_uri: null,
               l10n_default: true,
               description: 'test',
-              image: null,
-              cached_image: null,
+              image: 'http://test.com/image.png',
+              cached_image: 'http://test.com/image.png?processed=true',
             },
             attributes: [
               {
@@ -186,6 +186,8 @@ describe('SFT routes', () => {
         sip: 16,
         description: 'test',
         name: 'key-alex-autoalex-v1',
+        image: 'http://test.com/image.png',
+        cached_image: 'http://test.com/image.png?processed=true',
         attributes: [
           {
             display_type: 'number',
