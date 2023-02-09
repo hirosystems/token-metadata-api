@@ -15,9 +15,9 @@ export async function handleTokenCache(request: FastifyRequest, reply: FastifyRe
   const etag = await getTokenEtag(request);
   if (etag) {
     if (ifNoneMatch && ifNoneMatch.includes(etag)) {
-      await reply.header('cache-control', CACHE_CONTROL_MUST_REVALIDATE).code(304).send();
+      await reply.header('Cache-Control', CACHE_CONTROL_MUST_REVALIDATE).code(304).send();
     } else {
-      void reply.header('etag', etag);
+      void reply.header('ETag', `"${etag}"`);
     }
   }
 }
