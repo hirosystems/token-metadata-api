@@ -1,3 +1,10 @@
+## [0.1.0-beta.11](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.10...v0.1.0-beta.11) (2023-02-09)
+
+
+### Bug Fixes
+
+* add cache-control, remove cache for error responses ([#114](https://github.com/hirosystems/token-metadata-service/issues/114)) ([e03caf8](https://github.com/hirosystems/token-metadata-service/commit/e03caf8e488bb0ad5911a40d68319391ef1cdca6))
+
 ## [0.1.0-beta.10](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.9...v0.1.0-beta.10) (2023-02-09)
 
 
