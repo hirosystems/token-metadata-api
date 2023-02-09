@@ -1,3 +1,14 @@
+## [0.1.0-beta.8](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.7...v0.1.0-beta.8) (2023-02-09)
+
+
+### Bug Fixes
+
+* display cached image in metadata responses ([#104](https://github.com/hirosystems/token-metadata-service/issues/104)) ([156e9e2](https://github.com/hirosystems/token-metadata-service/commit/156e9e2e5b886cf1bd8fe7065cbf0f073e98b832))
+* follow redirects when fetching metadata ([#109](https://github.com/hirosystems/token-metadata-service/issues/109)) ([0ab2fbb](https://github.com/hirosystems/token-metadata-service/commit/0ab2fbb8eabf59b5ccaa4eef7d6c4b65d979f40e))
+* ignore invalid ssl certs for metadata fetch ([#107](https://github.com/hirosystems/token-metadata-service/issues/107)) ([46e184c](https://github.com/hirosystems/token-metadata-service/commit/46e184c9d773fc520ae95a9f93c2c35893b0e53b))
+* make importer wait for API height to catch up if it's behind ([#101](https://github.com/hirosystems/token-metadata-service/issues/101)) ([930cce3](https://github.com/hirosystems/token-metadata-service/commit/930cce3c6660bdc98181d5c5bced94c0bd46699c))
+* support JSON5 metadata strings ([#106](https://github.com/hirosystems/token-metadata-service/issues/106)) ([d19634f](https://github.com/hirosystems/token-metadata-service/commit/d19634f5dae83f769e14956edc842b382f08c763))
+
 ## [0.1.0-beta.7](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.6...v0.1.0-beta.7) (2023-02-07)
 
 
