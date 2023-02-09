@@ -346,7 +346,7 @@ export class PgStore extends BasePgStore {
    */
   async getTokenEtag(args: {
     contractPrincipal: string;
-    tokenNumber: number;
+    tokenNumber: bigint;
   }): Promise<string | undefined> {
     const result = await this.sql<{ etag: string }[]>`
       SELECT date_part('epoch', t.updated_at)::text AS etag
