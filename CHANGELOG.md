@@ -1,3 +1,10 @@
+## [0.1.0-beta.10](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.9...v0.1.0-beta.10) (2023-02-09)
+
+
+### Bug Fixes
+
+* enclose response etag in double quotes ([#113](https://github.com/hirosystems/token-metadata-service/issues/113)) ([2b77cfe](https://github.com/hirosystems/token-metadata-service/commit/2b77cfec24c1d1cba6857525fd9321628c7f3b9a))
+
 ## [0.1.0-beta.9](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.8...v0.1.0-beta.9) (2023-02-09)
 
 
