@@ -1,3 +1,10 @@
+## [0.1.0-beta.9](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.8...v0.1.0-beta.9) (2023-02-09)
+
+
+### Bug Fixes
+
+* etag cache calculation with url prefix ([#111](https://github.com/hirosystems/token-metadata-service/issues/111)) ([f872f93](https://github.com/hirosystems/token-metadata-service/commit/f872f9365e2d95ec051cfb4838881eb01e5c3df6))
+
 ## [0.1.0-beta.8](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.7...v0.1.0-beta.8) (2023-02-09)
 
 
