@@ -56,6 +56,7 @@
     "evt": "^1.11.2",
     "fastify": "^4.9.2",
     "fastify-metrics": "^9.2.4",
+    "json5": "^2.2.3",
     "node-pg-migrate": "^6.2.2",
     "p-queue": "^6.6.2",
     "pino": "^8.8.0",

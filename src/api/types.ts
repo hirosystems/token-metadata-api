@@ -39,6 +39,7 @@ export const Metadata = Type.Object({
   name: Type.Optional(Type.String()),
   description: Type.Optional(Type.String()),
   image: Type.Optional(Type.String({ format: 'uri' })),
+  cached_image: Type.Optional(Type.String({ format: 'uri' })),
   attributes: Type.Optional(Type.Array(MetadataAttribute)),
   properties: Type.Optional(MetadataProperties),
   localization: Type.Optional(MetadataLocalization),

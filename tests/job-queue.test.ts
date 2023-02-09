@@ -5,7 +5,7 @@ import { DbJob, DbJobStatus, DbSipNumber, DbSmartContractInsert } from '../src/p
 import { JobQueue } from '../src/token-processor/queue/job-queue';
 import { cycleMigrations } from '../src/pg/migrations';
 import { PgBlockchainApiStore } from '../src/pg/blockchain-api/pg-blockchain-api-store';
-import { MockPgBlockchainApiStore } from './helpers';
+import { MockPgBlockchainApiStore, sleep } from './helpers';
 
 class TestJobQueue extends JobQueue {
   constructor(args: { db: PgStore; apiDb: PgBlockchainApiStore }) {
@@ -128,9 +128,6 @@ describe('JobQueue', () => {
     await db.insertAndEnqueueSmartContract({ values: values1 });
 
     const queue = new JobQueue({ db, apiDb: new MockPgBlockchainApiStore() });
-    const sleep = (time: number) => {
-      return new Promise(resolve => setTimeout(resolve, time));
-    };
 
     // Close DB and start the queue. If the error is not handled correctly, the test will fail.
     await db.close();
