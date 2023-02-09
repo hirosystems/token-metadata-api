@@ -17,9 +17,14 @@ export async function handleTokenCache(request: FastifyRequest, reply: FastifyRe
     if (ifNoneMatch && ifNoneMatch.includes(etag)) {
       await reply.header('Cache-Control', CACHE_CONTROL_MUST_REVALIDATE).code(304).send();
     } else {
-      void reply.header('ETag', `"${etag}"`);
+      void reply.headers({ 'Cache-Control': CACHE_CONTROL_MUST_REVALIDATE, ETag: `"${etag}"` });
     }
   }
+}
+
+export function setReplyNonCacheable(reply: FastifyReply) {
+  reply.removeHeader('Cache-Control');
+  reply.removeHeader('Etag');
 }
 
 /**
