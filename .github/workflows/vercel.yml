@@ -6,8 +6,9 @@ env:
 
 on:
   push:
-    branches-ignore:
-      - master
+    branches:
+      - beta
+  pull_request:
 
 jobs:
   vercel:
