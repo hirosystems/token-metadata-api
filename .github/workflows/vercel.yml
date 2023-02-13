@@ -6,8 +6,9 @@ env:
 
 on:
   push:
-    branches-ignore:
-      - master
+    branches:
+      - beta
+  pull_request:
 
 jobs:
   vercel:
@@ -50,4 +51,13 @@ jobs:
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy project artifacts to Vercel
-        run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
+        id: deploy
+        run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} | awk '{print "deployment_url="$1}' >> $GITHUB_OUTPUT
+
+      - name: Add comment with Vercel deployment URL
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: thollander/actions-comment-pull-request@v2
+        with:
+          comment_tag: vercel
+          message: |
+            Vercel deployment URL: ${{ steps.deploy.outputs.deployment_url }} :rocket:
