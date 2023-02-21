@@ -1,3 +1,10 @@
+## [0.1.0-beta.12](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.11...v0.1.0-beta.12) (2023-02-21)
+
+
+### Features
+
+* enable run modes ([#116](https://github.com/hirosystems/token-metadata-service/issues/116)) ([c7a9c55](https://github.com/hirosystems/token-metadata-service/commit/c7a9c553217f5dcc9c1f30db3d8d29200504e930))
+
 ## [0.1.0-beta.11](https://github.com/hirosystems/token-metadata-service/compare/v0.1.0-beta.10...v0.1.0-beta.11) (2023-02-09)
 
 
