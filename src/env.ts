@@ -4,9 +4,9 @@ interface Env {
   /**
    * Run mode for this service. Allows you to control how the Token Metadata Service runs, typically
    * in an auto-scaled environment. Available values are:
-   * * `default`: Runs both the JobQueue and the REST API server (this is the default).
-   * * `writeonly`: Runs only the JobQueue
-   * * `readonly`: Runs only the REST API server.
+   * * `default`: Runs background jobs and the REST API server (this is the default)
+   * * `writeonly`: Runs only background jobs
+   * * `readonly`: Runs only the REST API server
    */
   RUN_MODE: string;
   /** Hosname of the Token Metadata Service API server */
