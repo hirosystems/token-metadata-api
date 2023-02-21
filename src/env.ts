@@ -1,6 +1,14 @@
 import envSchema from 'env-schema';
 
 interface Env {
+  /**
+   * Run mode for this service. Allows you to control how the Token Metadata Service runs, typically
+   * in an auto-scaled environment. Available values are:
+   * * `default`: Runs both the JobQueue and the REST API server (this is the default).
+   * * `writeonly`: Runs only the JobQueue
+   * * `readonly`: Runs only the REST API server.
+   */
+  RUN_MODE: string;
   /** Hosname of the Token Metadata Service API server */
   API_HOST: string;
   /** Port in which to serve the API */
@@ -109,6 +117,7 @@ export function getEnvVars(): Env {
   const schema = {
     type: 'object',
     required: [
+      'RUN_MODE',
       'API_HOST',
       'API_PORT',
       'PGHOST',
@@ -127,6 +136,11 @@ export function getEnvVars(): Env {
       'PUBLIC_GATEWAY_ARWEAVE',
     ],
     properties: {
+      RUN_MODE: {
+        type: 'string',
+        enum: ['default', 'readonly', 'writeonly'],
+        default: 'default',
+      },
       API_HOST: {
         type: 'string',
       },
