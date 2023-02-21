@@ -12,8 +12,12 @@ import { registerShutdownConfig } from './shutdown-handler';
 import { ENV } from './env';
 import { logger } from './logger';
 
-async function initApp() {
-  const db = await PgStore.connect({ skipMigrations: false });
+/**
+ * Initializes background services. Only for `default` and `writeonly` run modes.
+ * @param db - PgStore
+ */
+async function initBackgroundServices(db: PgStore) {
+  logger.info('Initializing background services...');
   const apiDb = await PgBlockchainApiStore.connect();
 
   if (process.env.NODE_ENV === 'production') {
@@ -53,6 +57,25 @@ async function initApp() {
     },
   });
 
+  registerShutdownConfig({
+    name: 'Blockchain API DB',
+    forceKillable: false,
+    handler: async () => {
+      await apiDb.close();
+    },
+  });
+
+  await contractImporter.import();
+  await contractMonitor.start();
+  jobQueue.start();
+}
+
+/**
+ * Initializes API service. Only for `default` and `readonly` run modes.
+ * @param db - PgStore
+ */
+async function initApiService(db: PgStore) {
+  logger.info('Initializing API service...');
   const apiServer = await buildApiServer({ db });
   registerShutdownConfig({
     name: 'API Server',
@@ -62,6 +85,20 @@ async function initApp() {
     },
   });
 
+  await apiServer.listen({ host: ENV.API_HOST, port: ENV.API_PORT });
+}
+
+async function initApp() {
+  logger.info(`Initializing in ${ENV.RUN_MODE} run mode...`);
+  const db = await PgStore.connect({ skipMigrations: false });
+
+  if (['default', 'writeonly'].includes(ENV.RUN_MODE)) {
+    await initBackgroundServices(db);
+  }
+  if (['default', 'readonly'].includes(ENV.RUN_MODE)) {
+    await initApiService(db);
+  }
+
   registerShutdownConfig({
     name: 'DB',
     forceKillable: false,
@@ -69,19 +106,6 @@ async function initApp() {
       await db.close();
     },
   });
-  registerShutdownConfig({
-    name: 'Blockchain API DB',
-    forceKillable: false,
-    handler: async () => {
-      await apiDb.close();
-    },
-  });
-
-  // Start services.
-  await contractImporter.import();
-  await contractMonitor.start();
-  jobQueue.start();
-  await apiServer.listen({ host: ENV.API_HOST, port: ENV.API_PORT });
 }
 
 registerShutdownConfig();

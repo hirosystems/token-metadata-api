@@ -40,10 +40,13 @@ Stacks blockchain and exposes it via JSON REST API endpoints.
 * Easy to use REST JSON endpoints with ETag caching
 * Prometheus metrics for job queue status, contract and token counts, API performance, etc.
 * Image cache/CDN support
+* Run modes for auto-scaling
 
 ## API reference
 
-See the [Token Metadata Service API Reference]() for more information.
+See the [Token Metadata Service API
+Reference](https://token-metadata-service-pbcblockstack-blockstack.vercel.app/) for more
+information.
 
 ## Quick start
 
@@ -78,6 +81,19 @@ Start the service
 ```
 npm run start
 ```
+
+#### Run modes
+
+To better support auto-scaling server configurations, this service supports three run modes
+specified by the `RUN_MODE` environment variable:
+
+* `default`: Runs all background jobs and the API server. Use this when you're running this service
+  only on one instance. This is the default mode.
+* `readonly`: Runs only the API server. Use this in an auto-scaled cluster when you have multiple
+  `readonly` instances and just one `writeonly` instance. This mode needs a `writeonly` instance to
+  continue populating the token metadata DB.
+* `writeonly`: Use one of these in an auto-scaled environment so you can continue consuming new
+  token contracts. Use in conjunction with multiple `readonly` instances as explained above.
 
 ### Stopping the service
 
