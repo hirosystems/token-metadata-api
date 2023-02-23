@@ -7,12 +7,17 @@ env:
 on:
   push:
     branches:
+      - master
       - beta
   pull_request:
 
 jobs:
   vercel:
     runs-on: ubuntu-latest
+
+    environment:
+      name: ${{ github.ref_name == 'master' && 'Production' || 'Preview' }}
+      url: ${{ github.ref_name == 'master' && 'https://token-metadata-service.vercel.app/' || 'https://token-metadata-service-pbcblockstack-blockstack.vercel.app/' }}
 
     steps:
       - uses: actions/checkout@v2
@@ -45,7 +50,7 @@ jobs:
         run: npm install --global vercel@latest
 
       - name: Pull Vercel environment information
-        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=${{ github.ref_name == 'master' && 'production' || 'preview' }} --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Build project artifacts
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}

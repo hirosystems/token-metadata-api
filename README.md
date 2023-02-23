@@ -44,8 +44,7 @@ Stacks blockchain and exposes it via JSON REST API endpoints.
 
 ## API reference
 
-See the [Token Metadata Service API
-Reference](https://token-metadata-service-pbcblockstack-blockstack.vercel.app/) for more
+See the [Token Metadata Service API Reference](https://token-metadata-service.vercel.app/) for more
 information.
 
 ## Quick start
