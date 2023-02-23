@@ -15,7 +15,9 @@ jobs:
   vercel:
     runs-on: ubuntu-latest
 
-    environment: ${{ github.ref_name == 'master' && 'Production' || 'Preview' }}
+    environment:
+      name: ${{ github.ref_name == 'master' && 'Production' || 'Preview' }}
+      url: ${{ github.ref_name == 'master' && 'https://token-metadata-service.vercel.app/' || 'https://token-metadata-service-pbcblockstack-blockstack.vercel.app/' }}
 
     steps:
       - uses: actions/checkout@v2
