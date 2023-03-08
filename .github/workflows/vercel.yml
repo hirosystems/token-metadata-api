@@ -16,11 +16,11 @@ jobs:
     runs-on: ubuntu-latest
 
     environment:
-      name: 'Production' # ${{ github.ref_name == 'master' && 'Production' || 'Preview' }}
-      url: 'https://token-metadata-api.vercel.app/' # ${{ github.ref_name == 'master' && 'https://token-metadata-api.vercel.app/' || 'https://token-metadata-api-pbcblockstack-blockstack.vercel.app/' }}
+      name: ${{ github.ref_name == 'master' && 'Production' || 'Preview' }}
+      url: ${{ github.ref_name == 'master' && 'https://token-metadata-api.vercel.app/' || 'https://token-metadata-api-pbcblockstack-blockstack.vercel.app/' }}
 
     env:
-      PROD: true # ${{ github.ref_name == 'master' }}
+      PROD: ${{ github.ref_name == 'master' }}
 
     steps:
       - uses: actions/checkout@v2
