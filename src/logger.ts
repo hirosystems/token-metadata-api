@@ -1,7 +1,7 @@
 import pino from 'pino';
 
 export const PINO_CONFIG = {
-  name: 'token-metadata-service',
+  name: 'token-metadata-api',
   level: 'info',
   timestamp: pino.stdTimeFunctions.isoTime,
   formatters: {

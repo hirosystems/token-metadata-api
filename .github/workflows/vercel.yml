@@ -17,7 +17,10 @@ jobs:
 
     environment:
       name: ${{ github.ref_name == 'master' && 'Production' || 'Preview' }}
-      url: ${{ github.ref_name == 'master' && 'https://token-metadata-service.vercel.app/' || 'https://token-metadata-service-pbcblockstack-blockstack.vercel.app/' }}
+      url: ${{ github.ref_name == 'master' && 'https://token-metadata-api.vercel.app/' || 'https://token-metadata-api-pbcblockstack-blockstack.vercel.app/' }}
+
+    env:
+      PROD: ${{ github.ref_name == 'master' }}
 
     steps:
       - uses: actions/checkout@v2
@@ -50,14 +53,14 @@ jobs:
         run: npm install --global vercel@latest
 
       - name: Pull Vercel environment information
-        run: vercel pull --yes --environment=${{ github.ref_name == 'master' && 'production' || 'preview' }} --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=${{ env.PROD && 'production' || 'preview' }} --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Build project artifacts
-        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel build ${{ env.PROD && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy project artifacts to Vercel
         id: deploy
-        run: vercel deploy ${{ github.ref_name == 'master' && '--prod' || '' }} --prebuilt --token=${{ secrets.VERCEL_TOKEN }} | awk '{print "deployment_url="$1}' >> $GITHUB_OUTPUT
+        run: vercel ${{ env.PROD && '--prod' || 'deploy' }} --prebuilt --token=${{ secrets.VERCEL_TOKEN }} | awk '{print "deployment_url="$1}' >> $GITHUB_OUTPUT
 
       - name: Add comment with Vercel deployment URL
         if: ${{ github.event_name == 'pull_request' }}

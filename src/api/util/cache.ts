@@ -1,6 +1,6 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { logger } from '../../logger';
-import { SmartContractRegEx } from '../types';
+import { SmartContractRegEx } from '../schemas';
 
 /**
  * A `Cache-Control` header used for re-validation based caching.

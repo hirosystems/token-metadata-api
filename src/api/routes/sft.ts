@@ -3,13 +3,11 @@ import { Type } from '@sinclair/typebox';
 import { FastifyPluginCallback } from 'fastify';
 import { Server } from 'http';
 import {
-  Decimals,
-  Metadata,
-  SmartContractRegEx,
+  SftMetadataResponse,
+  SftPrincipalParam,
+  TokenIdParam,
   TokenQuerystringParams,
-  TokenUri,
-  TotalSupply,
-} from '../types';
+} from '../schemas';
 import { handleTokenCache } from '../util/cache';
 import { parseMetadataLocaleBundle } from '../util/helpers';
 import { generateTokenErrorResponse, TokenErrorResponseSchema } from '../util/errors';
@@ -24,24 +22,17 @@ export const SftRoutes: FastifyPluginCallback<Record<never, never>, Server, Type
     '/sft/:principal/:token_id',
     {
       schema: {
+        operationId: 'getSftMetadata',
         summary: 'Semi-Fungible Token Metadata',
         description: 'Retrieves metadata for a SIP-013 Semi-Fungible Token',
         tags: ['Tokens'],
         params: Type.Object({
-          principal: Type.RegEx(SmartContractRegEx, {
-            description: 'SIP-013 compliant smart contract principal',
-            examples: ['SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1'],
-          }),
-          token_id: Type.Integer({ description: 'Token ID to retrieve', examples: ['35'] }),
+          principal: SftPrincipalParam,
+          token_id: TokenIdParam,
         }),
         querystring: TokenQuerystringParams,
         response: {
-          200: Type.Object({
-            token_uri: Type.Optional(TokenUri),
-            decimals: Type.Optional(Decimals),
-            total_supply: Type.Optional(TotalSupply),
-            metadata: Type.Optional(Metadata),
-          }),
+          200: SftMetadataResponse,
           ...TokenErrorResponseSchema,
         },
       },
