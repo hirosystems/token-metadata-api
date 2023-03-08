@@ -2,6 +2,7 @@
 
 title: Token Metadata API
 
+---
 
 # Token Metadata API
 
