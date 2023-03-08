@@ -1,4 +1,4 @@
-# Stacks Token Metadata Service
+# Token Metadata API
 
 A microservice that indexes metadata for all Fungible, Non-Fungible, and Semi-Fungible Tokens in the
 Stacks blockchain and exposes it via JSON REST API endpoints.
@@ -44,7 +44,7 @@ Stacks blockchain and exposes it via JSON REST API endpoints.
 
 ## API reference
 
-See the [Token Metadata Service API Reference](https://token-metadata-service.vercel.app/) for more
+See the [Token Metadata Service API Reference](https://token-metadata-api.vercel.app/) for more
 information.
 
 ## Quick start
@@ -67,7 +67,7 @@ Clone the repo.
 
 Create an `.env` file and specify the appropriate values to configure access to the Stacks API
 database, the Token Metadata Service local database, and the Stacks node RPC interface. See
-[`env.ts`](https://github.com/hirosystems/token-metadata-service/blob/develop/src/env.ts) for all
+[`env.ts`](https://github.com/hirosystems/token-metadata-api/blob/develop/src/env.ts) for all
 available configuration options.
 
 Build the app (NodeJS v18+ is required)
@@ -113,7 +113,7 @@ CDN image URLs in your metadata responses instead of raw URLs, providing key adv
 * etc.
 
 An example IMGIX processor script is included in
-[`config/image-cache.js`](https://github.com/hirosystems/token-metadata-service/blob/develop/config/image-cache.js).
+[`config/image-cache.js`](https://github.com/hirosystems/token-metadata-api/blob/develop/config/image-cache.js).
 You can customize the script path by altering the `METADATA_IMAGE_CACHE_PROCESSOR` environment
 variable.
 
@@ -142,13 +142,13 @@ must have access to external networks.
 #### Blockchain importer
 
 The
-[`BlockchainImporter`](https://github.com/hirosystems/token-metadata-service/blob/develop/src/token-processor/blockchain-api/blockchain-importer.ts)
+[`BlockchainImporter`](https://github.com/hirosystems/token-metadata-api/blob/develop/src/token-processor/blockchain-api/blockchain-importer.ts)
 component is only used on service boot.
 
 It connects to the Stacks Blockchain API database and scans the entire `smart_contracts` table
 looking for any contract that conforms to SIP-009, SIP-010 or SIP-013. When it finds a token
 contract, it creates a
-[`ProcessSmartContractJob`](https://github.com/hirosystems/token-metadata-service/blob/develop/src/token-processor/process-smart-contract-job.ts)
+[`ProcessSmartContractJob`](https://github.com/hirosystems/token-metadata-api/blob/develop/src/token-processor/process-smart-contract-job.ts)
 job and adds it to the [Job queue](#job-queue) so its tokens can be read and processed thereafter.
 
 This process is only run once. If the Token Metadata Service is ever restarted, though, this
@@ -158,7 +158,7 @@ pick up any newer contracts it might have missed while the service was unavailab
 #### Smart Contract Monitor
 
 The
-[`BlockchainSmartContractMonitor`](https://github.com/hirosystems/token-metadata-service/blob/develop/src/token-processor/blockchain-api/blockchain-smart-contract-monitor.ts)
+[`BlockchainSmartContractMonitor`](https://github.com/hirosystems/token-metadata-api/blob/develop/src/token-processor/blockchain-api/blockchain-smart-contract-monitor.ts)
 component constantly listens for the following Stacks Blockchain API events:
 
 * **Smart contract log events**
@@ -175,7 +175,7 @@ This process is kept alive throughout the entire service lifetime.
 #### Job Queue
 
 The role of the
-[`JobQueue`](https://github.com/hirosystems/token-metadata-service/blob/develop/src/token-processor/queue/job-queue.ts)
+[`JobQueue`](https://github.com/hirosystems/token-metadata-api/blob/develop/src/token-processor/queue/job-queue.ts)
 is to perform all the smart contract and token processing in the service.
 
 It is a priority queue that organizes all necessary work for contract ingestion and token metadata

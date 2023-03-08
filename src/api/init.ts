@@ -15,15 +15,25 @@ import { PINO_CONFIG } from '../logger';
 export const ApiSwaggerOptions: SwaggerOptions = {
   openapi: {
     info: {
-      title: 'Stacks Token Metadata Service',
+      title: 'Token Metadata API',
       description:
-        'A microservice that indexes metadata for every SIP-009, SIP-010, and SIP-013 Token in the Stacks blockchain and exposes it via REST API endpoints.',
+        'Service that indexes metadata for every SIP-009, SIP-010, and SIP-013 Token in the Stacks blockchain and exposes it via REST API endpoints.',
       version: SERVER_VERSION.tag,
     },
     externalDocs: {
-      url: 'https://github.com/hirosystems/token-metadata-service',
+      url: 'https://github.com/hirosystems/token-metadata-api',
       description: 'Source Repository',
     },
+    servers: [
+      {
+        url: 'https://api.hiro.so/',
+        description: 'mainnet',
+      },
+      {
+        url: 'https://api.testnet.hiro.so/',
+        description: 'testnet',
+      },
+    ],
     tags: [
       {
         name: 'Tokens',

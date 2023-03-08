@@ -24,7 +24,7 @@ describe('Status routes', () => {
     const response = await fastify.inject({ method: 'GET', url: '/metadata/v1/' });
     const json = response.json();
     expect(json).toStrictEqual({
-      server_version: 'token-metadata-service v0.0.1 (test:123456)',
+      server_version: 'token-metadata-api v0.0.1 (test:123456)',
       status: 'ready',
     });
     const noVersionResponse = await fastify.inject({ method: 'GET', url: '/metadata/' });
@@ -57,7 +57,7 @@ describe('Status routes', () => {
     const response = await fastify.inject({ method: 'GET', url: '/metadata/v1/' });
     const json = response.json();
     expect(json).toStrictEqual({
-      server_version: 'token-metadata-service v0.0.1 (test:123456)',
+      server_version: 'token-metadata-api v0.0.1 (test:123456)',
       status: 'ready',
       job_queue: {
         pending: 2,
