@@ -6,7 +6,7 @@ import {
   BlockchainDbSmartContract,
 } from '../src/pg/blockchain-api/pg-blockchain-api-store';
 import { DbSipNumber, DbSmartContractInsert, DbTokenType } from '../src/pg/types';
-import { MockPgBlockchainApiStore, SIP_009_ABI, SIP_010_ABI, SIP_013_ABI } from './helpers';
+import { MockPgBlockchainApiStore, SIP_009_ABI, SIP_010_ABI, SIP_013_ABI, sleep } from './helpers';
 import { BlockchainImporter } from '../src/token-processor/blockchain-api/blockchain-importer';
 import { cvToHex, tupleCV, bufferCV, listCV, uintCV } from '@stacks/transactions';
 
@@ -124,5 +124,25 @@ describe('BlockchainImporter', () => {
     expect(jobs2.length).toBe(2); // Only two tokens
     expect(jobs2[0].token_id).toBe(1);
     expect(jobs2[1].token_id).toBe(2);
+  });
+
+  test('waits for the API to catch up to the chain tip', async () => {
+    // Set the API behind on purpose.
+    apiDb.currentBlockHeight = 3;
+    await db.sql`UPDATE chain_tip SET block_height = 5`;
+    importer = new BlockchainImporter({ db, apiDb, startingBlockHeight: 5 });
+    importer['apiBlockHeightRetryIntervalMs'] = 1000;
+
+    // Start import, this will trigger a 1s wait loop for the API block height to catch up.
+    const importPromise = new Promise<void>(resolve => {
+      void importer.import().then(() => resolve());
+    });
+
+    // Update the API block height after 500ms.
+    await sleep(500);
+    apiDb.currentBlockHeight = 5;
+
+    // The import finishes then.
+    await importPromise;
   });
 });

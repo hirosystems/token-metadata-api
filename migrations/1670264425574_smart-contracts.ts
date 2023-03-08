@@ -34,12 +34,12 @@ export function up(pgm: MigrationBuilder): void {
       type: 'numeric',
     },
     created_at: {
-      type: 'timestamp',
+      type: 'timestamptz',
       default: pgm.func('(NOW())'),
       notNull: true,
     },
     updated_at: {
-      type: 'timestamp',
+      type: 'timestamptz',
     },
   });
   pgm.createConstraint('smart_contracts', 'smart_contracts_principal_unique', 'UNIQUE(principal)');

@@ -57,7 +57,7 @@ export class BlockchainSmartContractMonitor {
         () => logger.info(`BlockchainSmartContractMonitor connected`)
       );
     } catch (error) {
-      logger.error(`BlockchainSmartContractMonitor unable to connect`, error);
+      logger.error(error, 'BlockchainSmartContractMonitor unable to connect');
       throw error;
     }
   }
@@ -65,7 +65,7 @@ export class BlockchainSmartContractMonitor {
   async stop() {
     await this.listener
       ?.unlisten()
-      .then(() => logger.info(`BlockchainSmartContractMonitor connection closed`));
+      .then(() => logger.info('BlockchainSmartContractMonitor connection closed'));
   }
 
   protected async handleMessage(message: string) {
@@ -77,7 +77,7 @@ export class BlockchainSmartContractMonitor {
             try {
               await this.handleSmartContract(messageJson.payload);
             } catch (error) {
-              logger.error(`BlockchainSmartContractMonitor error handling contract deploy`, error);
+              logger.error(error, 'BlockchainSmartContractMonitor error handling contract deploy');
             }
           }
           break;
@@ -86,7 +86,7 @@ export class BlockchainSmartContractMonitor {
             try {
               await this.handleSmartContractLog(messageJson.payload);
             } catch (error) {
-              logger.error(`BlockchainSmartContractMonitor error handling contract log`, error);
+              logger.error(error, 'BlockchainSmartContractMonitor error handling contract log');
             }
           }
           break;
@@ -95,7 +95,7 @@ export class BlockchainSmartContractMonitor {
             try {
               await this.handleBlock(messageJson.payload);
             } catch (error) {
-              logger.error(`BlockchainSmartContractMonitor error handling block`, error);
+              logger.error(error, 'BlockchainSmartContractMonitor error handling block');
             }
           }
           break;

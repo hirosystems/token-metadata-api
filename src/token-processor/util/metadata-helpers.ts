@@ -1,4 +1,5 @@
 import * as querystring from 'querystring';
+import * as JSON5 from 'json5';
 import { Agent, errors, request } from 'undici';
 import {
   DbMetadataAttributeInsert,
@@ -30,6 +31,10 @@ const METADATA_FETCH_HTTP_AGENT = new Agent({
   headersTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
   bodyTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
   maxResponseSize: ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE,
+  maxRedirections: ENV.METADATA_FETCH_MAX_REDIRECTIONS,
+  connect: {
+    rejectUnauthorized: false, // Ignore SSL cert errors.
+  },
 });
 
 /**
@@ -182,14 +187,12 @@ async function parseMetadataForInsertion(
 }
 
 /**
- * Fetches metadata while monitoring timeout and size limits. Throws if any is reached.
- * Taken from https://github.com/node-fetch/node-fetch/issues/1149#issuecomment-840416752
+ * Fetches metadata while monitoring timeout and size limits, hostname rate limits, etc. Throws if
+ * any is reached.
  * @param httpUrl - URL to fetch
  * @returns Response text
  */
-export async function performSizeAndTimeLimitedMetadataFetch(
-  httpUrl: URL
-): Promise<string | undefined> {
+export async function fetchMetadata(httpUrl: URL): Promise<string | undefined> {
   const url = httpUrl.toString();
   try {
     const result = await request(url, {
@@ -204,14 +207,13 @@ export async function performSizeAndTimeLimitedMetadataFetch(
     if (
       error instanceof errors.HeadersTimeoutError ||
       error instanceof errors.BodyTimeoutError ||
-      (error as any).code === 'UND_ERR_SOCKET_TIMEOUT' ||
-      (error as any).code === 'UND_ERR_CONNECT_TIMEOUT'
+      error instanceof errors.ConnectTimeoutError
     ) {
       throw new MetadataTimeoutError(url);
     } else if (error instanceof errors.ResponseExceededMaxSizeError) {
       throw new MetadataSizeExceededError(url);
     } else if (error instanceof errors.ResponseStatusCodeError && error.statusCode === 429) {
-      throw new TooManyRequestsHttpError(url);
+      throw new TooManyRequestsHttpError(httpUrl, error);
     }
     throw new HttpError(`${url}: ${error}`, error);
   }
@@ -238,7 +240,7 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
       content = dataUrl.data;
     }
     try {
-      const result = JSON.parse(content);
+      const result = JSON5.parse(content);
       if (RawMetadataCType.Check(result)) {
         return result;
       }
@@ -258,8 +260,8 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
   // metadata as dead.
   do {
     try {
-      const text = await performSizeAndTimeLimitedMetadataFetch(httpUrl);
-      result = text ? JSON.parse(text) : undefined;
+      const text = await fetchMetadata(httpUrl);
+      result = text ? JSON5.parse(text) : undefined;
       break;
     } catch (error) {
       fetchImmediateRetryCount++;

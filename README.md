@@ -40,10 +40,12 @@ Stacks blockchain and exposes it via JSON REST API endpoints.
 * Easy to use REST JSON endpoints with ETag caching
 * Prometheus metrics for job queue status, contract and token counts, API performance, etc.
 * Image cache/CDN support
+* Run modes for auto-scaling
 
 ## API reference
 
-See the [Token Metadata Service API Reference]() for more information.
+See the [Token Metadata Service API Reference](https://token-metadata-service.vercel.app/) for more
+information.
 
 ## Quick start
 
@@ -78,6 +80,19 @@ Start the service
 ```
 npm run start
 ```
+
+#### Run modes
+
+To better support auto-scaling server configurations, this service supports three run modes
+specified by the `RUN_MODE` environment variable:
+
+* `default`: Runs all background jobs and the API server. Use this when you're running this service
+  only on one instance. This is the default mode.
+* `readonly`: Runs only the API server. Use this in an auto-scaled cluster when you have multiple
+  `readonly` instances and just one `writeonly` instance. This mode needs a `writeonly` instance to
+  continue populating the token metadata DB.
+* `writeonly`: Use one of these in an auto-scaled environment so you can continue consuming new
+  token contracts. Use in conjunction with multiple `readonly` instances as explained above.
 
 ### Stopping the service
 
@@ -147,7 +162,7 @@ The
 component constantly listens for the following Stacks Blockchain API events:
 
 * **Smart contract log events**
-    
+
     If a contract `print` event conforms to SIP-019, it finds the affected tokens and marks them for
     metadata refresh.
 
@@ -192,3 +207,7 @@ metadata ingestion.
 This job fetches the metadata JSON object for a single token as well as other relevant properties
 depending on the token type (symbol, decimals, etc.). Once fetched, it parses and ingests this data
 to save it into the local database for API endpoints to return.
+
+If a `429` (Too Many Requests) status code is returned by a hostname used to fetch metadata, the
+service will cease all further requests to it until a reasonable amount of time has passed or until
+the time specified by the host in a `Retry-After` response header.

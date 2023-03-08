@@ -5,6 +5,7 @@ import { DbJob, DbJobStatus, DbSipNumber, DbSmartContractInsert } from '../src/p
 import { JobQueue } from '../src/token-processor/queue/job-queue';
 import { cycleMigrations } from '../src/pg/migrations';
 import { PgBlockchainApiStore } from '../src/pg/blockchain-api/pg-blockchain-api-store';
+import { MockPgBlockchainApiStore, sleep } from './helpers';
 
 class TestJobQueue extends JobQueue {
   constructor(args: { db: PgStore; apiDb: PgBlockchainApiStore }) {
@@ -114,5 +115,25 @@ describe('JobQueue', () => {
     expect((await db.getJob({ id: job1.id }))?.status).toBe('done');
     expect((await db.getJob({ id: job2.id }))?.status).toBe('queued');
     expect((await db.getJob({ id: job3.id }))?.status).toBe('queued');
+  });
+
+  test('pg connection errors are not re-thrown', async () => {
+    const values1: DbSmartContractInsert = {
+      principal: 'ABCD.test-ft',
+      sip: DbSipNumber.sip010,
+      abi: '"some"',
+      tx_id: '0x123456',
+      block_height: 1,
+    };
+    await db.insertAndEnqueueSmartContract({ values: values1 });
+
+    const queue = new JobQueue({ db, apiDb: new MockPgBlockchainApiStore() });
+
+    // Close DB and start the queue. If the error is not handled correctly, the test will fail.
+    await db.close();
+    queue.start();
+    // Wait 2 seconds and kill the queue.
+    await sleep(2000);
+    await queue.close();
   });
 });

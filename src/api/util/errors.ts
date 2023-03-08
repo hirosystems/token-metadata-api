@@ -11,6 +11,7 @@ import {
   TokenNotFoundError,
   TokenNotProcessedError,
 } from '../../pg/errors';
+import { setReplyNonCacheable } from './cache';
 
 export const TokenErrorResponseSchema = {
   404: TokenNotFoundResponse,
@@ -18,6 +19,7 @@ export const TokenErrorResponseSchema = {
 };
 
 export async function generateTokenErrorResponse(error: any, reply: FastifyReply) {
+  setReplyNonCacheable(reply);
   if (error instanceof TokenNotFoundError) {
     await reply.code(404).send(Value.Create(TokenNotFoundResponse));
   } else if (error instanceof TokenNotProcessedError) {

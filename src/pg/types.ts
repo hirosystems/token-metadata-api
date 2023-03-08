@@ -85,6 +85,19 @@ export type DbJob = {
   updated_at?: string;
 };
 
+export type DbRateLimitedHostInsert = {
+  hostname: string;
+  // Will be converted into a timestamp upon insert.
+  retry_after: number;
+};
+
+export type DbRateLimitedHost = {
+  id: number;
+  hostname: string;
+  created_at: string;
+  retry_after: string;
+};
+
 export type DbFtInsert = {
   name: string | null;
   symbol: string | null;
@@ -238,3 +251,5 @@ export const METADATA_ATTRIBUTES_COLUMNS = [
 ];
 
 export const METADATA_PROPERTIES_COLUMNS = ['id', 'metadata_id', 'name', 'value'];
+
+export const RATE_LIMITED_HOSTS_COLUMNS = ['id', 'hostname', 'created_at', 'retry_after'];

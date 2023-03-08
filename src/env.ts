@@ -1,6 +1,14 @@
 import envSchema from 'env-schema';
 
 interface Env {
+  /**
+   * Run mode for this service. Allows you to control how the Token Metadata Service runs, typically
+   * in an auto-scaled environment. Available values are:
+   * * `default`: Runs background jobs and the REST API server (this is the default)
+   * * `writeonly`: Runs only background jobs
+   * * `readonly`: Runs only the REST API server
+   */
+  RUN_MODE: string;
   /** Hosname of the Token Metadata Service API server */
   API_HOST: string;
   /** Port in which to serve the API */
@@ -67,6 +75,16 @@ interface Env {
    * hours).
    */
   METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL: number;
+  /**
+   * Time that must elapse between a 429 'Too many requests' response returned by a hostname and the
+   * next request that is sent to it (seconds). This value will be overridden by the `Retry-After`
+   * header returned by the domain, if any.
+   */
+  METADATA_RATE_LIMITED_HOST_RETRY_AFTER: number;
+  /**
+   * Maximum number of HTTP redirections to follow when fetching metadata. Defaults to 5.
+   */
+  METADATA_FETCH_MAX_REDIRECTIONS: number;
 
   /** Whether or not the `JobQueue` will continue to try retryable failed jobs indefinitely. */
   JOB_QUEUE_STRICT_MODE: boolean;
@@ -99,6 +117,7 @@ export function getEnvVars(): Env {
   const schema = {
     type: 'object',
     required: [
+      'RUN_MODE',
       'API_HOST',
       'API_PORT',
       'PGHOST',
@@ -117,6 +136,11 @@ export function getEnvVars(): Env {
       'PUBLIC_GATEWAY_ARWEAVE',
     ],
     properties: {
+      RUN_MODE: {
+        type: 'string',
+        enum: ['default', 'readonly', 'writeonly'],
+        default: 'default',
+      },
       API_HOST: {
         type: 'string',
       },
@@ -224,6 +248,14 @@ export function getEnvVars(): Env {
       METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL: {
         type: 'number',
         default: 86_400, // 24 hours
+      },
+      METADATA_RATE_LIMITED_HOST_RETRY_AFTER: {
+        type: 'number',
+        default: 3600, // 1 hour
+      },
+      METADATA_FETCH_MAX_REDIRECTIONS: {
+        type: 'number',
+        default: 5,
       },
       JOB_QUEUE_CONCURRENCY_LIMIT: {
         type: 'number',

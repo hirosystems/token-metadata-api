@@ -21,6 +21,9 @@ import {
   METADATA_COLUMNS,
   METADATA_ATTRIBUTES_COLUMNS,
   METADATA_PROPERTIES_COLUMNS,
+  DbRateLimitedHostInsert,
+  DbRateLimitedHost,
+  RATE_LIMITED_HOSTS_COLUMNS,
 } from './types';
 import { connectPostgres } from './postgres-tools';
 import { BasePgStore } from './postgres-tools/base-pg-store';
@@ -343,7 +346,7 @@ export class PgStore extends BasePgStore {
    */
   async getTokenEtag(args: {
     contractPrincipal: string;
-    tokenNumber: number;
+    tokenNumber: bigint;
   }): Promise<string | undefined> {
     const result = await this.sql<{ etag: string }[]>`
       SELECT date_part('epoch', t.updated_at)::text AS etag
@@ -393,7 +396,38 @@ export class PgStore extends BasePgStore {
       INSERT INTO jobs (token_id) (SELECT id AS token_id FROM token_inserts)
       ON CONFLICT (token_id) WHERE smart_contract_id IS NULL DO
         UPDATE SET updated_at = NOW(), status = 'pending'
-      RETURNING *
+      RETURNING ${this.sql(JOBS_COLUMNS)}
+    `;
+  }
+
+  async insertRateLimitedHost(args: {
+    values: DbRateLimitedHostInsert;
+  }): Promise<DbRateLimitedHost> {
+    const retryAfter = args.values.retry_after.toString();
+    const results = await this.sql<DbRateLimitedHost[]>`
+      INSERT INTO rate_limited_hosts (hostname, created_at, retry_after)
+      VALUES (${args.values.hostname}, DEFAULT, NOW() + INTERVAL '${this.sql(retryAfter)} seconds')
+      ON CONFLICT ON CONSTRAINT rate_limited_hosts_hostname_unique DO
+        UPDATE SET retry_after = EXCLUDED.retry_after
+      RETURNING ${this.sql(RATE_LIMITED_HOSTS_COLUMNS)}
+    `;
+    return results[0];
+  }
+
+  async getRateLimitedHost(args: { hostname: string }): Promise<DbRateLimitedHost | undefined> {
+    const results = await this.sql<DbRateLimitedHost[]>`
+      SELECT ${this.sql(RATE_LIMITED_HOSTS_COLUMNS)}
+      FROM rate_limited_hosts
+      WHERE hostname = ${args.hostname}
+    `;
+    if (results.count > 0) {
+      return results[0];
+    }
+  }
+
+  async deleteRateLimitedHost(args: { hostname: string }): Promise<void> {
+    await this.sql`
+      DELETE FROM rate_limited_hosts WHERE hostname = ${args.hostname}
     `;
   }
 

@@ -1,5 +1,6 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { logger } from '../../logger';
+import { SmartContractRegEx } from '../types';
 
 /**
  * A `Cache-Control` header used for re-validation based caching.
@@ -14,11 +15,16 @@ export async function handleTokenCache(request: FastifyRequest, reply: FastifyRe
   const etag = await getTokenEtag(request);
   if (etag) {
     if (ifNoneMatch && ifNoneMatch.includes(etag)) {
-      await reply.header('cache-control', CACHE_CONTROL_MUST_REVALIDATE).code(304).send();
+      await reply.header('Cache-Control', CACHE_CONTROL_MUST_REVALIDATE).code(304).send();
     } else {
-      void reply.header('etag', etag);
+      void reply.headers({ 'Cache-Control': CACHE_CONTROL_MUST_REVALIDATE, ETag: `"${etag}"` });
     }
   }
+}
+
+export function setReplyNonCacheable(reply: FastifyReply) {
+  reply.removeHeader('Cache-Control');
+  reply.removeHeader('Etag');
 }
 
 /**
@@ -28,9 +34,19 @@ export async function handleTokenCache(request: FastifyRequest, reply: FastifyRe
 async function getTokenEtag(request: FastifyRequest): Promise<string | undefined> {
   try {
     const components = request.url.split('/');
-    components.shift();
-    const contractPrincipal = components[1];
-    const tokenNumber = components[0] === 'ft' ? 1 : Number(components[2]);
+    let tokenNumber: bigint = 1n;
+    let contractPrincipal: string | undefined;
+    do {
+      const lastElement = components.pop();
+      if (lastElement && lastElement.length) {
+        if (SmartContractRegEx.test(lastElement)) {
+          contractPrincipal = lastElement;
+        } else if (/^\d+$/.test(lastElement)) {
+          tokenNumber = BigInt(lastElement);
+        }
+      }
+    } while (components.length);
+    if (!contractPrincipal) return;
     return await request.server.db.getTokenEtag({ contractPrincipal, tokenNumber });
   } catch (error) {
     return undefined;
