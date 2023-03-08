@@ -15,12 +15,12 @@ jobs:
   vercel:
     runs-on: ubuntu-latest
 
+    environment:
+      name: 'Production' # ${{ github.ref_name == 'master' && 'Production' || 'Preview' }}
+      url: 'https://token-metadata-api.vercel.app/' # ${{ github.ref_name == 'master' && 'https://token-metadata-api.vercel.app/' || 'https://token-metadata-api-pbcblockstack-blockstack.vercel.app/' }}
+
     env:
       PROD: true # ${{ github.ref_name == 'master' }}
-
-    environment:
-      name: ${{ env.PROD && 'Production' || 'Preview' }}
-      url: ${{ env.PROD && 'https://token-metadata-api.vercel.app/' || 'https://token-metadata-api-pbcblockstack-blockstack.vercel.app/' }}
 
     steps:
       - uses: actions/checkout@v2
