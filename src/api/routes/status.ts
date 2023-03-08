@@ -3,6 +3,7 @@ import { Type } from '@sinclair/typebox';
 import { FastifyPluginCallback } from 'fastify';
 import { Server } from 'http';
 import { SERVER_VERSION } from '../../server-version';
+import { ApiStatusResponse } from '../schemas';
 
 export const StatusRoutes: FastifyPluginCallback<
   Record<never, never>,
@@ -18,13 +19,7 @@ export const StatusRoutes: FastifyPluginCallback<
         description: 'Displays the status of the API and its current workload',
         tags: ['Status'],
         response: {
-          200: Type.Object({
-            server_version: Type.String(),
-            status: Type.String(),
-            tokens: Type.Optional(Type.Record(Type.String(), Type.Integer())),
-            token_contracts: Type.Optional(Type.Record(Type.String(), Type.Integer())),
-            job_queue: Type.Optional(Type.Record(Type.String(), Type.Integer())),
-          }),
+          200: ApiStatusResponse,
         },
       },
     },

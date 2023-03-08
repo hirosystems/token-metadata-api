@@ -3,14 +3,10 @@ import { Type } from '@sinclair/typebox';
 import { FastifyPluginCallback } from 'fastify';
 import { Server } from 'http';
 import {
-  Decimals,
-  Metadata,
+  SftMetadataResponse,
   SftPrincipalParam,
-  SmartContractRegEx,
   TokenIdParam,
   TokenQuerystringParams,
-  TokenUri,
-  TotalSupply,
 } from '../schemas';
 import { handleTokenCache } from '../util/cache';
 import { parseMetadataLocaleBundle } from '../util/helpers';
@@ -36,12 +32,7 @@ export const SftRoutes: FastifyPluginCallback<Record<never, never>, Server, Type
         }),
         querystring: TokenQuerystringParams,
         response: {
-          200: Type.Object({
-            token_uri: Type.Optional(TokenUri),
-            decimals: Type.Optional(Decimals),
-            total_supply: Type.Optional(TotalSupply),
-            metadata: Type.Optional(Metadata),
-          }),
+          200: SftMetadataResponse,
           ...TokenErrorResponseSchema,
         },
       },

@@ -3,11 +3,10 @@ import { Type } from '@sinclair/typebox';
 import { FastifyPluginCallback } from 'fastify';
 import { Server } from 'http';
 import {
-  Metadata,
+  NftMetadataResponse,
   NftPrincipalParam,
   TokenIdParam,
   TokenQuerystringParams,
-  TokenUri,
 } from '../schemas';
 import { handleTokenCache } from '../util/cache';
 import { parseMetadataLocaleBundle } from '../util/helpers';
@@ -33,10 +32,7 @@ export const NftRoutes: FastifyPluginCallback<Record<never, never>, Server, Type
         }),
         querystring: TokenQuerystringParams,
         response: {
-          200: Type.Object({
-            token_uri: Type.Optional(TokenUri),
-            metadata: Type.Optional(Metadata),
-          }),
+          200: NftMetadataResponse,
           ...TokenErrorResponseSchema,
         },
       },
