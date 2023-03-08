@@ -44,8 +44,7 @@ Stacks blockchain and exposes it via JSON REST API endpoints.
 
 ## API reference
 
-See the [Token Metadata Service API Reference](https://token-metadata-api.vercel.app/) for more
-information.
+See the [Token Metadata API Reference](https://docs.hiro.so/metadata/) for more information.
 
 ## Quick start
 
