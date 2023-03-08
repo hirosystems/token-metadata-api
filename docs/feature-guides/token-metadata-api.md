@@ -35,7 +35,7 @@ The following is the internal architectural diagram of the Token metadata API.
 #### Blockchain importer
 
 
-The [`BlockchainImporter`](/src/token-processor/blockchain-api/blockchain-importer.ts) is a component in the Token metadata API that takes token contracts from the API database. This component is only used on service boot.
+The [`BlockchainImporter`](https://github.com/hirosystems/token-metadata-api/tree/master/src/token-processor/blockchain-api/blockchain-importer.ts) is a component in the Token metadata API that takes token contracts from the API database. This component is only used on service boot.
 
 It connects to the Stacks Blockchain API database and scans the entire `smart_contracts` table looking for any contract that conforms to [SIP-009](https://github.com/stacksgov/sips/blob/main/sips/sip-009/sip-009-nft-standard.md), SIP-010 or SIP-013. When it finds a token contract, it creates a [`ProcessSmartContractJob`](/src/token-processor/queue/job/process-smart-contract-job.ts) and adds it to the [Job queue](#job-queue), ßso its tokens can be read and processed thereafter.
 
@@ -43,7 +43,7 @@ This process runs only once. If the Token metadata API is ever restarted, though
 
 #### Smart contract monitor
 
-The [`BlockchainSmartContractMonitor`](/src/token-processor/blockchain-api/blockchain-smart-contract-monitor.ts) component constantly listens to the following Stacks Blockchain API events:
+The [`BlockchainSmartContractMonitor`](https://github.com/hirosystems/token-metadata-api/tree/master/src/token-processor/blockchain-api/blockchain-smart-contract-monitor.ts) component constantly listens to the following Stacks Blockchain API events:
 
 * **Smart contract log events**
     
@@ -58,7 +58,7 @@ This process is kept alive throughout the entire service lifetime.
 #### Job queue
 
 
-The role of the [`JobQueue`](/src/token-processor/queue/job-queue.ts) is to perform all the smart contract and token processing in the service.
+The role of the [`JobQueue`](https://github.com/hirosystems/token-metadata-api/tree/master/src/token-processor/queue/job-queue.ts) is to perform all the smart contract and token processing in the service.
 
 It is a priority queue that organizes all necessary work for contract ingestion and token metadata processing. Every job this queue processes corresponds to one row in the `jobs` DB table, which marks its processing status and related objects to be worked on (smart contract or token).
 
@@ -124,7 +124,7 @@ This section helps you to initiate the service by following the steps below.
 
 `git clone https://github.com/hirosystems/token-metadata-api.git`
 
-1. Create a `.env` file and specify the appropriate values to configure access to the Stacks API database, the Token metadata API local database, and the Stacks node RPC interface. See [`env.ts`](/src/env.ts) for all available configuration options.
+1. Create a `.env` file and specify the appropriate values to configure access to the Stacks API database, the Token metadata API local database, and the Stacks node RPC interface. See [`env.ts`](https://github.com/hirosystems/token-metadata-api/tree/master/src/env.ts) for all available configuration options.
 
 2. Build the app (NodeJS v18+ is required)
 
@@ -152,5 +152,5 @@ The Token metadata API allows you to specify the path to a custom script that ca
 * Protects original image hosts from [DDoS attacks](https://wikipedia.org/wiki/Denial-of-service_attack)
 * Increases user privacy
 
-An example IMGIX processor script is included in [`config/image-cache.js`](/config/image-cache.js).
+An example IMGIX processor script is included in [`config/image-cache.js`](https://github.com/hirosystems/token-metadata-api/blob/master/config/image-cache.js).
 You can customize the script path by altering the `METADATA_IMAGE_CACHE_PROCESSOR` environment variable.
