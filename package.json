@@ -1,5 +1,5 @@
 {
-  "name": "@hirosystems/token-metadata-service",
+  "name": "@hirosystems/token-metadata-api",
   "description": "A microservice that indexes metadata for all Fungible, Non-Fungible, and Semi-Fungible Tokens in the Stacks blockchain and exposes it via JSON REST API endpoints",
   "version": "1.0.0",
   "main": "index.js",

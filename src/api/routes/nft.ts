@@ -2,7 +2,12 @@ import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { FastifyPluginCallback } from 'fastify';
 import { Server } from 'http';
-import { Metadata, SmartContractRegEx, TokenQuerystringParams, TokenUri } from '../types';
+import {
+  NftMetadataResponse,
+  NftPrincipalParam,
+  TokenIdParam,
+  TokenQuerystringParams,
+} from '../schemas';
 import { handleTokenCache } from '../util/cache';
 import { parseMetadataLocaleBundle } from '../util/helpers';
 import { generateTokenErrorResponse, TokenErrorResponseSchema } from '../util/errors';
@@ -17,22 +22,17 @@ export const NftRoutes: FastifyPluginCallback<Record<never, never>, Server, Type
     '/nft/:principal/:token_id',
     {
       schema: {
+        operationId: 'getNftMetadata',
         summary: 'Non-Fungible Token Metadata',
         description: 'Retrieves metadata for a SIP-009 Non-Fungible Token',
         tags: ['Tokens'],
         params: Type.Object({
-          principal: Type.RegEx(SmartContractRegEx, {
-            description: 'SIP-009 compliant smart contract principal',
-            examples: ['SP497E7RX3233ATBS2AB9G4WTHB63X5PBSP5VGAQ.boomboxes-cycle-12'],
-          }),
-          token_id: Type.Integer({ description: 'Token ID to retrieve', examples: ['35'] }),
+          principal: NftPrincipalParam,
+          token_id: TokenIdParam,
         }),
         querystring: TokenQuerystringParams,
         response: {
-          200: Type.Object({
-            token_uri: Type.Optional(TokenUri),
-            metadata: Type.Optional(Metadata),
-          }),
+          200: NftMetadataResponse,
           ...TokenErrorResponseSchema,
         },
       },

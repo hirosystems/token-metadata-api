@@ -2,16 +2,7 @@ import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { FastifyPluginCallback } from 'fastify';
 import { Server } from 'http';
-import {
-  Decimals,
-  Metadata,
-  Name,
-  SmartContractRegEx,
-  Symbol,
-  TokenQuerystringParams,
-  TokenUri,
-  TotalSupply,
-} from '../types';
+import { FtMetadataResponse, FtPrincipalParam, TokenQuerystringParams } from '../schemas';
 import { handleTokenCache } from '../util/cache';
 import { generateTokenErrorResponse, TokenErrorResponseSchema } from '../util/errors';
 import { parseMetadataLocaleBundle } from '../util/helpers';
@@ -26,25 +17,16 @@ export const FtRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeB
     '/ft/:principal',
     {
       schema: {
+        operationId: 'getFtMetadata',
         summary: 'Fungible Token Metadata',
         description: 'Retrieves metadata for a SIP-010 Fungible Token',
         tags: ['Tokens'],
         params: Type.Object({
-          principal: Type.RegEx(SmartContractRegEx, {
-            description: 'Principal for the contract which owns the SIP-010 token',
-            examples: ['SP32XCD69XPS3GKDEXAQ29PJRDSD5AR643GNEEBXZ.fari-token'],
-          }),
+          principal: FtPrincipalParam,
         }),
         querystring: TokenQuerystringParams,
         response: {
-          200: Type.Object({
-            name: Type.Optional(Name),
-            symbol: Type.Optional(Symbol),
-            decimals: Type.Optional(Decimals),
-            total_supply: Type.Optional(TotalSupply),
-            token_uri: Type.Optional(TokenUri),
-            metadata: Type.Optional(Metadata),
-          }),
+          200: FtMetadataResponse,
           ...TokenErrorResponseSchema,
         },
       },

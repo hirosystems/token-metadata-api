@@ -1,6 +1,7 @@
 ---
+
 title: Token Metadata API
----
+
 
 # Token Metadata API
 
@@ -12,10 +13,10 @@ This section gives you an overview of external and internal architectural diagra
 
 ### External architecture
 
+
 The external architectural diagram shows how the Token metadata API is connected to three different systems, Stacks node, Stacks blockchain API database, and Postgres database.
 
 ![Architecture](../../architecture.png)
-
 
 1. Token metadata API interacts with Stacks Blockchain API database( referred to as Local Metadata DB in the diagram) to import all historical smart contracts when booting up and to listen for new contracts that may be deployed. Read-only access is recommended as this service will never need to write anything to this database(DB).
 2. A Stacks node to respond to all read-only contract calls required when fetching token metadata (calls to get token count, token metadata URIs, etc.).
@@ -25,11 +26,13 @@ The service needs to fetch external metadata files (JSONs, images) from the inte
 
 ### Internal architecture
 
+
 The following is the internal architectural diagram of the Token metadata API.
 
 ![Flowchart](../../flowchart.png)
 
 #### Blockchain importer
+
 
 The [`BlockchainImporter`](/src/token-processor/blockchain-api/blockchain-importer.ts) is a component in the Token metadata API that takes token contracts from the API database. This component is only used on service boot.
 
@@ -52,6 +55,7 @@ The [`BlockchainSmartContractMonitor`](/src/token-processor/blockchain-api/block
 This process is kept alive throughout the entire service lifetime.
 
 #### Job queue
+
 
 The role of the [`JobQueue`](/src/token-processor/queue/job-queue.ts) is to perform all the smart contract and token processing in the service.
 
@@ -122,12 +126,14 @@ This section helps you to initiate the service by following the steps below.
 1. Create a `.env` file and specify the appropriate values to configure access to the Stacks API database, the Token metadata API local database, and the Stacks node RPC interface. See [`env.ts`](/src/env.ts) for all available configuration options.
 
 2. Build the app (NodeJS v18+ is required)
+
 ```
 npm install
 npm run build
 ```
 
 1. Start the service
+
 ```
 npm run start
 ```

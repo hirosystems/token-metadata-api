@@ -1,5 +1,5 @@
 import { DbMetadataLocaleBundle } from '../../pg/types';
-import { MetadataPropertiesType, MetadataType, MetadataValueType } from '../types';
+import { MetadataPropertiesType, MetadataType, MetadataValueType } from '../schemas';
 
 export function parseMetadataLocaleBundle(
   locale?: DbMetadataLocaleBundle
