@@ -5,7 +5,7 @@ import {
   TokenLocaleNotFoundResponse,
   TokenNotFoundResponse,
   TokenNotProcessedResponse,
-} from '../types';
+} from '../schemas';
 import {
   TokenLocaleNotFoundError,
   TokenNotFoundError,

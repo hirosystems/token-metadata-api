@@ -13,8 +13,9 @@ export const StatusRoutes: FastifyPluginCallback<
     '/',
     {
       schema: {
-        summary: 'Service Status',
-        description: 'Displays the status of the Token Metadata Service and its current workload',
+        operationId: 'getApiStatus',
+        summary: 'API Status',
+        description: 'Displays the status of the API and its current workload',
         tags: ['Status'],
         response: {
           200: Type.Object({
