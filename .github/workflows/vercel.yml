@@ -16,12 +16,11 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      VERCEL_ENV: ${{ github.ref_name == 'rename' && 'production' || 'preview' }}
-      VERCEL_PROD: ${{ github.ref_name == 'rename' && '--prod' || '' }}
+      PROD: true # ${{ github.ref_name == 'master' }}
 
     environment:
-      name: ${{ github.ref_name == 'rename' && 'Production' || 'Preview' }}
-      url: ${{ github.ref_name == 'rename' && 'https://token-metadata-api.vercel.app/' || 'https://token-metadata-api-pbcblockstack-blockstack.vercel.app/' }}
+      name: ${{ env.PROD && 'Production' || 'Preview' }}
+      url: ${{ env.PROD && 'https://token-metadata-api.vercel.app/' || 'https://token-metadata-api-pbcblockstack-blockstack.vercel.app/' }}
 
     steps:
       - uses: actions/checkout@v2
@@ -54,14 +53,14 @@ jobs:
         run: npm install --global vercel@latest
 
       - name: Pull Vercel environment information
-        run: vercel pull --yes --environment=${{ env.VERCEL_ENV }} --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=${{ env.PROD && 'production' || 'preview' }} --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Build project artifacts
-        run: vercel build ${{ env.VERCEL_PROD }} --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel build ${{ env.PROD && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy project artifacts to Vercel
         id: deploy
-        run: vercel deploy ${{ env.VERCEL_PROD }} --prebuilt --token=${{ secrets.VERCEL_TOKEN }} | awk '{print "deployment_url="$1}' >> $GITHUB_OUTPUT
+        run: vercel ${{ env.PROD && '--prod' || 'deploy' }} --prebuilt --token=${{ secrets.VERCEL_TOKEN }} | awk '{print "deployment_url="$1}' >> $GITHUB_OUTPUT
 
       - name: Add comment with Vercel deployment URL
         if: ${{ github.event_name == 'pull_request' }}
