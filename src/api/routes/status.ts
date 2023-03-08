@@ -48,7 +48,7 @@ export const StatusRoutes: FastifyPluginCallback<
         }
 
         return {
-          server_version: `token-metadata-service ${SERVER_VERSION.tag} (${SERVER_VERSION.branch}:${SERVER_VERSION.commit})`,
+          server_version: `token-metadata-api ${SERVER_VERSION.tag} (${SERVER_VERSION.branch}:${SERVER_VERSION.commit})`,
           status: 'ready',
           tokens: tokenCounts.length ? tokens : undefined,
           token_contracts: contractCounts.length ? smartContracts : undefined,
