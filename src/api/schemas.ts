@@ -118,28 +118,28 @@ export const MetadataLocalization = Type.Object({
   locales: Type.Array(Type.String(), { examples: [['en', 'jp']] }),
 });
 
+const TokenDescription = Type.String({
+  examples: [
+    'Heavy hitters, all-stars and legends of the game join forces to create a collection of unique varsity jackets',
+  ],
+});
+
+const TokenImage = Type.String({
+  format: 'uri',
+  examples: ['ipfs://ipfs/QmZMqhh2ztwuZ3Y8PyEp2z5auyH3TCm3nnr5ZfjjgDjd5q/12199.png'],
+});
+
+const TokenCachedImage = Type.String({
+  format: 'uri',
+  examples: ['https://ipfs.io/ipfs/QmZMqhh2ztwuZ3Y8PyEp2z5auyH3TCm3nnr5ZfjjgDjd5q/12199.png'],
+});
+
 export const Metadata = Type.Object({
   sip: Type.Integer({ examples: [16] }),
   name: Type.Optional(Type.String({ examples: ["Satoshi's Team #12200"] })),
-  description: Type.Optional(
-    Type.String({
-      examples: [
-        'Heavy hitters, all-stars and legends of the game join forces to create a collection of unique varsity jackets',
-      ],
-    })
-  ),
-  image: Type.Optional(
-    Type.String({
-      format: 'uri',
-      examples: ['ipfs://ipfs/QmZMqhh2ztwuZ3Y8PyEp2z5auyH3TCm3nnr5ZfjjgDjd5q/12199.png'],
-    })
-  ),
-  cached_image: Type.Optional(
-    Type.String({
-      format: 'uri',
-      examples: ['https://ipfs.io/ipfs/QmZMqhh2ztwuZ3Y8PyEp2z5auyH3TCm3nnr5ZfjjgDjd5q/12199.png'],
-    })
-  ),
+  description: Type.Optional(TokenDescription),
+  image: Type.Optional(TokenImage),
+  cached_image: Type.Optional(TokenCachedImage),
   attributes: Type.Optional(Type.Array(MetadataAttribute)),
   properties: Type.Optional(MetadataProperties),
   localization: Type.Optional(MetadataLocalization),
@@ -167,6 +167,13 @@ export const FtMetadataResponse = Type.Object({
   decimals: Type.Optional(Type.Integer({ examples: [8] })),
   total_supply: Type.Optional(Type.String({ examples: ['9999980000000'] })),
   token_uri: Type.Optional(TokenUri),
+  description: Type.Optional(TokenDescription),
+  image_uri: Type.Optional(TokenCachedImage),
+  image_canonical_uri: Type.Optional(TokenImage),
+  tx_id: Type.String({
+    examples: ['0xef2ac1126e16f46843228b1dk4830e19eb7599129e4jf392cab9e65ae83a45c0'],
+  }),
+  sender_address: Type.String({ examples: ['ST399W7Z9WS0GMSNQGJGME5JAENKN56D65VGMGKGA'] }),
   metadata: Type.Optional(Metadata),
 });
 

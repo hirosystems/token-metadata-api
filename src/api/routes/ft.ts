@@ -44,6 +44,11 @@ export const FtRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeB
           decimals: metadataBundle?.token?.decimals ?? undefined,
           total_supply: metadataBundle?.token?.total_supply?.toString() ?? undefined,
           token_uri: metadataBundle?.token?.uri ?? undefined,
+          description: metadataBundle?.metadataLocale?.metadata?.description ?? undefined,
+          tx_id: metadataBundle?.smartContract.tx_id,
+          sender_address: metadataBundle?.smartContract.principal.split('.')[0],
+          image_uri: metadataBundle?.metadataLocale?.metadata?.cached_image ?? undefined,
+          image_canonical_uri: metadataBundle?.metadataLocale?.metadata?.image ?? undefined,
           metadata: parseMetadataLocaleBundle(metadataBundle?.metadataLocale),
         });
       } catch (error) {
