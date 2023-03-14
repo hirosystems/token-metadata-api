@@ -151,7 +151,11 @@ export class PgStore extends BasePgStore {
       if (args.locale && !(await this.isTokenLocaleAvailable(tokenIdRes[0].id, args.locale))) {
         throw new TokenLocaleNotFoundError();
       }
-      return await this.getTokenMetadataBundleInternal(tokenIdRes[0].id, args.locale);
+      return await this.getTokenMetadataBundleInternal(
+        tokenIdRes[0].id,
+        args.contractPrincipal,
+        args.locale
+      );
     });
   }
 
@@ -442,6 +446,7 @@ export class PgStore extends BasePgStore {
 
   private async getTokenMetadataBundleInternal(
     tokenId: number,
+    smartContractPrincipal: string,
     locale?: string
   ): Promise<DbTokenMetadataLocaleBundle> {
     const tokenRes = await this.sql<DbToken[]>`
@@ -477,8 +482,13 @@ export class PgStore extends BasePgStore {
         properties: properties,
       };
     }
+    const smartContract = await this.getSmartContract({ principal: smartContractPrincipal });
+    if (!smartContract) {
+      throw new TokenNotFoundError();
+    }
     return {
-      token: token,
+      token,
+      smartContract,
       metadataLocale: localeBundle,
     };
   }
