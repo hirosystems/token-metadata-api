@@ -40,7 +40,6 @@ export type DbSmartContract = {
   id: number;
   principal: string;
   sip: DbSipNumber;
-  abi: string;
   tx_id: string;
   block_height: number;
   token_count?: bigint;
@@ -188,6 +187,7 @@ export type DbMetadataLocaleBundle = {
 
 export type DbTokenMetadataLocaleBundle = {
   token: DbToken;
+  smartContract: DbSmartContract;
   metadataLocale?: DbMetadataLocaleBundle;
 };
 
@@ -195,7 +195,6 @@ export const SMART_CONTRACTS_COLUMNS = [
   'id',
   'principal',
   'sip',
-  'abi',
   'tx_id',
   'block_height',
   'token_count',

@@ -1,3 +1,10 @@
+## [0.1.1](https://github.com/hirosystems/token-metadata-api/compare/v0.1.0...v0.1.1) (2023-03-14)
+
+
+### Bug Fixes
+
+* return FT metadata in a backwards compatible way ([#130](https://github.com/hirosystems/token-metadata-api/issues/130)) ([3ca57a0](https://github.com/hirosystems/token-metadata-api/commit/3ca57a06bb14423a374cd7ceac368c1a6fbf0f57))
+
 ## [0.1.0](https://github.com/hirosystems/token-metadata-service/compare/v0.0.1...v0.1.0) (2023-02-22)
 
 
