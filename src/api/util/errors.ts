@@ -1,7 +1,7 @@
-import { Type } from '@sinclair/typebox';
 import { Value } from '@sinclair/typebox/value';
 import { FastifyReply } from 'fastify';
 import {
+  TokenErrorResponse,
   TokenLocaleNotFoundResponse,
   TokenNotFoundResponse,
   TokenNotProcessedResponse,
@@ -15,7 +15,7 @@ import { setReplyNonCacheable } from './cache';
 
 export const TokenErrorResponseSchema = {
   404: TokenNotFoundResponse,
-  422: Type.Union([TokenNotProcessedResponse, TokenLocaleNotFoundResponse]),
+  422: TokenErrorResponse,
 };
 
 export async function generateTokenErrorResponse(error: any, reply: FastifyReply) {
