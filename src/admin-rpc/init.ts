@@ -84,7 +84,7 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
   done();
 };
 
-export async function buildAdminServer(args: { db: PgStore; apiDb: PgBlockchainApiStore }) {
+export async function buildAdminRpcServer(args: { db: PgStore; apiDb: PgBlockchainApiStore }) {
   const fastify = Fastify({
     trustProxy: true,
     logger: PINO_CONFIG,
