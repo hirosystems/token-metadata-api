@@ -1,4 +1,4 @@
-## @hirosystems/token-metadata-api-client@1.0.0
+## @hirosystems/token-metadata-api-client
 
 This is a client library for the [Token Metadata API](https://github.com/hirosystems/token-metadata-api).
 
