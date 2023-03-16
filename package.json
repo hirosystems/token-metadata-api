@@ -20,7 +20,7 @@
     "generate:docs": "redoc-cli build --output ./tmp/index.html ./tmp/openapi.yaml",
     "generate:git-info": "rimraf .git-info && node ./git-info-generator.mjs",
     "generate:vercel": "npm run generate:git-info && npm run generate:openapi && npm run generate:docs",
-    "generate:client:typescript": "swagger-codegen generate -i ./tmp/openapi.yaml -l typescript-fetch -o client/typescript"
+    "generate:client:typescript": "swagger-codegen generate -i ./tmp/openapi.yaml -l typescript-fetch -o ./client/typescript -c ./client/typescript.json"
   },
   "prettier": "@stacks/prettier-config",
   "devDependencies": {
