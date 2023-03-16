@@ -270,6 +270,17 @@ function stringFromValue(value: ClarityValue): string {
 
 type TokenClass = 'ft' | 'nft' | 'sft';
 
+export function tokenClassFromSipNumber(sip: DbSipNumber): TokenClass {
+  switch (sip) {
+    case DbSipNumber.sip009:
+      return 'nft';
+    case DbSipNumber.sip010:
+      return 'ft';
+    case DbSipNumber.sip013:
+      return 'sft';
+  }
+}
+
 type MetadataUpdateMode = 'standard' | 'frozen' | 'dynamic';
 
 export type TokenMetadataUpdateNotification = {
