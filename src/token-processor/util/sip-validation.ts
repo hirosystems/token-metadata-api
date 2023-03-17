@@ -220,16 +220,19 @@ export function getSmartContractSip(abi: ClarityAbi): DbSipNumber | undefined {
   if (!abi) {
     return;
   }
-  if (abiContains(abi, SftTraitFunctions)) {
-    return DbSipNumber.sip013;
+  try {
+    if (abiContains(abi, SftTraitFunctions)) {
+      return DbSipNumber.sip013;
+    }
+    if (abi.non_fungible_tokens.length > 0 && abiContains(abi, NftTraitFunctions)) {
+      return DbSipNumber.sip009;
+    }
+    if (abi.fungible_tokens.length > 0 && abiContains(abi, FtTraitFunctions)) {
+      return DbSipNumber.sip010;
+    }
+  } catch (error) {
+    // Not a token contract.
   }
-  if (abi.non_fungible_tokens.length > 0 && abiContains(abi, NftTraitFunctions)) {
-    return DbSipNumber.sip009;
-  }
-  if (abi.fungible_tokens.length > 0 && abiContains(abi, FtTraitFunctions)) {
-    return DbSipNumber.sip010;
-  }
-  return;
 }
 
 function abiContains(abi: ClarityAbi, standardFunction: ClarityAbiFunction[]): boolean {
@@ -269,6 +272,17 @@ function stringFromValue(value: ClarityValue): string {
 }
 
 type TokenClass = 'ft' | 'nft' | 'sft';
+
+export function tokenClassFromSipNumber(sip: DbSipNumber): TokenClass {
+  switch (sip) {
+    case DbSipNumber.sip009:
+      return 'nft';
+    case DbSipNumber.sip010:
+      return 'ft';
+    case DbSipNumber.sip013:
+      return 'sft';
+  }
+}
 
 type MetadataUpdateMode = 'standard' | 'frozen' | 'dynamic';
 

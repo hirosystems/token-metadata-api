@@ -83,26 +83,20 @@ export const TokenIdParam = Type.Integer({
 // Responses
 // ==========================
 
-const MetadataValue = Type.Union(
-  [
-    Type.Object({}, { additionalProperties: true }),
-    Type.String(),
-    Type.Number(),
-    Type.Integer(),
-    Type.Boolean(),
-    Type.Array(Type.Any()),
-  ],
-  { examples: ['value'] }
-);
+const MetadataValue = Type.Any({ title: 'Metadata Value', examples: ['value'] });
 export type MetadataValueType = Static<typeof MetadataValue>;
 
-export const MetadataAttribute = Type.Object({
-  trait_type: Type.String({ examples: ['Background'] }),
-  display_type: Type.Optional(Type.String({ examples: ['string'] })),
-  value: MetadataValue,
-});
+export const MetadataAttribute = Type.Object(
+  {
+    trait_type: Type.String({ examples: ['Background'] }),
+    display_type: Type.Optional(Type.String({ examples: ['string'] })),
+    value: MetadataValue,
+  },
+  { title: 'Metadata Attribute' }
+);
 
 export const MetadataProperties = Type.Record(Type.String(), MetadataValue, {
+  title: 'Metadata Properties',
   examples: [
     {
       collection: 'Foo Collection',
@@ -112,11 +106,14 @@ export const MetadataProperties = Type.Record(Type.String(), MetadataValue, {
 });
 export type MetadataPropertiesType = Static<typeof MetadataProperties>;
 
-export const MetadataLocalization = Type.Object({
-  uri: Type.String({ format: 'uri', examples: ['http://token.com/metadata?hl={locale}'] }),
-  default: Type.String({ examples: ['en'] }),
-  locales: Type.Array(Type.String(), { examples: [['en', 'jp']] }),
-});
+export const MetadataLocalization = Type.Object(
+  {
+    uri: Type.String({ format: 'uri', examples: ['http://token.com/metadata?hl={locale}'] }),
+    default: Type.String({ examples: ['en'] }),
+    locales: Type.Array(Type.String(), { examples: [['en', 'jp']] }),
+  },
+  { title: 'Metadata Localization' }
+);
 
 const TokenDescription = Type.String({
   examples: [
@@ -134,16 +131,19 @@ const TokenCachedImage = Type.String({
   examples: ['https://ipfs.io/ipfs/QmZMqhh2ztwuZ3Y8PyEp2z5auyH3TCm3nnr5ZfjjgDjd5q/12199.png'],
 });
 
-export const Metadata = Type.Object({
-  sip: Type.Integer({ examples: [16] }),
-  name: Type.Optional(Type.String({ examples: ["Satoshi's Team #12200"] })),
-  description: Type.Optional(TokenDescription),
-  image: Type.Optional(TokenImage),
-  cached_image: Type.Optional(TokenCachedImage),
-  attributes: Type.Optional(Type.Array(MetadataAttribute)),
-  properties: Type.Optional(MetadataProperties),
-  localization: Type.Optional(MetadataLocalization),
-});
+export const Metadata = Type.Object(
+  {
+    sip: Type.Integer({ examples: [16] }),
+    name: Type.Optional(Type.String({ examples: ["Satoshi's Team #12200"] })),
+    description: Type.Optional(TokenDescription),
+    image: Type.Optional(TokenImage),
+    cached_image: Type.Optional(TokenCachedImage),
+    attributes: Type.Optional(Type.Array(MetadataAttribute)),
+    properties: Type.Optional(MetadataProperties),
+    localization: Type.Optional(MetadataLocalization),
+  },
+  { title: 'Metadata' }
+);
 export type MetadataType = Static<typeof Metadata>;
 
 export const TokenUri = Type.String({
@@ -151,70 +151,104 @@ export const TokenUri = Type.String({
   examples: ['ipfs://ipfs/Qmf9yDYuPTrp8NRUFf8xxDd5Ud24Dx9uYMwMn8o8G2cWPW/12200.json'],
 });
 
-export const TokenNotFoundResponse = Type.Object({
-  error: Type.Literal('Token not found'),
-});
-export const TokenNotProcessedResponse = Type.Object({
-  error: Type.Literal('Token metadata fetch in progress'),
-});
-export const TokenLocaleNotFoundResponse = Type.Object({
-  error: Type.Literal('Locale not found'),
-});
+export const TokenNotFoundResponse = Type.Object(
+  {
+    error: Type.Literal('Token not found'),
+  },
+  { title: 'Token Not Found Response' }
+);
 
-export const FtMetadataResponse = Type.Object({
-  name: Type.Optional(Type.String({ examples: ['Wrapped USD'] })),
-  symbol: Type.Optional(Type.String({ examples: ['xUSD'] })),
-  decimals: Type.Optional(Type.Integer({ examples: [8] })),
-  total_supply: Type.Optional(Type.String({ examples: ['9999980000000'] })),
-  token_uri: Type.Optional(TokenUri),
-  description: Type.Optional(TokenDescription),
-  image_uri: Type.Optional(TokenCachedImage),
-  image_canonical_uri: Type.Optional(TokenImage),
-  tx_id: Type.String({
-    examples: ['0xef2ac1126e16f46843228b1dk4830e19eb7599129e4jf392cab9e65ae83a45c0'],
-  }),
-  sender_address: Type.String({ examples: ['ST399W7Z9WS0GMSNQGJGME5JAENKN56D65VGMGKGA'] }),
-  metadata: Type.Optional(Metadata),
-});
+export const TokenNotProcessedResponse = Type.Object(
+  {
+    error: Type.Literal('Token metadata fetch in progress'),
+  },
+  { title: 'Token Metadata Fetch In Progress Response' }
+);
 
-export const NftMetadataResponse = Type.Object({
-  token_uri: Type.Optional(TokenUri),
-  metadata: Type.Optional(Metadata),
-});
+export const TokenLocaleNotFoundResponse = Type.Object(
+  {
+    error: Type.Literal('Locale not found'),
+  },
+  { title: 'Locale Not Found Response' }
+);
 
-export const SftMetadataResponse = Type.Object({
-  token_uri: Type.Optional(TokenUri),
-  decimals: Type.Optional(Type.Integer({ examples: [6] })),
-  total_supply: Type.Optional(Type.String({ examples: ['250'] })),
-  metadata: Type.Optional(Metadata),
-});
+export const TokenErrorResponse = Type.Union(
+  [TokenNotProcessedResponse, TokenLocaleNotFoundResponse],
+  { title: 'Token Error Response' }
+);
+
+export const FtMetadataResponse = Type.Object(
+  {
+    name: Type.Optional(Type.String({ examples: ['Wrapped USD'] })),
+    symbol: Type.Optional(Type.String({ examples: ['xUSD'] })),
+    decimals: Type.Optional(Type.Integer({ examples: [8] })),
+    total_supply: Type.Optional(Type.String({ examples: ['9999980000000'] })),
+    token_uri: Type.Optional(TokenUri),
+    description: Type.Optional(TokenDescription),
+    image_uri: Type.Optional(TokenCachedImage),
+    image_canonical_uri: Type.Optional(TokenImage),
+    tx_id: Type.String({
+      examples: ['0xef2ac1126e16f46843228b1dk4830e19eb7599129e4jf392cab9e65ae83a45c0'],
+    }),
+    sender_address: Type.String({ examples: ['ST399W7Z9WS0GMSNQGJGME5JAENKN56D65VGMGKGA'] }),
+    metadata: Type.Optional(Metadata),
+  },
+  { title: 'Ft Metadata Response' }
+);
+
+export const NftMetadataResponse = Type.Object(
+  {
+    token_uri: Type.Optional(TokenUri),
+    metadata: Type.Optional(Metadata),
+  },
+  { title: 'Nft Metadata Response' }
+);
+
+export const SftMetadataResponse = Type.Object(
+  {
+    token_uri: Type.Optional(TokenUri),
+    decimals: Type.Optional(Type.Integer({ examples: [6] })),
+    total_supply: Type.Optional(Type.String({ examples: ['250'] })),
+    metadata: Type.Optional(Metadata),
+  },
+  { title: 'Sft Metadata Response' }
+);
 
 export const ApiStatusResponse = Type.Object(
   {
     server_version: Type.String({ examples: ['token-metadata-api v0.0.1 (master:a1b2c3)'] }),
     status: Type.String({ examples: ['ready'] }),
     tokens: Type.Optional(
-      Type.Object({
-        ft: Type.Optional(Type.Integer({ examples: [512] })),
-        nft: Type.Optional(Type.Integer({ examples: [493452] })),
-        sft: Type.Optional(Type.Integer({ examples: [44] })),
-      })
+      Type.Object(
+        {
+          ft: Type.Optional(Type.Integer({ examples: [512] })),
+          nft: Type.Optional(Type.Integer({ examples: [493452] })),
+          sft: Type.Optional(Type.Integer({ examples: [44] })),
+        },
+        { title: 'Api Token Count' }
+      )
     ),
     token_contracts: Type.Optional(
-      Type.Object({
-        'sip-009': Type.Optional(Type.Integer({ examples: [3101] })),
-        'sip-010': Type.Optional(Type.Integer({ examples: [512] })),
-        'sip-013': Type.Optional(Type.Integer({ examples: [11] })),
-      })
+      Type.Object(
+        {
+          'sip-009': Type.Optional(Type.Integer({ examples: [3101] })),
+          'sip-010': Type.Optional(Type.Integer({ examples: [512] })),
+          'sip-013': Type.Optional(Type.Integer({ examples: [11] })),
+        },
+        { title: 'Api Token Contract Count' }
+      )
     ),
     job_queue: Type.Optional(
-      Type.Object({
-        pending: Type.Optional(Type.Integer({ examples: [430562] })),
-        queued: Type.Optional(Type.Integer({ examples: [512] })),
-        done: Type.Optional(Type.Integer({ examples: [12532] })),
-        failed: Type.Optional(Type.Integer({ examples: [11] })),
-      })
+      Type.Object(
+        {
+          pending: Type.Optional(Type.Integer({ examples: [430562] })),
+          queued: Type.Optional(Type.Integer({ examples: [512] })),
+          done: Type.Optional(Type.Integer({ examples: [12532] })),
+          failed: Type.Optional(Type.Integer({ examples: [11] })),
+        },
+        { title: 'Api Job Count' }
+      )
     ),
   },
-  { title: 'Status Response' }
+  { title: 'Api Status Response' }
 );

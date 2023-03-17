@@ -11,6 +11,7 @@ import { TokenProcessorMetrics } from './token-processor/token-processor-metrics
 import { registerShutdownConfig } from './shutdown-handler';
 import { ENV } from './env';
 import { logger } from './logger';
+import { buildAdminRpcServer } from './admin-rpc/init';
 
 /**
  * Initializes background services. Only for `default` and `writeonly` run modes.
@@ -68,6 +69,16 @@ async function initBackgroundServices(db: PgStore) {
   await contractImporter.import();
   await contractMonitor.start();
   jobQueue.start();
+
+  const adminRpcServer = await buildAdminRpcServer({ db, apiDb });
+  registerShutdownConfig({
+    name: 'Admin RPC Server',
+    forceKillable: false,
+    handler: async () => {
+      await adminRpcServer.close();
+    },
+  });
+  await adminRpcServer.listen({ host: ENV.API_HOST, port: ENV.ADMIN_RPC_PORT });
 }
 
 /**

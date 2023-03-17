@@ -7,9 +7,12 @@ Stacks blockchain and exposes it via JSON REST API endpoints.
 
 * [Features](#features)
 * [API reference](#api-reference)
+* [Client library](#client-library)
 * [Quick start](#quick-start)
     * [System requirements](#system-requirements)
     * [Running the service](#running-the-service)
+        * [Run modes](#run-modes)
+    * [Stopping the service](#stopping-the-service)
     * [Using an image cache service](#using-an-image-cache-service)
 * [Service architecture](#service-architecture)
     * [External](#external)
@@ -45,6 +48,11 @@ Stacks blockchain and exposes it via JSON REST API endpoints.
 ## API reference
 
 See the [Token Metadata API Reference](https://docs.hiro.so/metadata/) for more information.
+
+## Client library
+
+A TypeScript client library is available for consuming the API. See [the official
+package](https://www.npmjs.com/package/@hirosystems/token-metadata-api-client) for more information.
 
 ## Quick start
 
