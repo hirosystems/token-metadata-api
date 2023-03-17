@@ -1,3 +1,10 @@
+## [0.2.1](https://github.com/hirosystems/token-metadata-api/compare/v0.2.0...v0.2.1) (2023-03-17)
+
+
+### Bug Fixes
+
+* do not retry incorrect clarity values ([#143](https://github.com/hirosystems/token-metadata-api/issues/143)) ([272064a](https://github.com/hirosystems/token-metadata-api/commit/272064aaf39b80cefe16418ac80d8d1c0ca08674))
+
 ## [0.2.0](https://github.com/hirosystems/token-metadata-api/compare/v0.1.1...v0.2.0) (2023-03-17)
 
 
