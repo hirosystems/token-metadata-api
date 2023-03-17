@@ -2,7 +2,7 @@ import Fastify, { FastifyPluginCallback } from 'fastify';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { PgStore } from '../pg/pg-store';
 import { Server } from 'http';
-import { PINO_CONFIG } from '../logger';
+import { logger, PINO_CONFIG } from '../logger';
 import { Type } from '@sinclair/typebox';
 import { SmartContractRegEx } from '../api/schemas';
 import { PgBlockchainApiStore } from '../pg/blockchain-api/pg-blockchain-api-store';
@@ -49,7 +49,8 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
           block_height: contract.block_height,
         },
       });
-      await reply.code(200);
+      logger.info(`AdminRPC imported contract: ${contract.contract_id}`);
+      await reply.code(200).send();
     }
   );
 
@@ -77,7 +78,7 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
         update_mode: DbTokenUpdateMode.standard,
       };
       await fastify.db.enqueueTokenMetadataUpdateNotification({ notification });
-      await reply.code(200);
+      await reply.code(200).send();
     }
   );
 
