@@ -1,5 +1,6 @@
 {
   "supportsES6": false,
   "npmName": "@hirosystems/token-metadata-api-client",
-  "npmVersion": "1.0.0"
+  "npmVersion": "1.0.0",
+  "modelPropertyNaming": "original"
 }
