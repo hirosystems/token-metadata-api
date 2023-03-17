@@ -13,6 +13,10 @@ interface Env {
   API_HOST: string;
   /** Port in which to serve the API */
   API_PORT: number;
+  /** Hostname from which to serve the Admin RPC interface */
+  ADMIN_RPC_HOST: string;
+  /** Port in which to serve the Admin RPC interface */
+  ADMIN_RPC_PORT: number;
 
   PGHOST: string;
   PGPORT: number;
@@ -120,6 +124,8 @@ export function getEnvVars(): Env {
       'RUN_MODE',
       'API_HOST',
       'API_PORT',
+      'ADMIN_RPC_HOST',
+      'ADMIN_RPC_PORT',
       'PGHOST',
       'PGPORT',
       'PGUSER',
@@ -143,10 +149,21 @@ export function getEnvVars(): Env {
       },
       API_HOST: {
         type: 'string',
+        default: '0.0.0.0',
       },
       API_PORT: {
         type: 'number',
         default: 3000,
+        minimum: 0,
+        maximum: 65535,
+      },
+      ADMIN_RPC_HOST: {
+        type: 'string',
+        default: '0.0.0.0',
+      },
+      ADMIN_RPC_PORT: {
+        type: 'number',
+        default: 3001,
         minimum: 0,
         maximum: 65535,
       },
