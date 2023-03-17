@@ -113,7 +113,7 @@ describe('StacksNodeRpcClient', () => {
     }
   });
 
-  test('clarity value parse errors get retried', async () => {
+  test('clarity value parse errors are not retried', async () => {
     const mockResponse = {
       okay: true,
       result: cvToHex(uintCV(5)), // `get-token-uri` will fail because this is a `uint`
@@ -129,9 +129,7 @@ describe('StacksNodeRpcClient', () => {
       .reply(200, mockResponse);
     setGlobalDispatcher(agent);
 
-    await expect(client.readStringFromContract('get-token-uri', [])).rejects.toThrow(
-      RetryableJobError
-    );
+    await expect(client.readStringFromContract('get-token-uri', [])).rejects.toThrow(Error);
   });
 
   test('incorrect none uri strings are parsed as undefined', async () => {
