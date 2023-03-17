@@ -1,6 +1,6 @@
 {
   "name": "@hirosystems/token-metadata-api-client",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Client for @hirosystems/token-metadata-api",
   "author": "Hiro Systems PBC <engineering@hiro.so> (https://hiro.so)",
   "keywords": [
@@ -12,6 +12,13 @@
   "license": "GPL-3.0",
   "main": "./dist/index.js",
   "typings": "./dist/index.d.ts",
+  "files": [
+    "dist/",
+    "api.ts",
+    "configuration.ts",
+    "custom.d.ts",
+    "index.ts"
+  ],
   "scripts": {
     "build": "tsc --outDir dist/",
     "test": "jest",
