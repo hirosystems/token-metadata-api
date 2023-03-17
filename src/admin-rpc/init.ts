@@ -78,6 +78,10 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
         update_mode: DbTokenUpdateMode.standard,
       };
       await fastify.db.enqueueTokenMetadataUpdateNotification({ notification });
+      logger.info(
+        request.body.tokenIds,
+        `AdminRPC refreshing tokens for contract: ${contract.principal}`
+      );
       await reply.code(200).send();
     }
   );
