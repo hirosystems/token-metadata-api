@@ -128,7 +128,7 @@ export class StacksNodeRpcClient {
     if (unwrappedClarityValue.type_id === ClarityTypeID.UInt) {
       return unwrappedClarityValue;
     }
-    throw new RetryableJobError(
+    throw new Error(
       `Unexpected Clarity type '${unwrappedClarityValue.type_id}' while unwrapping uint`
     );
   }
@@ -143,7 +143,7 @@ export class StacksNodeRpcClient {
     } else if (unwrappedClarityValue.type_id === ClarityTypeID.OptionalNone) {
       return undefined;
     }
-    throw new RetryableJobError(
+    throw new Error(
       `Unexpected Clarity type '${unwrappedClarityValue.type_id}' while unwrapping string`
     );
   }

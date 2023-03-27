@@ -119,7 +119,7 @@ export interface ApiStatusResponse {
      * @type {string}
      * @memberof ApiStatusResponse
      */
-    serverVersion: string;
+    server_version: string;
     /**
      * 
      * @type {string}
@@ -137,13 +137,13 @@ export interface ApiStatusResponse {
      * @type {ApiTokenContractCount}
      * @memberof ApiStatusResponse
      */
-    tokenContracts?: ApiTokenContractCount;
+    token_contracts?: ApiTokenContractCount;
     /**
      * 
      * @type {ApiJobCount}
      * @memberof ApiStatusResponse
      */
-    jobQueue?: ApiJobCount;
+    job_queue?: ApiJobCount;
 }
 /**
  * 
@@ -156,19 +156,19 @@ export interface ApiTokenContractCount {
      * @type {number}
      * @memberof ApiTokenContractCount
      */
-    sip009?: number;
+    sip_009?: number;
     /**
      * 
      * @type {number}
      * @memberof ApiTokenContractCount
      */
-    sip010?: number;
+    sip_010?: number;
     /**
      * 
      * @type {number}
      * @memberof ApiTokenContractCount
      */
-    sip013?: number;
+    sip_013?: number;
 }
 /**
  * 
@@ -224,13 +224,13 @@ export interface FtMetadataResponse {
      * @type {string}
      * @memberof FtMetadataResponse
      */
-    totalSupply?: string;
+    total_supply?: string;
     /**
      * 
      * @type {string}
      * @memberof FtMetadataResponse
      */
-    tokenUri?: string;
+    token_uri?: string;
     /**
      * 
      * @type {string}
@@ -242,25 +242,25 @@ export interface FtMetadataResponse {
      * @type {string}
      * @memberof FtMetadataResponse
      */
-    imageUri?: string;
+    image_uri?: string;
     /**
      * 
      * @type {string}
      * @memberof FtMetadataResponse
      */
-    imageCanonicalUri?: string;
+    image_canonical_uri?: string;
     /**
      * 
      * @type {string}
      * @memberof FtMetadataResponse
      */
-    txId: string;
+    tx_id: string;
     /**
      * 
      * @type {string}
      * @memberof FtMetadataResponse
      */
-    senderAddress: string;
+    sender_address: string;
     /**
      * 
      * @type {Metadata}
@@ -303,7 +303,7 @@ export interface Metadata {
      * @type {string}
      * @memberof Metadata
      */
-    cachedImage?: string;
+    cached_image?: string;
     /**
      * 
      * @type {Array<MetadataAttribute>}
@@ -334,13 +334,13 @@ export interface MetadataAttribute {
      * @type {string}
      * @memberof MetadataAttribute
      */
-    traitType: string;
+    trait_type: string;
     /**
      * 
      * @type {string}
      * @memberof MetadataAttribute
      */
-    displayType?: string;
+    display_type?: string;
     /**
      * 
      * @type {any}
@@ -384,7 +384,7 @@ export interface NftMetadataResponse {
      * @type {string}
      * @memberof NftMetadataResponse
      */
-    tokenUri?: string;
+    token_uri?: string;
     /**
      * 
      * @type {Metadata}
@@ -403,7 +403,7 @@ export interface SftMetadataResponse {
      * @type {string}
      * @memberof SftMetadataResponse
      */
-    tokenUri?: string;
+    token_uri?: string;
     /**
      * 
      * @type {number}
@@ -415,7 +415,7 @@ export interface SftMetadataResponse {
      * @type {string}
      * @memberof SftMetadataResponse
      */
-    totalSupply?: string;
+    total_supply?: string;
     /**
      * 
      * @type {Metadata}
@@ -597,23 +597,23 @@ export const TokensApiFetchParamCreator = function (configuration?: Configuratio
          * Retrieves metadata for a SIP-009 Non-Fungible Token
          * @summary Non-Fungible Token Metadata
          * @param {string} principal SIP-009 compliant smart contract principal
-         * @param {number} tokenId Token ID to retrieve
+         * @param {number} token_id Token ID to retrieve
          * @param {string} [locale] Metadata localization to retrieve
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getNftMetadata(principal: string, tokenId: number, locale?: string, options: any = {}): FetchArgs {
+        getNftMetadata(principal: string, token_id: number, locale?: string, options: any = {}): FetchArgs {
             // verify required parameter 'principal' is not null or undefined
             if (principal === null || principal === undefined) {
                 throw new RequiredError('principal','Required parameter principal was null or undefined when calling getNftMetadata.');
             }
-            // verify required parameter 'tokenId' is not null or undefined
-            if (tokenId === null || tokenId === undefined) {
-                throw new RequiredError('tokenId','Required parameter tokenId was null or undefined when calling getNftMetadata.');
+            // verify required parameter 'token_id' is not null or undefined
+            if (token_id === null || token_id === undefined) {
+                throw new RequiredError('token_id','Required parameter token_id was null or undefined when calling getNftMetadata.');
             }
             const localVarPath = `/metadata/v1/nft/{principal}/{token_id}`
                 .replace(`{${"principal"}}`, encodeURIComponent(String(principal)))
-                .replace(`{${"token_id"}}`, encodeURIComponent(String(tokenId)));
+                .replace(`{${"token_id"}}`, encodeURIComponent(String(token_id)));
             const localVarUrlObj = url.parse(localVarPath, true);
             const localVarRequestOptions = Object.assign({ method: 'GET' }, options);
             const localVarHeaderParameter = {} as any;
@@ -637,23 +637,23 @@ export const TokensApiFetchParamCreator = function (configuration?: Configuratio
          * Retrieves metadata for a SIP-013 Semi-Fungible Token
          * @summary Semi-Fungible Token Metadata
          * @param {string} principal SIP-013 compliant smart contract principal
-         * @param {number} tokenId Token ID to retrieve
+         * @param {number} token_id Token ID to retrieve
          * @param {string} [locale] Metadata localization to retrieve
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getSftMetadata(principal: string, tokenId: number, locale?: string, options: any = {}): FetchArgs {
+        getSftMetadata(principal: string, token_id: number, locale?: string, options: any = {}): FetchArgs {
             // verify required parameter 'principal' is not null or undefined
             if (principal === null || principal === undefined) {
                 throw new RequiredError('principal','Required parameter principal was null or undefined when calling getSftMetadata.');
             }
-            // verify required parameter 'tokenId' is not null or undefined
-            if (tokenId === null || tokenId === undefined) {
-                throw new RequiredError('tokenId','Required parameter tokenId was null or undefined when calling getSftMetadata.');
+            // verify required parameter 'token_id' is not null or undefined
+            if (token_id === null || token_id === undefined) {
+                throw new RequiredError('token_id','Required parameter token_id was null or undefined when calling getSftMetadata.');
             }
             const localVarPath = `/metadata/v1/sft/{principal}/{token_id}`
                 .replace(`{${"principal"}}`, encodeURIComponent(String(principal)))
-                .replace(`{${"token_id"}}`, encodeURIComponent(String(tokenId)));
+                .replace(`{${"token_id"}}`, encodeURIComponent(String(token_id)));
             const localVarUrlObj = url.parse(localVarPath, true);
             const localVarRequestOptions = Object.assign({ method: 'GET' }, options);
             const localVarHeaderParameter = {} as any;
@@ -706,13 +706,13 @@ export const TokensApiFp = function(configuration?: Configuration) {
          * Retrieves metadata for a SIP-009 Non-Fungible Token
          * @summary Non-Fungible Token Metadata
          * @param {string} principal SIP-009 compliant smart contract principal
-         * @param {number} tokenId Token ID to retrieve
+         * @param {number} token_id Token ID to retrieve
          * @param {string} [locale] Metadata localization to retrieve
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getNftMetadata(principal: string, tokenId: number, locale?: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<NftMetadataResponse> {
-            const localVarFetchArgs = TokensApiFetchParamCreator(configuration).getNftMetadata(principal, tokenId, locale, options);
+        getNftMetadata(principal: string, token_id: number, locale?: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<NftMetadataResponse> {
+            const localVarFetchArgs = TokensApiFetchParamCreator(configuration).getNftMetadata(principal, token_id, locale, options);
             return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
@@ -727,13 +727,13 @@ export const TokensApiFp = function(configuration?: Configuration) {
          * Retrieves metadata for a SIP-013 Semi-Fungible Token
          * @summary Semi-Fungible Token Metadata
          * @param {string} principal SIP-013 compliant smart contract principal
-         * @param {number} tokenId Token ID to retrieve
+         * @param {number} token_id Token ID to retrieve
          * @param {string} [locale] Metadata localization to retrieve
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getSftMetadata(principal: string, tokenId: number, locale?: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<SftMetadataResponse> {
-            const localVarFetchArgs = TokensApiFetchParamCreator(configuration).getSftMetadata(principal, tokenId, locale, options);
+        getSftMetadata(principal: string, token_id: number, locale?: string, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<SftMetadataResponse> {
+            const localVarFetchArgs = TokensApiFetchParamCreator(configuration).getSftMetadata(principal, token_id, locale, options);
             return (fetch: FetchAPI = isomorphicFetch, basePath: string = BASE_PATH) => {
                 return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
                     if (response.status >= 200 && response.status < 300) {
@@ -768,25 +768,25 @@ export const TokensApiFactory = function (configuration?: Configuration, fetch?:
          * Retrieves metadata for a SIP-009 Non-Fungible Token
          * @summary Non-Fungible Token Metadata
          * @param {string} principal SIP-009 compliant smart contract principal
-         * @param {number} tokenId Token ID to retrieve
+         * @param {number} token_id Token ID to retrieve
          * @param {string} [locale] Metadata localization to retrieve
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getNftMetadata(principal: string, tokenId: number, locale?: string, options?: any) {
-            return TokensApiFp(configuration).getNftMetadata(principal, tokenId, locale, options)(fetch, basePath);
+        getNftMetadata(principal: string, token_id: number, locale?: string, options?: any) {
+            return TokensApiFp(configuration).getNftMetadata(principal, token_id, locale, options)(fetch, basePath);
         },
         /**
          * Retrieves metadata for a SIP-013 Semi-Fungible Token
          * @summary Semi-Fungible Token Metadata
          * @param {string} principal SIP-013 compliant smart contract principal
-         * @param {number} tokenId Token ID to retrieve
+         * @param {number} token_id Token ID to retrieve
          * @param {string} [locale] Metadata localization to retrieve
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getSftMetadata(principal: string, tokenId: number, locale?: string, options?: any) {
-            return TokensApiFp(configuration).getSftMetadata(principal, tokenId, locale, options)(fetch, basePath);
+        getSftMetadata(principal: string, token_id: number, locale?: string, options?: any) {
+            return TokensApiFp(configuration).getSftMetadata(principal, token_id, locale, options)(fetch, basePath);
         },
     };
 };
@@ -815,28 +815,28 @@ export class TokensApi extends BaseAPI {
      * Retrieves metadata for a SIP-009 Non-Fungible Token
      * @summary Non-Fungible Token Metadata
      * @param {string} principal SIP-009 compliant smart contract principal
-     * @param {number} tokenId Token ID to retrieve
+     * @param {number} token_id Token ID to retrieve
      * @param {string} [locale] Metadata localization to retrieve
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof TokensApi
      */
-    public getNftMetadata(principal: string, tokenId: number, locale?: string, options?: any) {
-        return TokensApiFp(this.configuration).getNftMetadata(principal, tokenId, locale, options)(this.fetch, this.basePath);
+    public getNftMetadata(principal: string, token_id: number, locale?: string, options?: any) {
+        return TokensApiFp(this.configuration).getNftMetadata(principal, token_id, locale, options)(this.fetch, this.basePath);
     }
 
     /**
      * Retrieves metadata for a SIP-013 Semi-Fungible Token
      * @summary Semi-Fungible Token Metadata
      * @param {string} principal SIP-013 compliant smart contract principal
-     * @param {number} tokenId Token ID to retrieve
+     * @param {number} token_id Token ID to retrieve
      * @param {string} [locale] Metadata localization to retrieve
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof TokensApi
      */
-    public getSftMetadata(principal: string, tokenId: number, locale?: string, options?: any) {
-        return TokensApiFp(this.configuration).getSftMetadata(principal, tokenId, locale, options)(this.fetch, this.basePath);
+    public getSftMetadata(principal: string, token_id: number, locale?: string, options?: any) {
+        return TokensApiFp(this.configuration).getSftMetadata(principal, token_id, locale, options)(this.fetch, this.basePath);
     }
 
 }
