@@ -14,6 +14,7 @@ export enum DbJobStatus {
   queued = 'queued',
   done = 'done',
   failed = 'failed',
+  invalid = 'invalid',
 }
 
 export enum DbTokenType {
