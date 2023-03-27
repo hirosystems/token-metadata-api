@@ -39,15 +39,15 @@ describe("TokensApi", () => {
   })
   test("getNftMetadata", () => {
     const principal: string = "principal_example"
-    const tokenId: number = 56
+    const token_id: number = 56
     const locale: string = "locale_example"
-    return expect(instance.getNftMetadata(principal, tokenId, locale, {})).resolves.toBe(null)
+    return expect(instance.getNftMetadata(principal, token_id, locale, {})).resolves.toBe(null)
   })
   test("getSftMetadata", () => {
     const principal: string = "principal_example"
-    const tokenId: number = 56
+    const token_id: number = 56
     const locale: string = "locale_example"
-    return expect(instance.getSftMetadata(principal, tokenId, locale, {})).resolves.toBe(null)
+    return expect(instance.getSftMetadata(principal, token_id, locale, {})).resolves.toBe(null)
   })
 })
 
