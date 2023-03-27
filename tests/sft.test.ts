@@ -20,7 +20,7 @@ describe('SFT routes', () => {
     await db.close();
   });
 
-  const enqueueToken = async () => {
+  const enqueueContract = async () => {
     const address = 'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9';
     const contractId = 'key-alex-autoalex-v1';
     const values: DbSmartContractInsert = {
@@ -31,6 +31,10 @@ describe('SFT routes', () => {
       block_height: 1,
     };
     await db.insertAndEnqueueSmartContract({ values });
+  };
+
+  const enqueueToken = async () => {
+    await enqueueContract();
     await db.insertAndEnqueueTokenArray([
       {
         smart_contract_id: 1,
@@ -40,13 +44,23 @@ describe('SFT routes', () => {
     ]);
   };
 
-  test('token not found', async () => {
+  test('contract not found', async () => {
     const response = await fastify.inject({
       method: 'GET',
-      url: '/metadata/v1/sft/SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1/1',
+      url: '/metadata/v1/nft/SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1/1',
     });
     expect(response.statusCode).toBe(404);
-    expect(response.json()).toStrictEqual({ error: 'Token not found' });
+    expect(response.json().error).toMatch(/Contract not found/);
+  });
+
+  test('token not found', async () => {
+    await enqueueContract();
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/metadata/v1/nft/SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1/1',
+    });
+    expect(response.statusCode).toBe(404);
+    expect(response.json().error).toMatch(/Token not found/);
   });
 
   test('token not processed', async () => {

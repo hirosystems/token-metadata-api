@@ -158,6 +158,13 @@ export const TokenNotFoundResponse = Type.Object(
   { title: 'Token Not Found Response' }
 );
 
+export const ContractNotFoundResponse = Type.Object(
+  {
+    error: Type.Literal('Contract not found'),
+  },
+  { title: 'Contract Not Found Response' }
+);
+
 export const TokenNotProcessedResponse = Type.Object(
   {
     error: Type.Literal('Token metadata fetch in progress'),
@@ -186,14 +193,18 @@ export const InvalidTokenMetadataResponse = Type.Object(
   { title: 'Invalid Token Metadata Response' }
 );
 
-export const TokenErrorResponse = Type.Union(
+export const NotFoundResponse = Type.Union([TokenNotFoundResponse, ContractNotFoundResponse], {
+  title: 'Not Found Error Response',
+});
+
+export const ErrorResponse = Type.Union(
   [
     TokenNotProcessedResponse,
     TokenLocaleNotFoundResponse,
     InvalidTokenContractResponse,
     InvalidTokenMetadataResponse,
   ],
-  { title: 'Token Error Response' }
+  { title: 'Error Response' }
 );
 
 export const FtMetadataResponse = Type.Object(

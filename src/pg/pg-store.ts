@@ -28,6 +28,7 @@ import {
 import { connectPostgres } from './postgres-tools';
 import { BasePgStore } from './postgres-tools/base-pg-store';
 import {
+  ContractNotFoundError,
   InvalidContractError,
   InvalidTokenError,
   TokenLocaleNotFoundError,
@@ -152,7 +153,7 @@ export class PgStore extends BasePgStore {
         WHERE smart_contracts.principal = ${args.contractPrincipal}
       `;
       if (contractJobStatus.count === 0) {
-        throw new TokenNotFoundError();
+        throw new ContractNotFoundError();
       }
       if (contractJobStatus[0].status === DbJobStatus.invalid) {
         throw new InvalidContractError();
@@ -518,7 +519,7 @@ export class PgStore extends BasePgStore {
     }
     const smartContract = await this.getSmartContract({ principal: smartContractPrincipal });
     if (!smartContract) {
-      throw new TokenNotFoundError();
+      throw new ContractNotFoundError();
     }
     return {
       token,

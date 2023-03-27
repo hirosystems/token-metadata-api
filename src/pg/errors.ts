@@ -5,6 +5,13 @@ export class TokenNotFoundError extends Error {
   }
 }
 
+export class ContractNotFoundError extends Error {
+  constructor() {
+    super();
+    this.name = this.constructor.name;
+  }
+}
+
 export class TokenNotProcessedError extends Error {
   constructor() {
     super();

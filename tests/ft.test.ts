@@ -20,7 +20,7 @@ describe('FT routes', () => {
     await db.close();
   });
 
-  const enqueueToken = async () => {
+  const enqueueContract = async () => {
     const values: DbSmartContractInsert = {
       principal: 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
       sip: DbSipNumber.sip010,
@@ -29,6 +29,10 @@ describe('FT routes', () => {
       block_height: 1,
     };
     await db.insertAndEnqueueSmartContract({ values });
+  };
+
+  const enqueueToken = async () => {
+    await enqueueContract();
     await db.insertAndEnqueueSequentialTokens({
       smart_contract_id: 1,
       token_count: 1n,
@@ -36,13 +40,23 @@ describe('FT routes', () => {
     });
   };
 
-  test('token not found', async () => {
+  test('contract not found', async () => {
     const response = await fastify.inject({
       method: 'GET',
       url: '/metadata/v1/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
     });
     expect(response.statusCode).toBe(404);
-    expect(response.json()).toStrictEqual({ error: 'Token not found' });
+    expect(response.json().error).toMatch(/Contract not found/);
+  });
+
+  test('token not found', async () => {
+    await enqueueContract();
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/metadata/v1/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+    });
+    expect(response.statusCode).toBe(404);
+    expect(response.json().error).toMatch(/Token not found/);
   });
 
   test('token not processed', async () => {
