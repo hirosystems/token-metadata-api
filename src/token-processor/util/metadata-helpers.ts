@@ -24,7 +24,7 @@ import {
   RawMetadataAttributesCType,
   RawMetadataPropertiesCType,
   RawMetadataCType,
-  RawMetadataType,
+  RawMetadata,
 } from './types';
 
 const METADATA_FETCH_HTTP_AGENT = new Agent({
@@ -219,7 +219,7 @@ export async function fetchMetadata(httpUrl: URL): Promise<string | undefined> {
   }
 }
 
-export async function getMetadataFromUri(token_uri: string): Promise<RawMetadataType> {
+export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata> {
   // Support JSON embedded in a Data URL
   if (new URL(token_uri).protocol === 'data:') {
     const dataUrl = parseDataUrl(token_uri);
@@ -239,29 +239,21 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
     } else {
       content = dataUrl.data;
     }
-    try {
-      const result = JSON5.parse(content);
-      if (RawMetadataCType.Check(result)) {
-        return result;
-      }
-      throw new MetadataParseError(`Invalid raw metadata JSON schema from Data URL`);
-    } catch (error) {
-      throw new MetadataParseError(`Data URL could not be parsed as JSON: ${token_uri}`);
-    }
+    return parseJsonMetadata(token_uri, content);
   }
+
+  // Support HTTP/S URLs otherwise
   const httpUrl = getFetchableUrl(token_uri);
   const urlStr = httpUrl.toString();
-
   let fetchImmediateRetryCount = 0;
-  let result: JSON | undefined;
+  let content: string | undefined;
   let fetchError: unknown;
   // We'll try to fetch metadata and give it `METADATA_MAX_IMMEDIATE_URI_RETRIES` attempts
   // for the external service to return a reasonable response, otherwise we'll consider the
   // metadata as dead.
   do {
     try {
-      const text = await fetchMetadata(httpUrl);
-      result = text ? JSON5.parse(text) : undefined;
+      content = await fetchMetadata(httpUrl);
       break;
     } catch (error) {
       fetchImmediateRetryCount++;
@@ -282,15 +274,23 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
       }
     }
   } while (fetchImmediateRetryCount < ENV.METADATA_MAX_IMMEDIATE_URI_RETRIES);
-  if (result) {
+  return parseJsonMetadata(urlStr, content);
+}
+
+function parseJsonMetadata(url: string, content?: string): RawMetadata {
+  if (!content) {
+    throw new MetadataParseError(`Fetched metadata is blank: ${url}`);
+  }
+  try {
+    const result = JSON5.parse(content);
     if (RawMetadataCType.Check(result)) {
       return result;
+    } else {
+      throw new MetadataParseError(`Invalid raw metadata JSON schema: ${url}`);
     }
-    throw new MetadataParseError(`Invalid raw metadata JSON schema from ${urlStr}}`);
+  } catch (error) {
+    throw new MetadataParseError(`JSON parse error: ${url}`);
   }
-  throw new MetadataParseError(
-    `Unable to fetch metadata from ${urlStr}: ${fetchError ?? 'blank response'}`
-  );
 }
 
 /**
