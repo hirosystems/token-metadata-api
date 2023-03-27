@@ -456,8 +456,15 @@ export class PgStore extends BasePgStore {
       throw new TokenNotFoundError();
     }
     const token = tokenRes[0];
+    // Is this token still waiting to be processed?
     if (!token.updated_at) {
-      throw new TokenNotProcessedError();
+      const tokenJobStatus = await this.sql<{ status: string }[]>`
+        SELECT status FROM jobs WHERE token_id = ${token.id}
+      `;
+      const status = tokenJobStatus[0].status;
+      if (status === DbJobStatus.queued || status === DbJobStatus.pending) {
+        throw new TokenNotProcessedError();
+      }
     }
     let localeBundle: DbMetadataLocaleBundle | undefined;
     const metadataRes = await this.sql<DbMetadata[]>`
