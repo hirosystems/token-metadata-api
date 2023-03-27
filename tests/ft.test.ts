@@ -55,6 +55,28 @@ describe('FT routes', () => {
     expect(response.json()).toStrictEqual({ error: 'Token metadata fetch in progress' });
   });
 
+  test('invalid contract', async () => {
+    await enqueueToken();
+    await db.sql`UPDATE jobs SET status = 'invalid' WHERE id = 1`;
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/metadata/v1/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+    });
+    expect(response.statusCode).toBe(422);
+    expect(response.json().error).toMatch(/Token contract/);
+  });
+
+  test('invalid token metadata', async () => {
+    await enqueueToken();
+    await db.sql`UPDATE jobs SET status = 'invalid' WHERE id = 2`;
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/metadata/v1/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+    });
+    expect(response.statusCode).toBe(422);
+    expect(response.json().error).toMatch(/Token metadata/);
+  });
+
   test('locale not found', async () => {
     await enqueueToken();
     await db.updateProcessedTokenWithMetadata({

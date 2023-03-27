@@ -172,8 +172,27 @@ export const TokenLocaleNotFoundResponse = Type.Object(
   { title: 'Locale Not Found Response' }
 );
 
+export const InvalidTokenContractResponse = Type.Object(
+  {
+    error: Type.Literal('Token contract is invalid or does not conform to its token standard'),
+  },
+  { title: 'Invalid Token Contract Response' }
+);
+
+export const InvalidTokenMetadataResponse = Type.Object(
+  {
+    error: Type.Literal('Token metadata is unreachable or does not conform to SIP-016'),
+  },
+  { title: 'Invalid Token Metadata Response' }
+);
+
 export const TokenErrorResponse = Type.Union(
-  [TokenNotProcessedResponse, TokenLocaleNotFoundResponse],
+  [
+    TokenNotProcessedResponse,
+    TokenLocaleNotFoundResponse,
+    InvalidTokenContractResponse,
+    InvalidTokenMetadataResponse,
+  ],
   { title: 'Token Error Response' }
 );
 

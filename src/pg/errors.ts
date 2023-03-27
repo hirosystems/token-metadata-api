@@ -18,3 +18,17 @@ export class TokenLocaleNotFoundError extends Error {
     this.name = this.constructor.name;
   }
 }
+
+export class InvalidContractError extends Error {
+  constructor() {
+    super();
+    this.name = this.constructor.name;
+  }
+}
+
+export class InvalidTokenError extends Error {
+  constructor() {
+    super();
+    this.name = this.constructor.name;
+  }
+}

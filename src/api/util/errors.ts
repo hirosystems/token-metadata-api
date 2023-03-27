@@ -1,12 +1,16 @@
 import { Value } from '@sinclair/typebox/value';
 import { FastifyReply } from 'fastify';
 import {
+  InvalidTokenContractResponse,
+  InvalidTokenMetadataResponse,
   TokenErrorResponse,
   TokenLocaleNotFoundResponse,
   TokenNotFoundResponse,
   TokenNotProcessedResponse,
 } from '../schemas';
 import {
+  InvalidContractError,
+  InvalidTokenError,
   TokenLocaleNotFoundError,
   TokenNotFoundError,
   TokenNotProcessedError,
@@ -26,6 +30,10 @@ export async function generateTokenErrorResponse(error: any, reply: FastifyReply
     await reply.code(422).send(Value.Create(TokenNotProcessedResponse));
   } else if (error instanceof TokenLocaleNotFoundError) {
     await reply.code(422).send(Value.Create(TokenLocaleNotFoundResponse));
+  } else if (error instanceof InvalidContractError) {
+    await reply.code(422).send(Value.Create(InvalidTokenContractResponse));
+  } else if (error instanceof InvalidTokenError) {
+    await reply.code(422).send(Value.Create(InvalidTokenMetadataResponse));
   } else {
     throw error;
   }
