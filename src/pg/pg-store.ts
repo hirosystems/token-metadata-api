@@ -27,7 +27,14 @@ import {
 } from './types';
 import { connectPostgres } from './postgres-tools';
 import { BasePgStore } from './postgres-tools/base-pg-store';
-import { TokenLocaleNotFoundError, TokenNotFoundError, TokenNotProcessedError } from './errors';
+import {
+  ContractNotFoundError,
+  InvalidContractError,
+  InvalidTokenError,
+  TokenLocaleNotFoundError,
+  TokenNotFoundError,
+  TokenNotProcessedError,
+} from './errors';
 import { runMigrations } from './migrations';
 
 /**
@@ -138,6 +145,20 @@ export class PgStore extends BasePgStore {
     locale?: string;
   }): Promise<DbTokenMetadataLocaleBundle> {
     return await this.sqlTransaction(async sql => {
+      // Is the contract invalid?
+      const contractJobStatus = await sql<{ status: DbJobStatus }[]>`
+        SELECT status
+        FROM jobs
+        INNER JOIN smart_contracts ON jobs.smart_contract_id = smart_contracts.id
+        WHERE smart_contracts.principal = ${args.contractPrincipal}
+      `;
+      if (contractJobStatus.count === 0) {
+        throw new ContractNotFoundError();
+      }
+      if (contractJobStatus[0].status === DbJobStatus.invalid) {
+        throw new InvalidContractError();
+      }
+      // Get token id
       const tokenIdRes = await sql<{ id: number }[]>`
         SELECT tokens.id
         FROM tokens
@@ -148,11 +169,14 @@ export class PgStore extends BasePgStore {
       if (tokenIdRes.count === 0) {
         throw new TokenNotFoundError();
       }
-      if (args.locale && !(await this.isTokenLocaleAvailable(tokenIdRes[0].id, args.locale))) {
+      const tokenId = tokenIdRes[0].id;
+      // Is the locale valid?
+      if (args.locale && !(await this.isTokenLocaleAvailable(tokenId, args.locale))) {
         throw new TokenLocaleNotFoundError();
       }
+      // Get metadata
       return await this.getTokenMetadataBundleInternal(
-        tokenIdRes[0].id,
+        tokenId,
         args.contractPrincipal,
         args.locale
       );
@@ -449,16 +473,27 @@ export class PgStore extends BasePgStore {
     smartContractPrincipal: string,
     locale?: string
   ): Promise<DbTokenMetadataLocaleBundle> {
+    // Is token invalid?
+    const tokenJobStatus = await this.sql<{ status: string }[]>`
+      SELECT status FROM jobs WHERE token_id = ${tokenId}
+    `;
+    if (tokenJobStatus.count === 0) {
+      throw new TokenNotFoundError();
+    }
+    const status = tokenJobStatus[0].status;
+    if (status === DbJobStatus.invalid) {
+      throw new InvalidTokenError();
+    }
+    // Get token
     const tokenRes = await this.sql<DbToken[]>`
       SELECT ${this.sql(TOKENS_COLUMNS)} FROM tokens WHERE id = ${tokenId}
     `;
-    if (tokenRes.count === 0) {
-      throw new TokenNotFoundError();
-    }
     const token = tokenRes[0];
-    if (!token.updated_at) {
+    // Is it still waiting to be processed?
+    if (!token.updated_at && (status === DbJobStatus.queued || status === DbJobStatus.pending)) {
       throw new TokenNotProcessedError();
     }
+    // Get metadata
     let localeBundle: DbMetadataLocaleBundle | undefined;
     const metadataRes = await this.sql<DbMetadata[]>`
       SELECT ${this.sql(METADATA_COLUMNS)} FROM metadata
@@ -484,7 +519,7 @@ export class PgStore extends BasePgStore {
     }
     const smartContract = await this.getSmartContract({ principal: smartContractPrincipal });
     if (!smartContract) {
-      throw new TokenNotFoundError();
+      throw new ContractNotFoundError();
     }
     return {
       token,

@@ -1,8 +1,11 @@
 import { errors } from 'undici';
 import { parseRetryAfterResponseHeader } from './helpers';
 
+/** Tags an error as a user error i.e. caused by a bad contract, incorrect SIP-016 metadata, etc. */
+export class UserError extends Error {}
+
 /** Thrown when fetching metadata exceeds the max allowed byte size */
-export class MetadataSizeExceededError extends Error {
+export class MetadataSizeExceededError extends UserError {
   constructor(message: string) {
     super();
     this.message = message;
@@ -11,7 +14,7 @@ export class MetadataSizeExceededError extends Error {
 }
 
 /** Thrown when fetching metadata exceeds the max allowed timeout */
-export class MetadataTimeoutError extends Error {
+export class MetadataTimeoutError extends UserError {
   constructor(message: string) {
     super();
     this.message = message;
@@ -20,7 +23,15 @@ export class MetadataTimeoutError extends Error {
 }
 
 /** Thrown when there is a parse error that prevented metadata processing */
-export class MetadataParseError extends Error {
+export class MetadataParseError extends UserError {
+  constructor(message: string) {
+    super();
+    this.message = message;
+    this.name = this.constructor.name;
+  }
+}
+
+export class StacksNodeClarityError extends UserError {
   constructor(message: string) {
     super();
     this.message = message;
@@ -51,7 +62,7 @@ export class TooManyRequestsHttpError extends HttpError {
   }
 }
 
-export class JsonParseError extends Error {
+export class StacksNodeJsonParseError extends Error {
   constructor(message: string) {
     super();
     this.message = message;

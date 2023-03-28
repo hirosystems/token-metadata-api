@@ -3,6 +3,7 @@ import { logger } from '../../../logger';
 import { PgStore } from '../../../pg/pg-store';
 import { stopwatch } from '../../../pg/postgres-tools/helpers';
 import { DbJob, DbJobStatus } from '../../../pg/types';
+import { UserError } from '../../util/errors';
 import { RetryableJobError } from '../errors';
 import { getJobQueueProcessingMode, JobQueueProcessingMode } from '../helpers';
 
@@ -34,8 +35,7 @@ export abstract class Job {
    * shouldn't be overridden.
    */
   async work(): Promise<void> {
-    let processingFinished = false;
-    let finishedWithError = false;
+    let status: DbJobStatus | undefined;
     const sw = stopwatch();
 
     // This block will catch any and all errors that are generated while processing the job. Each of
@@ -44,7 +44,7 @@ export abstract class Job {
     // `processed = true` so it can be picked up by the queue at a later time.
     try {
       await this.handler();
-      processingFinished = true;
+      status = DbJobStatus.done;
     } catch (error) {
       if (error instanceof RetryableJobError) {
         const retries = await this.db.increaseJobRetryCount({ id: this.job.id });
@@ -59,18 +59,17 @@ export abstract class Job {
           await this.updateStatus(DbJobStatus.pending);
         } else {
           logger.warn(error, `Job ${this.description()} max retries reached, giving up`);
-          processingFinished = true;
-          finishedWithError = true;
+          status = DbJobStatus.failed;
         }
+      } else if (error instanceof UserError) {
+        logger.error(error, `User error on Job ${this.description()}`);
+        status = DbJobStatus.invalid;
       } else {
-        // Something more serious happened, mark this token as failed.
         logger.error(error, `Job ${this.description()}`);
-        processingFinished = true;
-        finishedWithError = true;
+        status = DbJobStatus.failed;
       }
     } finally {
-      if (processingFinished) {
-        const status = finishedWithError ? DbJobStatus.failed : DbJobStatus.done;
+      if (status) {
         if (await this.updateStatus(status)) {
           logger.info(`Job ${this.description()} ${status} in ${sw.getElapsed()}ms`);
         }

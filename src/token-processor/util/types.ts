@@ -19,7 +19,7 @@ const RawMetadata = Type.Object(
   },
   { additionalProperties: true }
 );
-export type RawMetadataType = Static<typeof RawMetadata>;
+export type RawMetadata = Static<typeof RawMetadata>;
 export const RawMetadataCType = TypeCompiler.Compile(RawMetadata);
 
 // Raw metadata localization types.
@@ -44,7 +44,7 @@ const RawMetadataProperties = Type.Record(Type.String(), Type.Any());
 export const RawMetadataPropertiesCType = TypeCompiler.Compile(RawMetadataProperties);
 
 export type RawMetadataLocale = {
-  metadata: RawMetadataType;
+  metadata: RawMetadata;
   locale?: string;
   default: boolean;
   uri: string;

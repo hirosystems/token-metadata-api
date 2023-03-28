@@ -10,7 +10,7 @@ import { MockAgent, setGlobalDispatcher } from 'undici';
 import { ENV } from '../src/env';
 import { RetryableJobError } from '../src/token-processor/queue/errors';
 import { StacksNodeRpcClient } from '../src/token-processor/stacks-node/stacks-node-rpc-client';
-import { HttpError, JsonParseError } from '../src/token-processor/util/errors';
+import { HttpError, StacksNodeJsonParseError } from '../src/token-processor/util/errors';
 
 describe('StacksNodeRpcClient', () => {
   const nodeUrl = `http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`;
@@ -109,7 +109,7 @@ describe('StacksNodeRpcClient', () => {
     } catch (error) {
       expect(error).toBeInstanceOf(RetryableJobError);
       const err = error as RetryableJobError;
-      expect(err.cause).toBeInstanceOf(JsonParseError);
+      expect(err.cause).toBeInstanceOf(StacksNodeJsonParseError);
     }
   });
 
