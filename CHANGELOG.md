@@ -1,3 +1,15 @@
+## [0.3.0](https://github.com/hirosystems/token-metadata-api/compare/v0.2.1...v0.3.0) (2023-04-03)
+
+
+### Features
+
+* add `invalid` job status to mark invalid contracts or tokens ([#148](https://github.com/hirosystems/token-metadata-api/issues/148)) ([5d6ef41](https://github.com/hirosystems/token-metadata-api/commit/5d6ef419a594bbe01c54d2905707a4bc6a2a8e2f))
+
+
+### Bug Fixes
+
+* support FTs with missing metadata but correct token data ([#150](https://github.com/hirosystems/token-metadata-api/issues/150)) ([0a5558e](https://github.com/hirosystems/token-metadata-api/commit/0a5558e4c184aa6989b48361ae3ed3fc1b363ee7))
+
 ## [0.2.1](https://github.com/hirosystems/token-metadata-api/compare/v0.2.0...v0.2.1) (2023-03-17)
 
 
