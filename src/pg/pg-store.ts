@@ -233,6 +233,14 @@ export class PgStore extends BasePgStore {
     `;
   }
 
+  async retryAllFailedJobs(): Promise<void> {
+    await this.sql`
+      UPDATE jobs
+      SET status = ${DbJobStatus.pending}, retry_count = 0, updated_at = NOW()
+      WHERE status IN (${DbJobStatus.failed}, ${DbJobStatus.invalid})
+    `;
+  }
+
   async increaseJobRetryCount(args: { id: number }): Promise<number> {
     const result = await this.sql<{ retry_count: number }[]>`
       UPDATE jobs
