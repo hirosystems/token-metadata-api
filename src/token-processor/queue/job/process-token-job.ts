@@ -122,6 +122,10 @@ export class ProcessTokenJob extends Job {
         if (error instanceof RetryableJobError || !(name || symbol || fDecimals || fTotalSupply)) {
           throw error;
         }
+        logger.warn(
+          error,
+          `ProcessTokenJob ${this.description()} metadata fetch failed for ${uri}, continuing with contract data`
+        );
       }
     }
 
