@@ -202,4 +202,36 @@ describe('Admin RPC', () => {
       expect(JSON.parse(response.body).error).toMatch(/Contract not found/);
     });
   });
+
+  describe('/retry-failed', () => {
+    test('retries failed and invalid jobs', async () => {
+      const values: DbSmartContractInsert = {
+        principal: 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+        sip: DbSipNumber.sip009,
+        abi: '"some"',
+        tx_id: '0x123456',
+        block_height: 1,
+      };
+      await db.insertAndEnqueueSmartContract({ values });
+      await db.insertAndEnqueueSequentialTokens({
+        smart_contract_id: 1,
+        token_count: 1n,
+        type: DbTokenType.nft,
+      });
+      // Simulate failed jobs
+      await db.sql`UPDATE jobs SET status = ${DbJobStatus.failed} WHERE id = 1`;
+      await db.sql`UPDATE jobs SET status = ${DbJobStatus.invalid} WHERE id = 2`;
+
+      const response = await fastify.inject({
+        url: '/metadata/admin/retry-failed',
+        method: 'POST',
+        payload: JSON.stringify({}),
+        headers: { 'content-type': 'application/json' },
+      });
+      expect(response.statusCode).toBe(200);
+
+      const jobs = await db.getPendingJobBatch({ limit: 2 });
+      expect(jobs.length).toBe(2);
+    });
+  });
 });
