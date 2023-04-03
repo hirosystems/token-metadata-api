@@ -112,6 +112,83 @@ describe('ProcessTokenJob', () => {
       expect(token?.decimals).toBe(6);
       expect(token?.total_supply).toBe(1997500000000n);
     });
+
+    test('keeps contract FT info if metadata fetch fails', async () => {
+      const agent = new MockAgent();
+      agent.disableNetConnect();
+      const interceptor = agent.get(
+        `http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`
+      );
+      interceptor
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-ft/get-name',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(stringUtf8CV('FooToken')),
+        });
+      interceptor
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-ft/get-token-uri',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(stringUtf8CV('http://m.io/{id}.json')),
+        });
+      interceptor
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-ft/get-symbol',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(stringUtf8CV('FOO')),
+        });
+      interceptor
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-ft/get-decimals',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(uintCV(6)),
+        });
+      interceptor
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-ft/get-total-supply',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(uintCV(1997500000000)),
+        });
+      agent
+        .get('http://m.io')
+        .intercept({
+          path: '/1.json',
+          method: 'GET',
+        })
+        .reply(500, { message: 'server error' })
+        .persist();
+      setGlobalDispatcher(agent);
+
+      const processor = new ProcessTokenJob({ db, job: tokenJob });
+      await processor.work();
+
+      const token = await db.getToken({ id: 1 });
+      expect(token).not.toBeUndefined();
+      expect(token?.name).toBe('FooToken');
+      expect(token?.symbol).toBe('FOO');
+      expect(token?.decimals).toBe(6);
+      expect(token?.total_supply).toBe(1997500000000n);
+      const bundle = await db.getTokenMetadataBundle({
+        contractPrincipal: 'ABCD.test-ft',
+        tokenNumber: 1,
+      });
+      expect(bundle?.metadataLocale).toBeUndefined();
+    });
   });
 
   describe('NFT', () => {

@@ -114,7 +114,19 @@ export class ProcessTokenJob extends Job {
 
     let metadataLocales: DbMetadataLocaleInsertBundle[] | undefined;
     if (uri) {
-      metadataLocales = await fetchAllMetadataLocalesFromBaseUri(uri, token);
+      try {
+        metadataLocales = await fetchAllMetadataLocalesFromBaseUri(uri, token);
+      } catch (error) {
+        // If the fetch error is retryable, rethrow for job retry. If it's not but we don't have any
+        // data to display otherwise, rethrow so we can mark the job as failed/invalid.
+        if (error instanceof RetryableJobError || !(name || symbol || fDecimals || fTotalSupply)) {
+          throw error;
+        }
+        logger.warn(
+          error,
+          `ProcessTokenJob ${this.description()} metadata fetch failed for ${uri}, continuing with contract data`
+        );
+      }
     }
 
     const tokenValues: DbProcessedTokenUpdateBundle = {

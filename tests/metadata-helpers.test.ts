@@ -44,9 +44,7 @@ describe('Metadata Helpers', () => {
       .reply(200, '[{"test-bad-json": true}]');
     setGlobalDispatcher(agent);
 
-    await expect(getMetadataFromUri('http://test.io/1.json')).rejects.toThrow(
-      /Invalid raw metadata JSON schema/
-    );
+    await expect(getMetadataFromUri('http://test.io/1.json')).rejects.toThrow(/JSON parse error/);
   });
 
   test('throws metadata http errors', async () => {

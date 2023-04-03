@@ -7,7 +7,7 @@ import {
 import { request, errors } from 'undici';
 import { ENV } from '../../env';
 import { RetryableJobError } from '../queue/errors';
-import { HttpError, JsonParseError } from '../util/errors';
+import { StacksNodeClarityError, HttpError, StacksNodeJsonParseError } from '../util/errors';
 
 interface ReadOnlyContractCallSuccessResponse {
   okay: true;
@@ -80,7 +80,7 @@ export class StacksNodeRpcClient {
       try {
         return JSON.parse(text) as ReadOnlyContractCallResponse;
       } catch (error) {
-        throw new JsonParseError(`JSON parse error ${url}: ${text}`);
+        throw new StacksNodeJsonParseError(`JSON parse error ${url}: ${text}`);
       }
     } catch (error) {
       if (error instanceof errors.UndiciError) {
@@ -107,7 +107,7 @@ export class StacksNodeRpcClient {
           `Runtime error while calling read-only function ${functionName}`
         );
       }
-      throw new Error(`Read-only error ${functionName}: ${result.cause}`);
+      throw new StacksNodeClarityError(`Read-only error ${functionName}: ${result.cause}`);
     }
     return decodeClarityValue(result.result);
   }
@@ -128,7 +128,7 @@ export class StacksNodeRpcClient {
     if (unwrappedClarityValue.type_id === ClarityTypeID.UInt) {
       return unwrappedClarityValue;
     }
-    throw new Error(
+    throw new StacksNodeClarityError(
       `Unexpected Clarity type '${unwrappedClarityValue.type_id}' while unwrapping uint`
     );
   }
@@ -143,7 +143,7 @@ export class StacksNodeRpcClient {
     } else if (unwrappedClarityValue.type_id === ClarityTypeID.OptionalNone) {
       return undefined;
     }
-    throw new Error(
+    throw new StacksNodeClarityError(
       `Unexpected Clarity type '${unwrappedClarityValue.type_id}' while unwrapping string`
     );
   }

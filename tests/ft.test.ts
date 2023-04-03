@@ -20,7 +20,7 @@ describe('FT routes', () => {
     await db.close();
   });
 
-  const enqueueToken = async () => {
+  const enqueueContract = async () => {
     const values: DbSmartContractInsert = {
       principal: 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
       sip: DbSipNumber.sip010,
@@ -29,6 +29,10 @@ describe('FT routes', () => {
       block_height: 1,
     };
     await db.insertAndEnqueueSmartContract({ values });
+  };
+
+  const enqueueToken = async () => {
+    await enqueueContract();
     await db.insertAndEnqueueSequentialTokens({
       smart_contract_id: 1,
       token_count: 1n,
@@ -36,13 +40,23 @@ describe('FT routes', () => {
     });
   };
 
-  test('token not found', async () => {
+  test('contract not found', async () => {
     const response = await fastify.inject({
       method: 'GET',
       url: '/metadata/v1/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
     });
     expect(response.statusCode).toBe(404);
-    expect(response.json()).toStrictEqual({ error: 'Token not found' });
+    expect(response.json().error).toMatch(/Contract not found/);
+  });
+
+  test('token not found', async () => {
+    await enqueueContract();
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/metadata/v1/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+    });
+    expect(response.statusCode).toBe(404);
+    expect(response.json().error).toMatch(/Token not found/);
   });
 
   test('token not processed', async () => {
@@ -53,6 +67,28 @@ describe('FT routes', () => {
     });
     expect(response.statusCode).toBe(422);
     expect(response.json()).toStrictEqual({ error: 'Token metadata fetch in progress' });
+  });
+
+  test('invalid contract', async () => {
+    await enqueueToken();
+    await db.sql`UPDATE jobs SET status = 'invalid' WHERE id = 1`;
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/metadata/v1/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+    });
+    expect(response.statusCode).toBe(422);
+    expect(response.json().error).toMatch(/Token contract/);
+  });
+
+  test('invalid token metadata', async () => {
+    await enqueueToken();
+    await db.sql`UPDATE jobs SET status = 'invalid' WHERE id = 2`;
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/metadata/v1/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+    });
+    expect(response.statusCode).toBe(422);
+    expect(response.json().error).toMatch(/Token metadata/);
   });
 
   test('locale not found', async () => {

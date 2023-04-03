@@ -4,6 +4,7 @@ import { PgStore } from '../src/pg/pg-store';
 import { DbJob, DbSipNumber, DbSmartContractInsert } from '../src/pg/types';
 import { RetryableJobError } from '../src/token-processor/queue/errors';
 import { Job } from '../src/token-processor/queue/job/job';
+import { UserError } from '../src/token-processor/util/errors';
 
 class TestRetryableJob extends Job {
   description(): string {
@@ -11,6 +12,15 @@ class TestRetryableJob extends Job {
   }
   handler(): Promise<void> {
     throw new RetryableJobError('test');
+  }
+}
+
+class TestUserErrorJob extends Job {
+  description(): string {
+    return 'test';
+  }
+  handler(): Promise<void> {
+    throw new UserError('test');
   }
 }
 
@@ -45,6 +55,17 @@ describe('Job', () => {
     await db.close();
   });
 
+  test('valid job marked as done', async () => {
+    const job = new TestDbJob({ db, job: dbJob });
+
+    await expect(job.work()).resolves.not.toThrow();
+    const jobs1 = await db.getPendingJobBatch({ limit: 1 });
+    expect(jobs1.length).toBe(0);
+
+    const dbJob1 = await db.getJob({ id: dbJob.id });
+    expect(dbJob1?.status).toBe('done');
+  });
+
   test('retryable error increases retry_count', async () => {
     const job = new TestRetryableJob({ db, job: dbJob });
 
@@ -57,6 +78,17 @@ describe('Job', () => {
     const jobs2 = await db.getPendingJobBatch({ limit: 1 });
     expect(jobs2[0].retry_count).toBe(2);
     expect(jobs2[0].status).toBe('pending');
+  });
+
+  test('user error marks job invalid', async () => {
+    const job = new TestUserErrorJob({ db, job: dbJob });
+
+    await expect(job.work()).resolves.not.toThrow();
+    const jobs1 = await db.getPendingJobBatch({ limit: 1 });
+    expect(jobs1.length).toBe(0);
+
+    const dbJob1 = await db.getJob({ id: dbJob.id });
+    expect(dbJob1?.status).toBe('invalid');
   });
 
   test('retry_count limit reached marks entry as failed', async () => {
