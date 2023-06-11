@@ -9,6 +9,7 @@ import {
   getContractLogMetadataUpdateNotification,
   getSmartContractSip,
 } from '../util/sip-validation';
+import { ContractNotFoundError } from '../../pg/errors';
 
 export class SmartContractImportInterruptedError extends Error {
   constructor() {
@@ -170,12 +171,22 @@ export class BlockchainImporter {
         if (!notification) {
           continue; // Not a token contract.
         }
-        await this.db.enqueueTokenMetadataUpdateNotification({ notification });
         logger.info(
           `BlockchainImporter detected SIP-019 notification for ${notification.contract_id} ${
             notification.token_ids ?? []
           }`
         );
+        try {
+          await this.db.enqueueTokenMetadataUpdateNotification({ notification });
+        } catch (error) {
+          if (error instanceof ContractNotFoundError) {
+            logger.warn(
+              `Contract ${notification.contract_id} not found, unable to process SIP-019 notification`
+            );
+          } else {
+            throw error;
+          }
+        }
       }
     }
     logger.info(`BlockchainImporter token metadata update notification import finished`);
