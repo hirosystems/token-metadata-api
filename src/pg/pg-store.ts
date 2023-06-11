@@ -24,6 +24,10 @@ import {
   DbRateLimitedHostInsert,
   DbRateLimitedHost,
   RATE_LIMITED_HOSTS_COLUMNS,
+  DbIndexPaging,
+  DbFungibleTokenFilters,
+  DbFungibleTokenMetadataItem,
+  DbPaginatedResult,
 } from './types';
 import { connectPostgres } from './postgres-tools';
 import { BasePgStore } from './postgres-tools/base-pg-store';
@@ -465,6 +469,38 @@ export class PgStore extends BasePgStore {
     await this.sql`
       DELETE FROM rate_limited_hosts WHERE hostname = ${args.hostname}
     `;
+  }
+
+  async getFungibleTokens(args: {
+    page: DbIndexPaging;
+    filters?: DbFungibleTokenFilters;
+  }): Promise<DbPaginatedResult<DbFungibleTokenMetadataItem>> {
+    return await this.sqlTransaction(async sql => {
+      const results = await sql<DbFungibleTokenMetadataItem[]>`
+        SELECT
+          t.name,
+          t.symbol,
+          t.decimals,
+          t.total_supply,
+          t.uri,
+          m.description,
+          s.principal,
+          s.tx_id,
+          m.image,
+          m.cached_image
+        FROM tokens AS t
+        INNER JOIN metadata AS m ON t.id = m.token_id
+        INNER JOIN smart_contracts AS s ON t.smart_contract_id = s.id
+        WHERE
+          t.type = 'ft'
+        LIMIT ${args.page.limit}
+        OFFSET ${args.page.offset}
+      `;
+      return {
+        total: 0,
+        results: results ?? [],
+      };
+    });
   }
 
   private async isTokenLocaleAvailable(tokenId: number, locale: string): Promise<boolean> {

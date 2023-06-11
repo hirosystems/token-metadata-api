@@ -1,5 +1,5 @@
 import { SwaggerOptions } from '@fastify/swagger';
-import { Static, Type } from '@sinclair/typebox';
+import { Static, TSchema, Type } from '@sinclair/typebox';
 import { SERVER_VERSION } from '../server-version';
 
 export const OpenApiSchemaOptions: SwaggerOptions = {
@@ -77,6 +77,19 @@ export const TokenIdParam = Type.Integer({
   title: 'Token ID',
   description: 'Token ID to retrieve',
   examples: ['35'],
+});
+
+export const OffsetParam = Type.Integer({
+  minimum: 0,
+  title: 'Offset',
+  description: 'Result offset',
+});
+
+export const LimitParam = Type.Integer({
+  minimum: 1,
+  maximum: 60,
+  title: 'Limit',
+  description: 'Results per page',
 });
 
 // ==========================
@@ -206,6 +219,17 @@ export const ErrorResponse = Type.Union(
   ],
   { title: 'Error Response' }
 );
+
+export const PaginatedResponse = <T extends TSchema>(type: T, title: string) =>
+  Type.Object(
+    {
+      limit: Type.Integer({ examples: [20] }),
+      offset: Type.Integer({ examples: [0] }),
+      total: Type.Integer({ examples: [1] }),
+      results: Type.Array(type),
+    },
+    { title }
+  );
 
 export const FtMetadataResponse = Type.Object(
   {

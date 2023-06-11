@@ -1,13 +1,70 @@
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
-import { FastifyPluginCallback } from 'fastify';
+import { FastifyPluginAsync, FastifyPluginCallback } from 'fastify';
 import { Server } from 'http';
-import { FtMetadataResponse, FtPrincipalParam, TokenQuerystringParams } from '../schemas';
+import {
+  FtMetadataResponse,
+  FtPrincipalParam,
+  LimitParam,
+  OffsetParam,
+  PaginatedResponse,
+  TokenQuerystringParams,
+} from '../schemas';
 import { handleTokenCache } from '../util/cache';
 import { generateTokenErrorResponse, TokenErrorResponseSchema } from '../util/errors';
 import { parseMetadataLocaleBundle } from '../util/helpers';
 
-export const FtRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTypeProvider> = (
+const IndexRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTypeProvider> = (
+  fastify,
+  options,
+  done
+) => {
+  fastify.get(
+    '/ft',
+    {
+      schema: {
+        operationId: 'getFungibleTokens',
+        summary: 'Fungible Tokens',
+        description: 'Retrieves a list of Fungible Tokens',
+        tags: ['Tokens'],
+        querystring: Type.Object({
+          // Pagination
+          offset: Type.Optional(OffsetParam),
+          limit: Type.Optional(LimitParam),
+        }),
+        response: {
+          200: PaginatedResponse(FtMetadataResponse, 'Paginated Ft Metadata Response'),
+        },
+      },
+    },
+    async (request, reply) => {
+      const limit = request.query.limit ?? 20;
+      const offset = request.query.offset ?? 0;
+      const tokens = await fastify.db.getFungibleTokens({
+        page: { limit, offset },
+      });
+      await reply.send({
+        limit,
+        offset,
+        total: tokens.total,
+        results: tokens.results.map(t => ({
+          name: t.name,
+          symbol: t.symbol,
+          decimals: t.decimals,
+          total_supply: t.total_supply?.toString(),
+          token_uri: t.uri,
+          description: t.description,
+          tx_id: t.tx_id,
+          sender_address: t.principal?.split('.')[0],
+          image_uri: t.cached_image,
+          image_canonical_uri: t.image,
+        })),
+      });
+    }
+  );
+};
+
+const ShowRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTypeProvider> = (
   fastify,
   options,
   done
@@ -57,4 +114,13 @@ export const FtRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeB
     }
   );
   done();
+};
+
+export const FtRoutes: FastifyPluginAsync<
+  Record<never, never>,
+  Server,
+  TypeBoxTypeProvider
+> = async fastify => {
+  await fastify.register(IndexRoutes);
+  await fastify.register(ShowRoutes);
 };
