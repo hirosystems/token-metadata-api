@@ -476,7 +476,7 @@ export class PgStore extends BasePgStore {
     filters?: DbFungibleTokenFilters;
   }): Promise<DbPaginatedResult<DbFungibleTokenMetadataItem>> {
     return await this.sqlTransaction(async sql => {
-      const results = await sql<DbFungibleTokenMetadataItem[]>`
+      const results = await sql<({ total: number } & DbFungibleTokenMetadataItem)[]>`
         SELECT
           t.name,
           t.symbol,
@@ -487,7 +487,8 @@ export class PgStore extends BasePgStore {
           s.principal,
           s.tx_id,
           m.image,
-          m.cached_image
+          m.cached_image,
+          COUNT(*) OVER() as total
         FROM tokens AS t
         INNER JOIN metadata AS m ON t.id = m.token_id
         INNER JOIN smart_contracts AS s ON t.smart_contract_id = s.id
@@ -499,7 +500,7 @@ export class PgStore extends BasePgStore {
         OFFSET ${args.page.offset}
       `;
       return {
-        total: 0, // TODO: Total
+        total: results[0].total ?? 0,
         results: results ?? [],
       };
     });
