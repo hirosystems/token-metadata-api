@@ -43,7 +43,7 @@ export const OpenApiSchemaOptions: SwaggerOptions = {
 // ==========================
 
 export const SmartContractRegEx =
-  /[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{28,41}\.[a-zA-Z]([a-zA-Z0-9]|[-_]){0,39}/;
+  /^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{28,41}\.[a-zA-Z]([a-zA-Z0-9]|[-_]){0,39}$/;
 
 export const TokenQuerystringParams = Type.Object({
   locale: Type.Optional(
@@ -71,6 +71,12 @@ export const SftPrincipalParam = Type.RegEx(SmartContractRegEx, {
   title: 'Semi-Fungible Token Contract Principal',
   description: 'SIP-013 compliant smart contract principal',
   examples: ['SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1'],
+});
+
+export const StacksAddressParam = Type.RegEx(/^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{28,41}/, {
+  title: 'Stacks Address',
+  description: 'Stacks Address',
+  examples: ['SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9'],
 });
 
 export const TokenIdParam = Type.Integer({

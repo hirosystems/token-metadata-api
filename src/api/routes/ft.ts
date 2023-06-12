@@ -8,6 +8,7 @@ import {
   LimitParam,
   OffsetParam,
   PaginatedResponse,
+  StacksAddressParam,
   TokenQuerystringParams,
 } from '../schemas';
 import { handleTokenCache } from '../util/cache';
@@ -28,6 +29,9 @@ const IndexRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTy
         description: 'Retrieves a list of Fungible Tokens',
         tags: ['Tokens'],
         querystring: Type.Object({
+          name: Type.Optional(Type.String()),
+          symbol: Type.Optional(Type.String()),
+          address: Type.Optional(StacksAddressParam),
           // Pagination
           offset: Type.Optional(OffsetParam),
           limit: Type.Optional(LimitParam),
@@ -42,6 +46,11 @@ const IndexRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTy
       const offset = request.query.offset ?? 0;
       const tokens = await fastify.db.getFungibleTokens({
         page: { limit, offset },
+        filters: {
+          name: request.query.name,
+          symbol: request.query.symbol,
+          address: request.query.address,
+        },
       });
       await reply.send({
         limit,
@@ -62,6 +71,7 @@ const IndexRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTy
       });
     }
   );
+  done();
 };
 
 const ShowRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTypeProvider> = (

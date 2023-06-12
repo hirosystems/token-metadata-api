@@ -491,13 +491,15 @@ export class PgStore extends BasePgStore {
         FROM tokens AS t
         INNER JOIN metadata AS m ON t.id = m.token_id
         INNER JOIN smart_contracts AS s ON t.smart_contract_id = s.id
-        WHERE
-          t.type = 'ft'
+        WHERE t.type = 'ft'
+          ${args.filters?.name ? sql`AND t.name LIKE '%${args.filters.name}%'` : sql``}
+          ${args.filters?.symbol ? sql`AND t.symbol = ${args.filters.symbol}` : sql``}
+          ${args.filters?.address ? sql`AND s.principal LIKE '${args.filters.address}%'` : sql``}
         LIMIT ${args.page.limit}
         OFFSET ${args.page.offset}
       `;
       return {
-        total: 0,
+        total: 0, // TODO: Total
         results: results ?? [],
       };
     });
