@@ -22,10 +22,6 @@ async function initBackgroundServices(db: PgStore) {
   logger.info('Initializing background services...');
   const apiDb = await PgBlockchainApiStore.connect();
 
-  if (process.env.NODE_ENV === 'production') {
-    new TokenProcessorMetrics({ db });
-  }
-
   const jobQueue = new JobQueue({ db, apiDb });
   registerShutdownConfig({
     name: 'Job Queue',
@@ -109,6 +105,7 @@ async function initApiService(db: PgStore) {
       },
     });
 
+    TokenProcessorMetrics.configure(db);
     await promServer.listen({ host: ENV.API_HOST, port: 9153 });
   }
 }
