@@ -306,7 +306,7 @@ describe('FT routes', () => {
       });
     };
 
-    test('shows a list of tokens', async () => {
+    const insertFtList = async () => {
       await insertFt({
         name: 'Meme token',
         symbol: 'MEME',
@@ -343,7 +343,10 @@ describe('FT routes', () => {
         tx_id: '0x3edffbd025ca2c29cfde8c583c0e0babacd4aa21075d10307d37c64ae78d579e',
         principal: 'SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275.stsw-token-v4a',
       });
+    };
 
+    test('shows a list of tokens', async () => {
+      await insertFtList();
       const response = await fastify.inject({
         method: 'GET',
         url: '/metadata/ft',
@@ -390,15 +393,39 @@ describe('FT routes', () => {
     });
 
     test('filters by name', async () => {
-      //
+      await insertFtList();
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/metadata/ft?name=miami', // Partial match
+      });
+      expect(response.statusCode).toBe(200);
+      const json = response.json();
+      expect(json.total).toBe(1);
+      expect(json.results[0].symbol).toBe('MIA');
     });
 
     test('filters by symbol', async () => {
-      //
+      await insertFtList();
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/metadata/ft?symbol=MIA',
+      });
+      expect(response.statusCode).toBe(200);
+      const json = response.json();
+      expect(json.total).toBe(1);
+      expect(json.results[0].symbol).toBe('MIA');
     });
 
     test('filters by address', async () => {
-      //
+      await insertFtList();
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/metadata/ft?address=SP1H1733V5MZ3SZ9XRW9FKYGEZT0JDGEB8Y634C7R',
+      });
+      expect(response.statusCode).toBe(200);
+      const json = response.json();
+      expect(json.total).toBe(1);
+      expect(json.results[0].symbol).toBe('MIA');
     });
   });
 });
