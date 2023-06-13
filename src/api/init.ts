@@ -6,9 +6,10 @@ import { SftRoutes } from './routes/sft';
 import { PgStore } from '../pg/pg-store';
 import FastifyCors from '@fastify/cors';
 import { StatusRoutes } from './routes/status';
-import FastifyMetrics from 'fastify-metrics';
+import FastifyMetrics, { IFastifyMetrics } from 'fastify-metrics';
 import { Server } from 'http';
 import { PINO_CONFIG } from '../logger';
+import { isProdEnv } from './util/helpers';
 
 export const Api: FastifyPluginAsync<Record<never, never>, Server, TypeBoxTypeProvider> = async (
   fastify,
@@ -27,12 +28,30 @@ export async function buildApiServer(args: { db: PgStore }) {
   }).withTypeProvider<TypeBoxTypeProvider>();
 
   fastify.decorate('db', args.db);
-  if (process.env['NODE_ENV'] === 'production') {
-    await fastify.register(FastifyMetrics);
+  if (isProdEnv) {
+    await fastify.register(FastifyMetrics, { endpoint: null });
   }
   await fastify.register(FastifyCors);
   await fastify.register(Api, { prefix: '/metadata/v1' });
   await fastify.register(Api, { prefix: '/metadata' });
 
   return fastify;
+}
+
+export async function buildPromServer(args: { metrics: IFastifyMetrics }) {
+  const promServer = Fastify({
+    trustProxy: true,
+    logger: PINO_CONFIG,
+  });
+
+  promServer.route({
+    url: '/metrics',
+    method: 'GET',
+    logLevel: 'info',
+    handler: async (_, reply) => {
+      await reply.type('text/plain').send(await args.metrics.client.register.metrics());
+    },
+  });
+
+  return promServer;
 }

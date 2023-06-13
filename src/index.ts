@@ -5,13 +5,14 @@ import {
 import { PgStore } from './pg/pg-store';
 import { PgBlockchainApiStore } from './pg/blockchain-api/pg-blockchain-api-store';
 import { JobQueue } from './token-processor/queue/job-queue';
-import { buildApiServer } from './api/init';
+import { buildApiServer, buildPromServer } from './api/init';
 import { BlockchainSmartContractMonitor } from './token-processor/blockchain-api/blockchain-smart-contract-monitor';
 import { TokenProcessorMetrics } from './token-processor/token-processor-metrics';
 import { registerShutdownConfig } from './shutdown-handler';
 import { ENV } from './env';
 import { logger } from './logger';
 import { buildAdminRpcServer } from './admin-rpc/init';
+import { isProdEnv } from './api/util/helpers';
 
 /**
  * Initializes background services. Only for `default` and `writeonly` run modes.
@@ -97,6 +98,19 @@ async function initApiService(db: PgStore) {
   });
 
   await apiServer.listen({ host: ENV.API_HOST, port: ENV.API_PORT });
+
+  if (isProdEnv) {
+    const promServer = await buildPromServer({ metrics: apiServer.metrics });
+    registerShutdownConfig({
+      name: 'Prometheus Server',
+      forceKillable: false,
+      handler: async () => {
+        await promServer.close();
+      },
+    });
+
+    await promServer.listen({ host: ENV.API_HOST, port: 9153 });
+  }
 }
 
 async function initApp() {
