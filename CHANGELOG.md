@@ -1,3 +1,11 @@
+## [0.3.1](https://github.com/hirosystems/token-metadata-api/compare/v0.3.0...v0.3.1) (2023-06-15)
+
+
+### Bug Fixes
+
+* only warn when sip-019 contract is not found ([#162](https://github.com/hirosystems/token-metadata-api/issues/162)) ([55dcde1](https://github.com/hirosystems/token-metadata-api/commit/55dcde1a472f068cc2928125cd1e122d2d6d9c84))
+* run prometheus on port 9153 ([#165](https://github.com/hirosystems/token-metadata-api/issues/165)) ([2fa0d93](https://github.com/hirosystems/token-metadata-api/commit/2fa0d93c11764da7dff2a39b94606938ecafbcd7))
+
 ## [0.3.0](https://github.com/hirosystems/token-metadata-api/compare/v0.2.1...v0.3.0) (2023-04-03)
 
 
