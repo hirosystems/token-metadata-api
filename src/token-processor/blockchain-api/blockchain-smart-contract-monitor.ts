@@ -11,6 +11,7 @@ import { Static, Type } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
 import { logger } from '../../logger';
 import { DbSipNumber, DbTokenType } from '../../pg/types';
+import { ContractNotFoundError } from '../../pg/errors';
 
 const PgNotification = Type.Object({
   type: Type.String(),
@@ -134,12 +135,22 @@ export class BlockchainSmartContractMonitor {
     // SIP-019 notification?
     const notification = getContractLogMetadataUpdateNotification(log);
     if (notification) {
-      await this.db.enqueueTokenMetadataUpdateNotification({ notification });
       logger.info(
         `BlockchainSmartContractMonitor detected SIP-019 notification for ${
           notification.contract_id
         } ${notification.token_ids ?? []}`
       );
+      try {
+        await this.db.enqueueTokenMetadataUpdateNotification({ notification });
+      } catch (error) {
+        if (error instanceof ContractNotFoundError) {
+          logger.warn(
+            `Contract ${notification.contract_id} not found, unable to process SIP-019 notification`
+          );
+        } else {
+          throw error;
+        }
+      }
       return;
     }
     // SIP-013 SFT mint?

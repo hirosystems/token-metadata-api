@@ -306,7 +306,7 @@ export class PgStore extends BasePgStore {
         SELECT id FROM smart_contracts WHERE principal = ${args.notification.contract_id}
       `;
       if (contractResult.count === 0) {
-        throw new Error(`Contract not found with principal: ${args.notification.contract_id}`);
+        throw new ContractNotFoundError();
       }
       const contractId = contractResult[0].id;
 
