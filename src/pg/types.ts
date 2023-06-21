@@ -1,3 +1,4 @@
+import { FtOrderBy, Order } from '../api/schemas';
 import { PgJsonb, PgNumeric } from './postgres-tools/types';
 
 export enum DbSipNumber {
@@ -201,6 +202,11 @@ export type DbFungibleTokenFilters = {
   name?: string;
   symbol?: string;
   address?: string;
+};
+
+export type DbFungibleTokenOrder = {
+  order_by?: FtOrderBy;
+  order?: Order;
 };
 
 export type DbPaginatedResult<T> = {

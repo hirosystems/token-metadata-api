@@ -98,6 +98,24 @@ export const LimitParam = Type.Integer({
   description: 'Results per page',
 });
 
+export enum FtOrderBy {
+  name = 'name',
+  symbol = 'symbol',
+}
+export const FtOrderByParam = Type.Enum(FtOrderBy, {
+  title: 'Order By',
+  description: 'Parameter to order results by',
+});
+
+export enum Order {
+  asc = 'asc',
+  desc = 'desc',
+}
+export const OrderParam = Type.Enum(Order, {
+  title: 'Order',
+  description: 'Results order',
+});
+
 // ==========================
 // Responses
 // ==========================

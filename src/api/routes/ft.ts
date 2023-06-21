@@ -4,9 +4,13 @@ import { FastifyPluginAsync, FastifyPluginCallback } from 'fastify';
 import { Server } from 'http';
 import {
   FtMetadataResponse,
+  FtOrderBy,
+  FtOrderByParam,
   FtPrincipalParam,
   LimitParam,
   OffsetParam,
+  Order,
+  OrderParam,
   PaginatedResponse,
   StacksAddressParam,
   TokenQuerystringParams,
@@ -35,6 +39,9 @@ const IndexRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTy
           // Pagination
           offset: Type.Optional(OffsetParam),
           limit: Type.Optional(LimitParam),
+          // Ordering
+          order_by: Type.Optional(FtOrderByParam),
+          order: Type.Optional(OrderParam),
         }),
         response: {
           200: PaginatedResponse(FtMetadataResponse, 'Paginated Ft Metadata Response'),
@@ -50,6 +57,10 @@ const IndexRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTy
           name: request.query.name,
           symbol: request.query.symbol,
           address: request.query.address,
+        },
+        order: {
+          order_by: request.query.order_by ?? FtOrderBy.name,
+          order: request.query.order ?? Order.asc,
         },
       });
       await reply.send({

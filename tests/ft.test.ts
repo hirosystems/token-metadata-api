@@ -427,5 +427,55 @@ describe('FT routes', () => {
       expect(json.total).toBe(1);
       expect(json.results[0].symbol).toBe('MIA');
     });
+
+    test('sorts by name', async () => {
+      await insertFtList();
+      const response1 = await fastify.inject({
+        method: 'GET',
+        url: '/metadata/ft?order_by=name&order=asc',
+      });
+      expect(response1.statusCode).toBe(200);
+      const json1 = response1.json();
+      expect(json1.total).toBe(3);
+      expect(json1.results[0].symbol).toBe('MEME');
+      expect(json1.results[1].symbol).toBe('MIA');
+      expect(json1.results[2].symbol).toBe('STSW');
+
+      const response2 = await fastify.inject({
+        method: 'GET',
+        url: '/metadata/ft?order_by=name&order=desc',
+      });
+      expect(response2.statusCode).toBe(200);
+      const json2 = response2.json();
+      expect(json2.total).toBe(3);
+      expect(json2.results[0].symbol).toBe('STSW');
+      expect(json2.results[1].symbol).toBe('MIA');
+      expect(json2.results[2].symbol).toBe('MEME');
+    });
+
+    test('sorts by symbol', async () => {
+      await insertFtList();
+      const response1 = await fastify.inject({
+        method: 'GET',
+        url: '/metadata/ft?order_by=symbol&order=asc',
+      });
+      expect(response1.statusCode).toBe(200);
+      const json1 = response1.json();
+      expect(json1.total).toBe(3);
+      expect(json1.results[0].symbol).toBe('MEME');
+      expect(json1.results[1].symbol).toBe('MIA');
+      expect(json1.results[2].symbol).toBe('STSW');
+
+      const response2 = await fastify.inject({
+        method: 'GET',
+        url: '/metadata/ft?order_by=symbol&order=desc',
+      });
+      expect(response2.statusCode).toBe(200);
+      const json2 = response2.json();
+      expect(json2.total).toBe(3);
+      expect(json2.results[0].symbol).toBe('STSW');
+      expect(json2.results[1].symbol).toBe('MIA');
+      expect(json2.results[2].symbol).toBe('MEME');
+    });
   });
 });
