@@ -1,3 +1,4 @@
+import { FtOrderBy, Order } from '../api/schemas';
 import { PgJsonb, PgNumeric } from './postgres-tools/types';
 
 export enum DbSipNumber {
@@ -190,6 +191,40 @@ export type DbTokenMetadataLocaleBundle = {
   token: DbToken;
   smartContract: DbSmartContract;
   metadataLocale?: DbMetadataLocaleBundle;
+};
+
+export type DbIndexPaging = {
+  limit: number;
+  offset: number;
+};
+
+export type DbFungibleTokenFilters = {
+  name?: string;
+  symbol?: string;
+  address?: string;
+};
+
+export type DbFungibleTokenOrder = {
+  order_by?: FtOrderBy;
+  order?: Order;
+};
+
+export type DbPaginatedResult<T> = {
+  total: number;
+  results: T[];
+};
+
+export type DbFungibleTokenMetadataItem = {
+  name?: string;
+  symbol?: string;
+  decimals?: number;
+  total_supply?: bigint;
+  uri?: string;
+  description?: string;
+  tx_id: string;
+  principal: string;
+  image?: string;
+  cached_image?: string;
 };
 
 export const SMART_CONTRACTS_COLUMNS = [
