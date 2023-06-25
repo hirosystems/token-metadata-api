@@ -29,6 +29,7 @@ import {
   DbFungibleTokenMetadataItem,
   DbPaginatedResult,
   DbFungibleTokenOrder,
+  DbSipNumber,
 } from './types';
 import { connectPostgres } from './postgres-tools';
 import { BasePgStore } from './postgres-tools/base-pg-store';
@@ -42,6 +43,7 @@ import {
 } from './errors';
 import { runMigrations } from './migrations';
 import { FtOrderBy, Order } from '../api/schemas';
+import { Payload } from '@hirosystems/chainhook-client';
 
 /**
  * Connects and queries the Token Metadata Service's local postgres DB.
@@ -69,6 +71,25 @@ export class PgStore extends BasePgStore {
     }
     return new PgStore(sql);
   }
+
+  // async updateSmartContractDeployments(payload: Payload, sip: DbSipNumber): Promise<void> {
+  //   await this.sqlWriteTransaction(async sql => {
+  //     for (const event of payload.rollback) {
+  //       //
+  //     }
+  //     for (const event of payload.apply) {
+  //       await this.insertAndEnqueueSmartContract({
+  //         values: {
+  //           principal: contract.contract_id,
+  //           sip: sip,
+  //           abi: contract.abi,
+  //           tx_id: contract.tx_id,
+  //           block_height: contract.block_height,
+  //         },
+  //       });
+  //     }
+  //   });
+  // }
 
   async insertAndEnqueueSmartContract(args: { values: DbSmartContractInsert }): Promise<DbJob> {
     const result = await this.sql<DbJob[]>`
