@@ -27,9 +27,14 @@ const schema = Type.Object({
   PGUSER: Type.String(),
   PGPASSWORD: Type.String(),
   PGDATABASE: Type.String(),
-  /** Limit to how many concurrent connections can be created */
+  /**
+   * Limit to how many concurrent connections can be created, defaults to 10. Make sure this number
+   * is greater than `JOB_QUEUE_CONCURRENCY_LIMIT`.
+   */
   PG_CONNECTION_POOL_MAX: Type.Number({ default: 10 }),
+  /** Idle connection timeout (seconds). */
   PG_IDLE_TIMEOUT: Type.Number({ default: 30 }),
+  /** Max lifetime of a connection (seconds). */
   PG_MAX_LIFETIME: Type.Number({ default: 60 }),
 
   BLOCKCHAIN_API_PGHOST: Type.String(),
