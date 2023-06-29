@@ -274,6 +274,24 @@ export const FtMetadataResponse = Type.Object(
   { title: 'Ft Metadata Response' }
 );
 
+export const FtBasicMetadataResponse = Type.Object(
+  {
+    name: Type.Optional(Type.String({ examples: ['Wrapped USD'] })),
+    symbol: Type.Optional(Type.String({ examples: ['xUSD'] })),
+    decimals: Type.Optional(Type.Integer({ examples: [8] })),
+    total_supply: Type.Optional(Type.String({ examples: ['9999980000000'] })),
+    token_uri: Type.Optional(TokenUri),
+    description: Type.Optional(TokenDescription),
+    image_uri: Type.Optional(TokenCachedImage),
+    image_canonical_uri: Type.Optional(TokenImage),
+    tx_id: Type.String({
+      examples: ['0xef2ac1126e16f46843228b1dk4830e19eb7599129e4jf392cab9e65ae83a45c0'],
+    }),
+    sender_address: Type.String({ examples: ['ST399W7Z9WS0GMSNQGJGME5JAENKN56D65VGMGKGA'] }),
+  },
+  { title: 'Ft Basic Metadata Response' }
+);
+
 export const NftMetadataResponse = Type.Object(
   {
     token_uri: Type.Optional(TokenUri),
