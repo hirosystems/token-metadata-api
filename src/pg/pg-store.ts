@@ -24,6 +24,11 @@ import {
   DbRateLimitedHostInsert,
   DbRateLimitedHost,
   RATE_LIMITED_HOSTS_COLUMNS,
+  DbIndexPaging,
+  DbFungibleTokenFilters,
+  DbFungibleTokenMetadataItem,
+  DbPaginatedResult,
+  DbFungibleTokenOrder,
 } from './types';
 import { connectPostgres } from './postgres-tools';
 import { BasePgStore } from './postgres-tools/base-pg-store';
@@ -36,6 +41,7 @@ import {
   TokenNotProcessedError,
 } from './errors';
 import { runMigrations } from './migrations';
+import { FtOrderBy, Order } from '../api/schemas';
 
 /**
  * Connects and queries the Token Metadata Service's local postgres DB.
@@ -465,6 +471,55 @@ export class PgStore extends BasePgStore {
     await this.sql`
       DELETE FROM rate_limited_hosts WHERE hostname = ${args.hostname}
     `;
+  }
+
+  async getFungibleTokens(args: {
+    page: DbIndexPaging;
+    filters?: DbFungibleTokenFilters;
+    order?: DbFungibleTokenOrder;
+  }): Promise<DbPaginatedResult<DbFungibleTokenMetadataItem>> {
+    return await this.sqlTransaction(async sql => {
+      // `ORDER BY` statement
+      let orderBy = sql`t.name`;
+      switch (args.order?.order_by) {
+        case FtOrderBy.name:
+          orderBy = sql`t.name`;
+          break;
+        case FtOrderBy.symbol:
+          orderBy = sql`t.symbol`;
+          break;
+      }
+      // `ORDER` statement
+      const order = args.order?.order === Order.asc ? sql`ASC` : sql`DESC`;
+      const results = await sql<({ total: number } & DbFungibleTokenMetadataItem)[]>`
+        SELECT
+          t.name,
+          t.symbol,
+          t.decimals,
+          t.total_supply,
+          t.uri,
+          m.description,
+          s.principal,
+          s.tx_id,
+          m.image,
+          m.cached_image,
+          COUNT(*) OVER() as total
+        FROM tokens AS t
+        INNER JOIN metadata AS m ON t.id = m.token_id
+        INNER JOIN smart_contracts AS s ON t.smart_contract_id = s.id
+        WHERE t.type = 'ft'
+          ${args.filters?.name ? sql`AND t.name LIKE ${'%' + args.filters.name + '%'}` : sql``}
+          ${args.filters?.symbol ? sql`AND t.symbol = ${args.filters.symbol}` : sql``}
+          ${args.filters?.address ? sql`AND s.principal LIKE ${args.filters.address + '%'}` : sql``}
+        ORDER BY ${orderBy} ${order}
+        LIMIT ${args.page.limit}
+        OFFSET ${args.page.offset}
+      `;
+      return {
+        total: results[0].total ?? 0,
+        results: results ?? [],
+      };
+    });
   }
 
   private async isTokenLocaleAvailable(tokenId: number, locale: string): Promise<boolean> {

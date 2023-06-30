@@ -1,5 +1,5 @@
 import { SwaggerOptions } from '@fastify/swagger';
-import { Static, Type } from '@sinclair/typebox';
+import { Static, TSchema, Type } from '@sinclair/typebox';
 import { SERVER_VERSION } from '../server-version';
 
 export const OpenApiSchemaOptions: SwaggerOptions = {
@@ -43,7 +43,7 @@ export const OpenApiSchemaOptions: SwaggerOptions = {
 // ==========================
 
 export const SmartContractRegEx =
-  /[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{28,41}\.[a-zA-Z]([a-zA-Z0-9]|[-_]){0,39}/;
+  /^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{28,41}\.[a-zA-Z]([a-zA-Z0-9]|[-_]){0,39}$/;
 
 export const TokenQuerystringParams = Type.Object({
   locale: Type.Optional(
@@ -73,10 +73,47 @@ export const SftPrincipalParam = Type.RegEx(SmartContractRegEx, {
   examples: ['SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1'],
 });
 
+export const StacksAddressParam = Type.RegEx(/^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{28,41}/, {
+  title: 'Stacks Address',
+  description: 'Stacks Address',
+  examples: ['SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9'],
+});
+
 export const TokenIdParam = Type.Integer({
   title: 'Token ID',
   description: 'Token ID to retrieve',
   examples: ['35'],
+});
+
+export const OffsetParam = Type.Integer({
+  minimum: 0,
+  title: 'Offset',
+  description: 'Result offset',
+});
+
+export const LimitParam = Type.Integer({
+  minimum: 1,
+  maximum: 60,
+  title: 'Limit',
+  description: 'Results per page',
+});
+
+export enum FtOrderBy {
+  name = 'name',
+  symbol = 'symbol',
+}
+export const FtOrderByParam = Type.Enum(FtOrderBy, {
+  title: 'Order By',
+  description: 'Parameter to order results by',
+});
+
+export enum Order {
+  asc = 'asc',
+  desc = 'desc',
+}
+export const OrderParam = Type.Enum(Order, {
+  title: 'Order',
+  description: 'Results order',
 });
 
 // ==========================
@@ -207,6 +244,17 @@ export const ErrorResponse = Type.Union(
   { title: 'Error Response' }
 );
 
+export const PaginatedResponse = <T extends TSchema>(type: T, title: string) =>
+  Type.Object(
+    {
+      limit: Type.Integer({ examples: [20] }),
+      offset: Type.Integer({ examples: [0] }),
+      total: Type.Integer({ examples: [1] }),
+      results: Type.Array(type),
+    },
+    { title }
+  );
+
 export const FtMetadataResponse = Type.Object(
   {
     name: Type.Optional(Type.String({ examples: ['Wrapped USD'] })),
@@ -224,6 +272,24 @@ export const FtMetadataResponse = Type.Object(
     metadata: Type.Optional(Metadata),
   },
   { title: 'Ft Metadata Response' }
+);
+
+export const FtBasicMetadataResponse = Type.Object(
+  {
+    name: Type.Optional(Type.String({ examples: ['Wrapped USD'] })),
+    symbol: Type.Optional(Type.String({ examples: ['xUSD'] })),
+    decimals: Type.Optional(Type.Integer({ examples: [8] })),
+    total_supply: Type.Optional(Type.String({ examples: ['9999980000000'] })),
+    token_uri: Type.Optional(TokenUri),
+    description: Type.Optional(TokenDescription),
+    image_uri: Type.Optional(TokenCachedImage),
+    image_canonical_uri: Type.Optional(TokenImage),
+    tx_id: Type.String({
+      examples: ['0xef2ac1126e16f46843228b1dk4830e19eb7599129e4jf392cab9e65ae83a45c0'],
+    }),
+    sender_address: Type.String({ examples: ['ST399W7Z9WS0GMSNQGJGME5JAENKN56D65VGMGKGA'] }),
+  },
+  { title: 'Ft Basic Metadata Response' }
 );
 
 export const NftMetadataResponse = Type.Object(
