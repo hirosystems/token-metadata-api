@@ -3,6 +3,7 @@ import { Type } from '@sinclair/typebox';
 import { FastifyPluginAsync, FastifyPluginCallback } from 'fastify';
 import { Server } from 'http';
 import {
+  FtBasicMetadataResponse,
   FtMetadataResponse,
   FtOrderBy,
   FtOrderByParam,
@@ -44,7 +45,7 @@ const IndexRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTy
           order: Type.Optional(OrderParam),
         }),
         response: {
-          200: PaginatedResponse(FtMetadataResponse, 'Paginated Ft Metadata Response'),
+          200: PaginatedResponse(FtBasicMetadataResponse, 'Paginated Ft Basic Metadata Response'),
         },
       },
     },
