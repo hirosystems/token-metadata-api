@@ -1,3 +1,10 @@
+## [0.4.0](https://github.com/hirosystems/token-metadata-api/compare/v0.3.1...v0.4.0) (2023-06-30)
+
+
+### Features
+
+* add endpoint to list all FTs ([#167](https://github.com/hirosystems/token-metadata-api/issues/167)) ([af1e886](https://github.com/hirosystems/token-metadata-api/commit/af1e88661e344d407fcc96451ceb64cb224d2939))
+
 ## [0.3.1](https://github.com/hirosystems/token-metadata-api/compare/v0.3.0...v0.3.1) (2023-06-15)
 
 
