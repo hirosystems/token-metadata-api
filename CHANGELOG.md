@@ -1,3 +1,30 @@
+## [0.4.0](https://github.com/hirosystems/token-metadata-api/compare/v0.3.1...v0.4.0) (2023-06-30)
+
+
+### Features
+
+* add endpoint to list all FTs ([#167](https://github.com/hirosystems/token-metadata-api/issues/167)) ([af1e886](https://github.com/hirosystems/token-metadata-api/commit/af1e88661e344d407fcc96451ceb64cb224d2939))
+
+## [0.3.1](https://github.com/hirosystems/token-metadata-api/compare/v0.3.0...v0.3.1) (2023-06-15)
+
+
+### Bug Fixes
+
+* only warn when sip-019 contract is not found ([#162](https://github.com/hirosystems/token-metadata-api/issues/162)) ([55dcde1](https://github.com/hirosystems/token-metadata-api/commit/55dcde1a472f068cc2928125cd1e122d2d6d9c84))
+* run prometheus on port 9153 ([#165](https://github.com/hirosystems/token-metadata-api/issues/165)) ([2fa0d93](https://github.com/hirosystems/token-metadata-api/commit/2fa0d93c11764da7dff2a39b94606938ecafbcd7))
+
+## [0.3.0](https://github.com/hirosystems/token-metadata-api/compare/v0.2.1...v0.3.0) (2023-04-03)
+
+
+### Features
+
+* add `invalid` job status to mark invalid contracts or tokens ([#148](https://github.com/hirosystems/token-metadata-api/issues/148)) ([5d6ef41](https://github.com/hirosystems/token-metadata-api/commit/5d6ef419a594bbe01c54d2905707a4bc6a2a8e2f))
+
+
+### Bug Fixes
+
+* support FTs with missing metadata but correct token data ([#150](https://github.com/hirosystems/token-metadata-api/issues/150)) ([0a5558e](https://github.com/hirosystems/token-metadata-api/commit/0a5558e4c184aa6989b48361ae3ed3fc1b363ee7))
+
 ## [0.2.1](https://github.com/hirosystems/token-metadata-api/compare/v0.2.0...v0.2.1) (2023-03-17)
 
 
