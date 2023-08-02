@@ -79,6 +79,7 @@ const IndexRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTy
           sender_address: t.principal?.split('.')[0],
           image_uri: t.cached_image,
           image_canonical_uri: t.image,
+          contract_principal: t.principal,
         })),
       });
     }
