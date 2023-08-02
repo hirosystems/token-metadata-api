@@ -1,6 +1,6 @@
 {
   "name": "@hirosystems/token-metadata-api-client",
-  "version": "1.0.3",
+  "version": "1.2.0",
   "description": "Client for @hirosystems/token-metadata-api",
   "author": "Hiro Systems PBC <engineering@hiro.so> (https://hiro.so)",
   "keywords": [

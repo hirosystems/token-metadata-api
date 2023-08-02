@@ -365,6 +365,7 @@ describe('FT routes', () => {
         token_uri: 'https://ipfs.io/abcd.json',
         total_supply: '200000',
         tx_id: '0xbdc41843d5e0cd4a70611f6badeb5c87b07b12309e77c4fbaf2334c7b4cee89b',
+        contract_principal: 'SP22PCWZ9EJMHV4PHVS0C8H3B3E4Q079ZHY6CXDS1.meme-token',
       });
       expect(json.results[1]).toStrictEqual({
         decimals: 6,
@@ -377,6 +378,7 @@ describe('FT routes', () => {
         token_uri: 'https://cdn.citycoins.co/metadata/miamicoin.json',
         total_supply: '5586789829000000',
         tx_id: '0xa80a44790929467693ccb33a212cf50878a6ad572c4c5b8e7d9a5de794fbefa2',
+        contract_principal: 'SP1H1733V5MZ3SZ9XRW9FKYGEZT0JDGEB8Y634C7R.miamicoin-token-v2',
       });
       expect(json.results[2]).toStrictEqual({
         decimals: 6,
@@ -389,6 +391,7 @@ describe('FT routes', () => {
         token_uri: 'https://app.stackswap.org/token/stsw.json',
         total_supply: '1000000000000000',
         tx_id: '0x3edffbd025ca2c29cfde8c583c0e0babacd4aa21075d10307d37c64ae78d579e',
+        contract_principal: 'SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275.stsw-token-v4a',
       });
     });
 
@@ -402,6 +405,14 @@ describe('FT routes', () => {
       const json = response.json();
       expect(json.total).toBe(1);
       expect(json.results[0].symbol).toBe('MIA');
+
+      const response2 = await fastify.inject({
+        method: 'GET',
+        url: '/metadata/ft?name=nothing', // No match
+      });
+      expect(response2.statusCode).toBe(200);
+      const json2 = response2.json();
+      expect(json2.total).toBe(0);
     });
 
     test('filters by symbol', async () => {
@@ -414,6 +425,14 @@ describe('FT routes', () => {
       const json = response.json();
       expect(json.total).toBe(1);
       expect(json.results[0].symbol).toBe('MIA');
+
+      const response2 = await fastify.inject({
+        method: 'GET',
+        url: '/metadata/ft?symbol=nothing', // No match
+      });
+      expect(response2.statusCode).toBe(200);
+      const json2 = response2.json();
+      expect(json2.total).toBe(0);
     });
 
     test('filters by address', async () => {
@@ -426,6 +445,14 @@ describe('FT routes', () => {
       const json = response.json();
       expect(json.total).toBe(1);
       expect(json.results[0].symbol).toBe('MIA');
+
+      const response2 = await fastify.inject({
+        method: 'GET',
+        url: '/metadata/ft?address=SP1GK6VGCQQGP1PXH5676BY0334CZC41EAA7K1EK3', // No match
+      });
+      expect(response2.statusCode).toBe(200);
+      const json2 = response2.json();
+      expect(json2.total).toBe(0);
     });
 
     test('sorts by name', async () => {

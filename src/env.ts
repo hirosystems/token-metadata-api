@@ -100,7 +100,7 @@ const schema = Type.Object({
    * script that accepts the URL as the first program argument and outputs a result URL to stdout.
    * Example: ./config/image-cache.js
    */
-  METADATA_IMAGE_CACHE_PROCESSOR: Type.String(),
+  METADATA_IMAGE_CACHE_PROCESSOR: Type.Optional(Type.String()),
   /**
    * How often will token metadata that is marked `dynamic` will be refreshed if it doesn't specify
    * an explicit TTL (seconds). See SIP-019 for more information. Defaults to 86400 seconds (24

@@ -22,6 +22,9 @@ Stacks blockchain and exposes it via JSON REST API endpoints.
         * [Job Queue](#job-queue)
             * [Process Smart Contract Job](#process-smart-contract-job)
             * [Process Token Job](#process-token-job)
+* [Bugs and Feature Requests](#bugs-and-feature-requests)
+* [Contribute](#contribute)
+* [Community](#community)
 
 ## Features
 
@@ -218,3 +221,34 @@ to save it into the local database for API endpoints to return.
 If a `429` (Too Many Requests) status code is returned by a hostname used to fetch metadata, the
 service will cease all further requests to it until a reasonable amount of time has passed or until
 the time specified by the host in a `Retry-After` response header.
+
+## Bugs and feature requests
+
+If you encounter a bug or have a feature request, we encourage you to follow the steps below:
+
+ 1. **Search for existing issues:** Before submitting a new issue, please search [existing and closed issues](../../issues) to check if a similar problem or feature request has already been reported.
+ 1. **Open a new issue:** If it hasn't been addressed, please [open a new issue](../../issues/new/choose). Choose the appropriate issue template and provide as much detail as possible, including steps to reproduce the bug or a clear description of the requested feature.
+ 1. **Evaluation SLA:** Our team reads and evaluates all the issues and pull requests. We are avaliable Monday to Friday and we make a best effort to respond within 7 business days.
+
+Please **do not** use the issue tracker for personal support requests or to ask for the status of a transaction. You'll find help at the [#support Discord channel](https://discord.gg/SK3DxdsP).
+
+
+## Contribute
+
+Development of this product happens in the open on GitHub, and we are grateful to the community for contributing bugfixes and improvements. Read below to learn how you can take part in improving the product.
+
+### Code of Conduct
+Please read our [Code of conduct](../../../.github/blob/main/CODE_OF_CONDUCT.md) since we expect project participants to adhere to it. 
+
+### Contributing Guide
+Read our [contributing guide](.github/CONTRIBUTING.md) to learn about our development process, how to propose bugfixes and improvements, and how to build and test your changes.
+
+## Community
+
+Join our community and stay connected with the latest updates and discussions:
+
+- [Join our Discord community chat](https://discord.gg/ZQR6cyZC) to engage with other users, ask questions, and participate in discussions.
+
+- [Visit hiro.so](https://www.hiro.so/) for updates and subcribing to the mailing list.
+
+- Follow [Hiro on Twitter.](https://twitter.com/hirosystems)
