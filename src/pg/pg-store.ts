@@ -29,10 +29,7 @@ import {
   DbFungibleTokenMetadataItem,
   DbPaginatedResult,
   DbFungibleTokenOrder,
-  DbSipNumber,
 } from './types';
-import { connectPostgres } from './postgres-tools';
-import { BasePgStore } from './postgres-tools/base-pg-store';
 import {
   ContractNotFoundError,
   InvalidContractError,
@@ -41,9 +38,11 @@ import {
   TokenNotFoundError,
   TokenNotProcessedError,
 } from './errors';
-import { runMigrations } from './migrations';
 import { FtOrderBy, Order } from '../api/schemas';
-import { Payload } from '@hirosystems/chainhook-client';
+import { BasePgStore, connectPostgres, runMigrations } from '@hirosystems/api-toolkit';
+import * as path from 'path';
+
+export const MIGRATIONS_DIR = path.join(__dirname, '../../migrations');
 
 /**
  * Connects and queries the Token Metadata Service's local postgres DB.
@@ -67,7 +66,7 @@ export class PgStore extends BasePgStore {
       },
     });
     if (opts?.skipMigrations !== true) {
-      await runMigrations('up');
+      await runMigrations(MIGRATIONS_DIR, 'up');
     }
     return new PgStore(sql);
   }

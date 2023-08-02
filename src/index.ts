@@ -6,11 +6,10 @@ import { PgBlockchainApiStore } from './pg/blockchain-api/pg-blockchain-api-stor
 import { JobQueue } from './token-processor/queue/job-queue';
 import { buildApiServer, buildPromServer } from './api/init';
 import { TokenProcessorMetrics } from './token-processor/token-processor-metrics';
-import { registerShutdownConfig } from './shutdown-handler';
 import { ENV } from './env';
-import { logger } from './logger';
 import { buildAdminRpcServer } from './admin-rpc/init';
 import { isProdEnv } from './api/util/helpers';
+import { logger, registerShutdownConfig } from '@hirosystems/api-toolkit';
 
 /**
  * Initializes background services. Only for `default` and `writeonly` run modes.

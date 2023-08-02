@@ -1,6 +1,6 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { logger } from '../../logger';
 import { SmartContractRegEx } from '../schemas';
+import { logger } from '@hirosystems/api-toolkit';
 
 /**
  * A `Cache-Control` header used for re-validation based caching.

@@ -9,9 +9,9 @@ import {
 import { ClarityAbi } from '@stacks/transactions';
 import { Static, Type } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
-import { logger } from '../../logger';
 import { DbSipNumber, DbTokenType } from '../../pg/types';
 import { ContractNotFoundError } from '../../pg/errors';
+import { logger } from '@hirosystems/api-toolkit';
 
 const PgNotification = Type.Object({
   type: Type.String(),

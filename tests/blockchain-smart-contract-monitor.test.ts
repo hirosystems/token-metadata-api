@@ -5,11 +5,11 @@ import {
   BlockchainDbContractLog,
   BlockchainDbSmartContract,
 } from '../src/pg/blockchain-api/pg-blockchain-api-store';
-import { PgStore } from '../src/pg/pg-store';
+import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
 import { DbSipNumber, DbSmartContractInsert, DbTokenType } from '../src/pg/types';
 import { BlockchainSmartContractMonitor } from '../src/token-processor/blockchain-api/blockchain-smart-contract-monitor';
-import { cycleMigrations } from '../src/pg/migrations';
 import { MockPgBlockchainApiStore, SIP_009_ABI } from './helpers';
+import { cycleMigrations } from '@hirosystems/api-toolkit';
 
 class TestBlockchainMonitor extends BlockchainSmartContractMonitor {
   public async testHandleMessage(message: string) {
@@ -23,7 +23,7 @@ describe('BlockchainSmartContractMonitor', () => {
   beforeEach(async () => {
     ENV.PGDATABASE = 'postgres';
     db = await PgStore.connect({ skipMigrations: true });
-    await cycleMigrations();
+    await cycleMigrations(MIGRATIONS_DIR);
   });
 
   afterEach(async () => {

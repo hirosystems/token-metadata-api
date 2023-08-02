@@ -3,10 +3,9 @@ import { PgStore } from '../../pg/pg-store';
 import { DbJob, DbJobStatus } from '../../pg/types';
 import { ENV } from '../../env';
 import { ProcessSmartContractJob } from './job/process-smart-contract-job';
-import { timeout } from '../../pg/postgres-tools/helpers';
-import { logger } from '../../logger';
 import { ProcessTokenJob } from './job/process-token-job';
 import { PgBlockchainApiStore } from '../../pg/blockchain-api/pg-blockchain-api-store';
+import { logger, timeout } from '@hirosystems/api-toolkit';
 
 /**
  * A priority queue that organizes all necessary work for contract ingestion and token metadata

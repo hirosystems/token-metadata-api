@@ -1,5 +1,5 @@
+import { PgJsonb, PgNumeric } from '@hirosystems/api-toolkit';
 import { FtOrderBy, Order } from '../api/schemas';
-import { PgJsonb, PgNumeric } from './postgres-tools/types';
 
 export enum DbSipNumber {
   /** Non-Fungible Tokens */

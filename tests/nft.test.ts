@@ -1,6 +1,6 @@
+import { cycleMigrations } from '@hirosystems/api-toolkit';
 import { ENV } from '../src/env';
-import { cycleMigrations } from '../src/pg/migrations';
-import { PgStore } from '../src/pg/pg-store';
+import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
 import { DbSipNumber, DbSmartContractInsert, DbTokenType } from '../src/pg/types';
 import { startTestApiServer, TestFastifyServer } from './helpers';
 
@@ -12,7 +12,7 @@ describe('NFT routes', () => {
     ENV.PGDATABASE = 'postgres';
     db = await PgStore.connect({ skipMigrations: true });
     fastify = await startTestApiServer(db);
-    await cycleMigrations();
+    await cycleMigrations(MIGRATIONS_DIR);
   });
 
   afterEach(async () => {
