@@ -288,6 +288,9 @@ export const FtBasicMetadataResponse = Type.Object(
       examples: ['0xef2ac1126e16f46843228b1dk4830e19eb7599129e4jf392cab9e65ae83a45c0'],
     }),
     sender_address: Type.String({ examples: ['ST399W7Z9WS0GMSNQGJGME5JAENKN56D65VGMGKGA'] }),
+    contract_principal: Type.String({
+      examples: ['SP1H1733V5MZ3SZ9XRW9FKYGEZT0JDGEB8Y634C7R.miamicoin-token-v2'],
+    }),
   },
   { title: 'Ft Basic Metadata Response' }
 );
