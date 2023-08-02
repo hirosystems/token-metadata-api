@@ -1,6 +1,6 @@
+import { cycleMigrations } from '@hirosystems/api-toolkit';
 import { ENV } from '../src/env';
-import { cycleMigrations } from '../src/pg/migrations';
-import { PgStore } from '../src/pg/pg-store';
+import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
 import { DbJob, DbSipNumber, DbSmartContractInsert } from '../src/pg/types';
 import { RetryableJobError } from '../src/token-processor/queue/errors';
 import { Job } from '../src/token-processor/queue/job/job';
@@ -40,7 +40,7 @@ describe('Job', () => {
   beforeEach(async () => {
     ENV.PGDATABASE = 'postgres';
     db = await PgStore.connect({ skipMigrations: true });
-    await cycleMigrations();
+    await cycleMigrations(MIGRATIONS_DIR);
     const values: DbSmartContractInsert = {
       principal: 'ABCD.test-ft',
       sip: DbSipNumber.sip010,

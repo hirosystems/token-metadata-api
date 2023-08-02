@@ -2,7 +2,6 @@ import Fastify, { FastifyPluginCallback } from 'fastify';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { PgStore } from '../pg/pg-store';
 import { Server } from 'http';
-import { logger, PINO_CONFIG } from '../logger';
 import { Type } from '@sinclair/typebox';
 import { SmartContractRegEx } from '../api/schemas';
 import { PgBlockchainApiStore } from '../pg/blockchain-api/pg-blockchain-api-store';
@@ -13,6 +12,7 @@ import {
 } from '../token-processor/util/sip-validation';
 import { ClarityAbi } from '@stacks/transactions';
 import { DbTokenUpdateMode } from '../pg/types';
+import { logger, PINO_LOGGER_CONFIG } from '@hirosystems/api-toolkit';
 
 export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTypeProvider> = (
   fastify,
@@ -106,7 +106,7 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
 export async function buildAdminRpcServer(args: { db: PgStore; apiDb: PgBlockchainApiStore }) {
   const fastify = Fastify({
     trustProxy: true,
-    logger: PINO_CONFIG,
+    logger: PINO_LOGGER_CONFIG,
   }).withTypeProvider<TypeBoxTypeProvider>();
 
   fastify.decorate('db', args.db);

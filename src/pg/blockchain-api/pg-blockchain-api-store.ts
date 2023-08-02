@@ -1,6 +1,5 @@
+import { BasePgStore, connectPostgres } from '@hirosystems/api-toolkit';
 import { ENV } from '../../env';
-import { connectPostgres } from '../postgres-tools';
-import { BasePgStore } from '../postgres-tools/base-pg-store';
 
 export interface BlockchainDbSmartContract {
   contract_id: string;

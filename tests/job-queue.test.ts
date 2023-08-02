@@ -1,11 +1,11 @@
 import * as postgres from 'postgres';
 import { ENV } from '../src/env';
-import { PgStore } from '../src/pg/pg-store';
+import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
 import { DbJob, DbJobStatus, DbSipNumber, DbSmartContractInsert } from '../src/pg/types';
 import { JobQueue } from '../src/token-processor/queue/job-queue';
-import { cycleMigrations } from '../src/pg/migrations';
 import { PgBlockchainApiStore } from '../src/pg/blockchain-api/pg-blockchain-api-store';
 import { MockPgBlockchainApiStore, sleep } from './helpers';
+import { cycleMigrations } from '@hirosystems/api-toolkit';
 
 class TestJobQueue extends JobQueue {
   constructor(args: { db: PgStore; apiDb: PgBlockchainApiStore }) {
@@ -27,7 +27,7 @@ describe('JobQueue', () => {
   beforeEach(async () => {
     ENV.PGDATABASE = 'postgres';
     db = await PgStore.connect({ skipMigrations: true });
-    await cycleMigrations();
+    await cycleMigrations(MIGRATIONS_DIR);
     queue = new TestJobQueue({ db, apiDb: new PgBlockchainApiStore(postgres()) });
   });
 
