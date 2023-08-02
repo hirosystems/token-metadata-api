@@ -516,7 +516,7 @@ export class PgStore extends BasePgStore {
         OFFSET ${args.page.offset}
       `;
       return {
-        total: results[0].total ?? 0,
+        total: results[0]?.total ?? 0,
         results: results ?? [],
       };
     });

@@ -402,6 +402,14 @@ describe('FT routes', () => {
       const json = response.json();
       expect(json.total).toBe(1);
       expect(json.results[0].symbol).toBe('MIA');
+
+      const response2 = await fastify.inject({
+        method: 'GET',
+        url: '/metadata/ft?name=nothing', // No match
+      });
+      expect(response2.statusCode).toBe(200);
+      const json2 = response2.json();
+      expect(json2.total).toBe(0);
     });
 
     test('filters by symbol', async () => {
@@ -414,6 +422,14 @@ describe('FT routes', () => {
       const json = response.json();
       expect(json.total).toBe(1);
       expect(json.results[0].symbol).toBe('MIA');
+
+      const response2 = await fastify.inject({
+        method: 'GET',
+        url: '/metadata/ft?symbol=nothing', // No match
+      });
+      expect(response2.statusCode).toBe(200);
+      const json2 = response2.json();
+      expect(json2.total).toBe(0);
     });
 
     test('filters by address', async () => {
@@ -426,6 +442,14 @@ describe('FT routes', () => {
       const json = response.json();
       expect(json.total).toBe(1);
       expect(json.results[0].symbol).toBe('MIA');
+
+      const response2 = await fastify.inject({
+        method: 'GET',
+        url: '/metadata/ft?address=SP1GK6VGCQQGP1PXH5676BY0334CZC41EAA7K1EK3', // No match
+      });
+      expect(response2.statusCode).toBe(200);
+      const json2 = response2.json();
+      expect(json2.total).toBe(0);
     });
 
     test('sorts by name', async () => {
