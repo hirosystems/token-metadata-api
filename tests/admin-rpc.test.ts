@@ -1,8 +1,8 @@
+import { cycleMigrations } from '@hirosystems/api-toolkit';
 import { buildAdminRpcServer } from '../src/admin-rpc/init';
 import { ENV } from '../src/env';
 import { BlockchainDbSmartContract } from '../src/pg/blockchain-api/pg-blockchain-api-store';
-import { cycleMigrations } from '../src/pg/migrations';
-import { PgStore } from '../src/pg/pg-store';
+import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
 import { DbJobStatus, DbSipNumber, DbSmartContractInsert, DbTokenType } from '../src/pg/types';
 import { MockPgBlockchainApiStore, SIP_010_ABI, TestFastifyServer } from './helpers';
 
@@ -17,7 +17,7 @@ describe('Admin RPC', () => {
     db = await PgStore.connect({ skipMigrations: true });
     apiDb = new MockPgBlockchainApiStore();
     fastify = await buildAdminRpcServer({ db, apiDb });
-    await cycleMigrations();
+    await cycleMigrations(MIGRATIONS_DIR);
   });
 
   afterEach(async () => {

@@ -1,6 +1,6 @@
 import { cvToHex, noneCV, stringUtf8CV, uintCV } from '@stacks/transactions';
 import { errors, MockAgent, setGlobalDispatcher } from 'undici';
-import { PgStore } from '../src/pg/pg-store';
+import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
 import {
   DbJob,
   DbJobStatus,
@@ -11,11 +11,11 @@ import {
   DbTokenType,
 } from '../src/pg/types';
 import { ENV } from '../src/env';
-import { cycleMigrations } from '../src/pg/migrations';
 import { ProcessTokenJob } from '../src/token-processor/queue/job/process-token-job';
 import { parseRetryAfterResponseHeader } from '../src/token-processor/util/helpers';
 import { RetryableJobError } from '../src/token-processor/queue/errors';
 import { TooManyRequestsHttpError } from '../src/token-processor/util/errors';
+import { cycleMigrations } from '@hirosystems/api-toolkit';
 
 describe('ProcessTokenJob', () => {
   let db: PgStore;
@@ -23,7 +23,7 @@ describe('ProcessTokenJob', () => {
   beforeEach(async () => {
     ENV.PGDATABASE = 'postgres';
     db = await PgStore.connect({ skipMigrations: true });
-    await cycleMigrations();
+    await cycleMigrations(MIGRATIONS_DIR);
   });
 
   afterEach(async () => {

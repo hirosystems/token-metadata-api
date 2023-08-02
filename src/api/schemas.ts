@@ -1,6 +1,6 @@
 import { SwaggerOptions } from '@fastify/swagger';
+import { SERVER_VERSION } from '@hirosystems/api-toolkit';
 import { Static, TSchema, Type } from '@sinclair/typebox';
-import { SERVER_VERSION } from '../server-version';
 
 export const OpenApiSchemaOptions: SwaggerOptions = {
   openapi: {

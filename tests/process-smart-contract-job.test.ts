@@ -1,6 +1,6 @@
 import { bufferCV, cvToHex, tupleCV, uintCV } from '@stacks/transactions';
 import { MockAgent, setGlobalDispatcher } from 'undici';
-import { PgStore } from '../src/pg/pg-store';
+import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
 import {
   DbSipNumber,
   DbSmartContractInsert,
@@ -10,9 +10,9 @@ import {
 } from '../src/pg/types';
 import { ProcessSmartContractJob } from '../src/token-processor/queue/job/process-smart-contract-job';
 import { ENV } from '../src/env';
-import { cycleMigrations } from '../src/pg/migrations';
 import { BlockchainDbContractLog } from '../src/pg/blockchain-api/pg-blockchain-api-store';
 import { MockPgBlockchainApiStore } from './helpers';
+import { cycleMigrations } from '@hirosystems/api-toolkit';
 
 describe('ProcessSmartContractJob', () => {
   let db: PgStore;
@@ -20,7 +20,7 @@ describe('ProcessSmartContractJob', () => {
   beforeEach(async () => {
     ENV.PGDATABASE = 'postgres';
     db = await PgStore.connect({ skipMigrations: true });
-    await cycleMigrations();
+    await cycleMigrations(MIGRATIONS_DIR);
   });
 
   afterEach(async () => {

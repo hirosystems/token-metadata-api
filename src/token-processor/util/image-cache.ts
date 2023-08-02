@@ -1,8 +1,8 @@
 import * as child_process from 'child_process';
 import { ENV } from '../../env';
-import { logger } from '../../logger';
 import { MetadataParseError } from './errors';
 import { parseDataUrl, getFetchableUrl } from './metadata-helpers';
+import { logger } from '@hirosystems/api-toolkit';
 
 /**
  * If an external image processor script is configured, then it will process the given image URL for

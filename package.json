@@ -18,7 +18,7 @@
     "lint:prettier": "prettier --check src/**/*.ts tests/**/*.ts migrations/**/*.ts",
     "generate:openapi": "rimraf ./tmp && node -r ts-node/register ./util/openapi-generator.ts",
     "generate:docs": "redoc-cli build --output ./tmp/index.html ./tmp/openapi.yaml",
-    "generate:git-info": "rimraf .git-info && node ./git-info-generator.mjs",
+    "generate:git-info": "rimraf .git-info && node_modules/.bin/api-toolkit-git-info",
     "generate:vercel": "npm run generate:git-info && npm run generate:openapi && npm run generate:docs",
     "generate:client:typescript": "swagger-codegen generate -i ./tmp/openapi.yaml -l typescript-fetch -o ./client/typescript -c ./client/typescript.json"
   },
@@ -50,6 +50,7 @@
     "@fastify/cors": "^8.2.0",
     "@fastify/swagger": "^7.6.1",
     "@fastify/type-provider-typebox": "^2.3.0",
+    "@hirosystems/api-toolkit": "^1.0.0",
     "@sinclair/typebox": "^0.24.51",
     "@stacks/transactions": "^6.1.0",
     "@types/node": "^18.11.9",

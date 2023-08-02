@@ -1,5 +1,4 @@
 import { ENV } from '../../../env';
-import { logger } from '../../../logger';
 import { DbJob, DbSipNumber, DbSmartContract, DbTokenInsert, DbTokenType } from '../../../pg/types';
 import { Job } from './job';
 import { StacksNodeRpcClient } from '../../stacks-node/stacks-node-rpc-client';
@@ -9,6 +8,7 @@ import { PgStore } from '../../../pg/pg-store';
 import { getContractLogSftMintEvent } from '../../util/sip-validation';
 import { makeRandomPrivKey, getAddressFromPrivateKey } from '@stacks/transactions';
 import { TransactionVersion } from 'stacks-encoding-native-js';
+import { logger } from '@hirosystems/api-toolkit';
 
 /**
  * Takes a smart contract and (depending on its SIP) enqueues all of its underlying tokens for

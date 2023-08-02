@@ -1,6 +1,5 @@
 import { ENV } from '../src/env';
-import { PgStore } from '../src/pg/pg-store';
-import { cycleMigrations } from '../src/pg/migrations';
+import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
 import {
   BlockchainDbContractLog,
   BlockchainDbSmartContract,
@@ -9,6 +8,7 @@ import { DbSipNumber, DbSmartContractInsert, DbTokenType } from '../src/pg/types
 import { MockPgBlockchainApiStore, SIP_009_ABI, SIP_010_ABI, SIP_013_ABI, sleep } from './helpers';
 import { BlockchainImporter } from '../src/token-processor/blockchain-api/blockchain-importer';
 import { cvToHex, tupleCV, bufferCV, listCV, uintCV } from '@stacks/transactions';
+import { cycleMigrations } from '@hirosystems/api-toolkit';
 
 describe('BlockchainImporter', () => {
   let db: PgStore;
@@ -22,7 +22,7 @@ describe('BlockchainImporter', () => {
     apiDb = new MockPgBlockchainApiStore();
     apiDb.currentBlockHeight = 1;
     importer = new BlockchainImporter({ db, apiDb, startingBlockHeight: 1 });
-    await cycleMigrations();
+    await cycleMigrations(MIGRATIONS_DIR);
   });
 
   afterEach(async () => {
