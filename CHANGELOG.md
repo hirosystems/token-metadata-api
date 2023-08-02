@@ -1,3 +1,10 @@
+## [0.5.0](https://github.com/hirosystems/token-metadata-api/compare/v0.4.0...v0.5.0) (2023-08-02)
+
+
+### Features
+
+* add contract principal to ft index responses ([#180](https://github.com/hirosystems/token-metadata-api/issues/180)) ([57d0468](https://github.com/hirosystems/token-metadata-api/commit/57d04683ce7d72d15484d8cbf8ab36253261bf30))
+
 ## [0.4.0](https://github.com/hirosystems/token-metadata-api/compare/v0.3.1...v0.4.0) (2023-06-30)
 
 
