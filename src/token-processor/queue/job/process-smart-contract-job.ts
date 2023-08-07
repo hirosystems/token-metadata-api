@@ -3,11 +3,7 @@ import { DbJob, DbSipNumber, DbSmartContract, DbTokenInsert, DbTokenType } from 
 import { Job } from './job';
 import { StacksNodeRpcClient } from '../../stacks-node/stacks-node-rpc-client';
 import { dbSipNumberToDbTokenType } from '../../util/helpers';
-import { PgBlockchainApiStore } from '../../../pg/blockchain-api/pg-blockchain-api-store';
 import { PgStore } from '../../../pg/pg-store';
-import { getContractLogSftMintEvent } from '../../util/sip-validation';
-import { makeRandomPrivKey, getAddressFromPrivateKey } from '@stacks/transactions';
-import { TransactionVersion } from 'stacks-encoding-native-js';
 import { logger } from '@hirosystems/api-toolkit';
 
 /**
@@ -16,12 +12,6 @@ import { logger } from '@hirosystems/api-toolkit';
  */
 export class ProcessSmartContractJob extends Job {
   private contract?: DbSmartContract;
-  private readonly apiDb: PgBlockchainApiStore;
-
-  constructor(args: { db: PgStore; apiDb: PgBlockchainApiStore; job: DbJob }) {
-    super(args);
-    this.apiDb = args.apiDb;
-  }
 
   protected async handler(): Promise<void> {
     if (!this.job.smart_contract_id) {
@@ -61,38 +51,35 @@ export class ProcessSmartContractJob extends Job {
   }
 
   private async getNftContractLastTokenId(contract: DbSmartContract): Promise<bigint | undefined> {
-    const key = makeRandomPrivKey();
-    const senderAddress = getAddressFromPrivateKey(key.data, TransactionVersion.Mainnet);
-    const client = new StacksNodeRpcClient({
+    const client = StacksNodeRpcClient.create({
       contractPrincipal: contract.principal,
-      senderAddress: senderAddress,
     });
     return await client.readUIntFromContract('get-last-token-id');
   }
 
   private async enqueueSftContractTokenIds(contract: DbSmartContract): Promise<void> {
-    // Scan for `sft_mint` events emitted by the SFT contract.
-    const cursor = this.apiDb.getSmartContractLogsByContractCursor({
-      contractId: contract.principal,
-    });
-    const tokenNumbers = new Set<string>();
-    for await (const rows of cursor) {
-      for (const row of rows) {
-        const event = getContractLogSftMintEvent(row);
-        if (!event) {
-          continue;
-        }
-        tokenNumbers.add(event.tokenId.toString());
-      }
-    }
-    const tokenInserts: DbTokenInsert[] = [...tokenNumbers].map(n => ({
-      smart_contract_id: contract.id,
-      type: DbTokenType.sft,
-      token_number: n,
-    }));
-    if (tokenInserts.length) {
-      await this.db.insertAndEnqueueTokenArray(tokenInserts);
-    }
+    // // Scan for `sft_mint` events emitted by the SFT contract.
+    // const cursor = this.apiDb.getSmartContractLogsByContractCursor({
+    //   contractId: contract.principal,
+    // });
+    // const tokenNumbers = new Set<string>();
+    // for await (const rows of cursor) {
+    //   for (const row of rows) {
+    //     const event = getContractLogSftMintEvent(row);
+    //     if (!event) {
+    //       continue;
+    //     }
+    //     tokenNumbers.add(event.tokenId.toString());
+    //   }
+    // }
+    // const tokenInserts: DbTokenInsert[] = [...tokenNumbers].map(n => ({
+    //   smart_contract_id: contract.id,
+    //   type: DbTokenType.sft,
+    //   token_number: n,
+    // }));
+    // if (tokenInserts.length) {
+    //   await this.db.insertAndEnqueueTokenArray(tokenInserts);
+    // }
   }
 
   private async enqueueTokens(contract: DbSmartContract, tokenCount: bigint): Promise<void> {

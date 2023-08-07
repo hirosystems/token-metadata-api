@@ -4,7 +4,6 @@ import { PgStore } from '../pg/pg-store';
 import { Server } from 'http';
 import { Type } from '@sinclair/typebox';
 import { SmartContractRegEx } from '../api/schemas';
-import { PgBlockchainApiStore } from '../pg/blockchain-api/pg-blockchain-api-store';
 import {
   getSmartContractSip,
   tokenClassFromSipNumber,
@@ -103,14 +102,13 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
   done();
 };
 
-export async function buildAdminRpcServer(args: { db: PgStore; apiDb: PgBlockchainApiStore }) {
+export async function buildAdminRpcServer(args: { db: PgStore }) {
   const fastify = Fastify({
     trustProxy: true,
     logger: PINO_LOGGER_CONFIG,
   }).withTypeProvider<TypeBoxTypeProvider>();
 
   fastify.decorate('db', args.db);
-  fastify.decorate('apiDb', args.apiDb);
   await fastify.register(AdminApi, { prefix: '/metadata/admin' });
 
   return fastify;

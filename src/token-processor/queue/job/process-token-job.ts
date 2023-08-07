@@ -51,11 +51,8 @@ export class ProcessTokenJob extends Job {
     this.token = token;
     this.contract = contract;
 
-    const randomPrivKey = makeRandomPrivKey();
-    const senderAddress = getAddressFromPrivateKey(randomPrivKey.data, TransactionVersion.Mainnet);
-    const client = new StacksNodeRpcClient({
+    const client = StacksNodeRpcClient.create({
       contractPrincipal: contract.principal,
-      senderAddress: senderAddress,
     });
     logger.info(`ProcessTokenJob processing ${this.description()}`);
     try {

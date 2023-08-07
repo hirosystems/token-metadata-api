@@ -374,7 +374,7 @@ export class PgStore extends BasePgStore {
   }
 
   async updateChainTipBlockHeight(args: { blockHeight: number }): Promise<void> {
-    await this.sql`UPDATE chain_tip SET block_height = ${args.blockHeight}`;
+    await this.sql`UPDATE chain_tip SET block_height = MAX(${args.blockHeight}, block_height)`;
   }
 
   async getChainTipBlockHeight(): Promise<number> {
