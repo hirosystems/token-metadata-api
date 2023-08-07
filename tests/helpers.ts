@@ -4,12 +4,6 @@ import { buildApiServer } from '../src/api/init';
 import { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { IncomingMessage, Server, ServerResponse } from 'http';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
-import {
-  PgBlockchainApiStore,
-  BlockchainDbSmartContract,
-  BlockchainDbContractLog,
-  BlockchainDbBlock,
-} from '../src/pg/blockchain-api/pg-blockchain-api-store';
 
 export type TestFastifyServer = FastifyInstance<
   Server,
@@ -26,74 +20,6 @@ export async function startTestApiServer(db: PgStore): Promise<TestFastifyServer
 export const sleep = (time: number) => {
   return new Promise(resolve => setTimeout(resolve, time));
 };
-
-export class MockPgBlockchainApiStore extends PgBlockchainApiStore {
-  constructor() {
-    super(postgres());
-  }
-
-  private cursor<T>(logs: T[]): AsyncIterable<T[]> {
-    return {
-      [Symbol.asyncIterator]: (): AsyncIterator<T[], any, undefined> => {
-        return {
-          next: () => {
-            if (logs.length) {
-              const value = logs.shift() as T;
-              return Promise.resolve({ value: [value], done: false });
-            }
-            return Promise.resolve({ value: [] as T[], done: true });
-          },
-        };
-      },
-    };
-  }
-
-  public smartContract?: BlockchainDbSmartContract;
-  getSmartContract(args: { contractId: string }): Promise<BlockchainDbSmartContract | undefined> {
-    return Promise.resolve(this.smartContract);
-  }
-
-  public contractLog?: BlockchainDbContractLog;
-  getSmartContractLog(args: {
-    txId: string;
-    eventIndex: number;
-  }): Promise<BlockchainDbContractLog | undefined> {
-    return Promise.resolve(this.contractLog);
-  }
-
-  public contractLogsByContract?: BlockchainDbContractLog[];
-  getSmartContractLogsByContractCursor(args: {
-    contractId: string;
-  }): AsyncIterable<BlockchainDbContractLog[]> {
-    return this.cursor(this.contractLogsByContract ?? []);
-  }
-
-  public smartContracts?: BlockchainDbSmartContract[];
-  getSmartContractsCursor(args: {
-    fromBlockHeight: number;
-    toBlockHeight: number;
-  }): AsyncIterable<BlockchainDbSmartContract[]> {
-    return this.cursor(this.smartContracts ?? []);
-  }
-
-  public block?: BlockchainDbBlock;
-  getBlock(args: { blockHash: string }): Promise<BlockchainDbBlock | undefined> {
-    return Promise.resolve(this.block);
-  }
-
-  public currentBlockHeight?: number;
-  getCurrentBlockHeight(): Promise<number | undefined> {
-    return Promise.resolve(this.currentBlockHeight);
-  }
-
-  public smartContractLogs?: BlockchainDbContractLog[];
-  getSmartContractLogsCursor(args: {
-    fromBlockHeight: number;
-    toBlockHeight: number;
-  }): AsyncIterable<BlockchainDbContractLog[]> {
-    return this.cursor(this.smartContractLogs ?? []);
-  }
-}
 
 export const SIP_009_ABI = {
   maps: [
