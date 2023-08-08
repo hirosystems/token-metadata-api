@@ -6,10 +6,13 @@ title: Overview
 
 # API - Token Metadata Overview
 
-[Open API Specification](https://github.com/hirosystems/token-metadata-api)
-[Source code repository](https://github.com/hirosystems/token-metadata-api)
-
 Token metadata is a microservice that indexes metadata for all Fungible, Non-Fungible, and Semi-Fungible Tokens in the Stacks blockchain and exposes it via JSON REST API endpoints.
+
+> **_NOTE:_**
+>
+> To explore the detailed documentation for the API endpoints, request and response formats, you can refer to the [OpenAPI specification](https://docs.hiro.so/metadata).
+>
+> The source code for this project is available in our [GitHub repository](https://github.com/hirosystems/token-metadata-api). You can explore the codebase, [contribute](https://docs.hiro.so/contributors-guide), and raise [issues](https://github.com/hirosystems/token-metadata-api/issues) or [pull requests](https://github.com/hirosystems/token-metadata-api/pulls).
 
 ## Service architecture
 
