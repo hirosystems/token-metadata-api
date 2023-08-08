@@ -1,4 +1,8 @@
-import { TokenMetadataUpdateNotification } from '../token-processor/util/sip-validation';
+import {
+  TokenMetadataUpdateNotification,
+  getContractLogMetadataUpdateNotification,
+  getContractLogSftMintEvent,
+} from '../token-processor/util/sip-validation';
 import { ENV } from '../env';
 import {
   DbSmartContract,
@@ -29,6 +33,7 @@ import {
   DbFungibleTokenMetadataItem,
   DbPaginatedResult,
   DbFungibleTokenOrder,
+  DbSipNumber,
 } from './types';
 import {
   ContractNotFoundError,
@@ -39,8 +44,9 @@ import {
   TokenNotProcessedError,
 } from './errors';
 import { FtOrderBy, Order } from '../api/schemas';
-import { BasePgStore, connectPostgres, runMigrations } from '@hirosystems/api-toolkit';
+import { BasePgStore, connectPostgres, logger, runMigrations } from '@hirosystems/api-toolkit';
 import * as path from 'path';
+import { Payload, StacksEvent } from '@hirosystems/chainhook-client';
 
 export const MIGRATIONS_DIR = path.join(__dirname, '../../migrations');
 
@@ -71,24 +77,61 @@ export class PgStore extends BasePgStore {
     return new PgStore(sql);
   }
 
-  // async updateSmartContractDeployments(payload: Payload, sip: DbSipNumber): Promise<void> {
-  //   await this.sqlWriteTransaction(async sql => {
-  //     for (const event of payload.rollback) {
-  //       //
-  //     }
-  //     for (const event of payload.apply) {
-  //       await this.insertAndEnqueueSmartContract({
-  //         values: {
-  //           principal: contract.contract_id,
-  //           sip: sip,
-  //           abi: contract.abi,
-  //           tx_id: contract.tx_id,
-  //           block_height: contract.block_height,
-  //         },
-  //       });
-  //     }
-  //   });
-  // }
+  async updatePrintEvent(payload: Payload): Promise<void> {
+    for (const stacksEvent of payload.apply) {
+      const event = stacksEvent as StacksEvent;
+      for (const tx of event.transactions) {
+        for (const txEvent of tx.metadata.receipt.events) {
+          if (txEvent.type === 'SmartContractEvent') {
+            // SIP-019 notification?
+            const notification = getContractLogMetadataUpdateNotification(
+              tx.metadata.sender,
+              txEvent
+            );
+            if (notification) {
+              logger.info(
+                `PgStore detected SIP-019 notification for ${notification.contract_id} ${
+                  notification.token_ids ?? []
+                }`
+              );
+              try {
+                await this.enqueueTokenMetadataUpdateNotification({ notification });
+              } catch (error) {
+                if (error instanceof ContractNotFoundError) {
+                  logger.warn(
+                    `ChainhookObserver contract ${notification.contract_id} not found, unable to process SIP-019 notification`
+                  );
+                } else {
+                  throw error;
+                }
+              }
+              continue;
+            }
+            // SIP-013 SFT mint?
+            const mint = getContractLogSftMintEvent(txEvent);
+            if (mint) {
+              const contract = await this.getSmartContract({ principal: mint.contractId });
+              if (contract && contract.sip === DbSipNumber.sip013) {
+                await this.insertAndEnqueueTokenArray([
+                  {
+                    smart_contract_id: contract.id,
+                    type: DbTokenType.sft,
+                    token_number: mint.tokenId.toString(),
+                  },
+                ]);
+                logger.info(
+                  `PgStore detected SIP-013 SFT mint event for ${mint.contractId} ${mint.tokenId}`
+                );
+              }
+            }
+          }
+        }
+      }
+      await this.updateChainTipBlockHeight({ blockHeight: event.block_identifier.index });
+    }
+    // TODO: Rollback
+    await this.enqueueDynamicTokensDueForRefresh();
+  }
 
   async insertAndEnqueueSmartContract(args: { values: DbSmartContractInsert }): Promise<DbJob> {
     const result = await this.sql<DbJob[]>`
@@ -374,7 +417,7 @@ export class PgStore extends BasePgStore {
   }
 
   async updateChainTipBlockHeight(args: { blockHeight: number }): Promise<void> {
-    await this.sql`UPDATE chain_tip SET block_height = MAX(${args.blockHeight}, block_height)`;
+    await this.sql`UPDATE chain_tip SET block_height = GREATEST(${args.blockHeight}, block_height)`;
   }
 
   async getChainTipBlockHeight(): Promise<number> {

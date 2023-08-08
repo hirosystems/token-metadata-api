@@ -8,76 +8,14 @@ import {
 } from '@hirosystems/chainhook-client';
 import { randomUUID } from 'node:crypto';
 import { PgStore } from '../../pg/pg-store';
-import { DbSipNumber, DbTokenType } from '../../pg/types';
 import { ENV } from '../../env';
 import { logger } from '@hirosystems/api-toolkit';
-import {
-  getContractLogMetadataUpdateNotification,
-  getContractLogSftMintEvent,
-  getSmartContractSip,
-} from '../util/sip-validation';
-import { ContractNotFoundError } from '../../pg/errors';
+import { getSmartContractSip } from '../util/sip-validation';
 import { StacksNodeRpcClient } from '../stacks-node/stacks-node-rpc-client';
 import { ClarityAbi } from '@stacks/transactions';
 
 const PRINT_PREDICATE_UUID = randomUUID();
 const CONTRACT_PREDICATE_UUID = randomUUID();
-
-async function handlePrintEvent(db: PgStore, payload: Payload): Promise<void> {
-  for (const stacksEvent of payload.apply) {
-    const event = stacksEvent as StacksEvent;
-    for (const tx of event.transactions) {
-      for (const txEvent of tx.metadata.receipt.events) {
-        if (txEvent.type === 'SmartContractEvent') {
-          // SIP-019 notification?
-          const notification = getContractLogMetadataUpdateNotification(
-            tx.metadata.sender,
-            txEvent
-          );
-          if (notification) {
-            logger.info(
-              `ChainhookObserver detected SIP-019 notification for ${notification.contract_id} ${
-                notification.token_ids ?? []
-              }`
-            );
-            try {
-              await db.enqueueTokenMetadataUpdateNotification({ notification });
-            } catch (error) {
-              if (error instanceof ContractNotFoundError) {
-                logger.warn(
-                  `ChainhookObserver contract ${notification.contract_id} not found, unable to process SIP-019 notification`
-                );
-              } else {
-                throw error;
-              }
-            }
-            continue;
-          }
-          // SIP-013 SFT mint?
-          const mint = getContractLogSftMintEvent(txEvent);
-          if (mint) {
-            const contract = await db.getSmartContract({ principal: mint.contractId });
-            if (contract && contract.sip === DbSipNumber.sip013) {
-              await db.insertAndEnqueueTokenArray([
-                {
-                  smart_contract_id: contract.id,
-                  type: DbTokenType.sft,
-                  token_number: mint.tokenId.toString(),
-                },
-              ]);
-              logger.info(
-                `ChainhookObserver detected SIP-013 SFT mint event for ${mint.contractId} ${mint.tokenId}`
-              );
-            }
-          }
-        }
-      }
-    }
-    await db.updateChainTipBlockHeight({ blockHeight: event.block_identifier.index });
-  }
-  // TODO: Rollback
-  await db.enqueueDynamicTokensDueForRefresh();
-}
 
 async function handleContractDeploy(db: PgStore, payload: Payload): Promise<void> {
   for (const stacksEvent of payload.apply) {
@@ -175,7 +113,7 @@ export async function startChainhookObserver(db: PgStore): Promise<ChainhookEven
   await server.start(predicates, async (uuid: string, payload: Payload) => {
     switch (uuid) {
       case PRINT_PREDICATE_UUID:
-        await handlePrintEvent(db, payload);
+        await db.updatePrintEvent(payload);
         break;
       case CONTRACT_PREDICATE_UUID:
         await handleContractDeploy(db, payload);
