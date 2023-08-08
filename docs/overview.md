@@ -8,8 +8,6 @@ title: Overview
 
 Token metadata is a microservice that indexes metadata for all Fungible, Non-Fungible, and Semi-Fungible Tokens in the Stacks blockchain and exposes it via JSON REST API endpoints.
 
-This specification provides comprehensive insights into the API's functionality and behavior, making it easier for developers to integrate and interact with the API effectively.
-
 > **_NOTE:_**
 >
 > To explore the detailed documentation for the API endpoints, request and response formats, you can refer to the [OpenAPI specification](https://docs.hiro.so/metadata).
