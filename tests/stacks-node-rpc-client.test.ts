@@ -150,4 +150,60 @@ describe('StacksNodeRpcClient', () => {
 
     await expect(client.readStringFromContract('get-token-uri', [])).resolves.toBeUndefined();
   });
+
+  test('contract ABI is returned correctly', async () => {
+    const mockResponse = {
+      functions: [
+        {
+          name: 'airdrop',
+          access: 'private',
+          args: [
+            {
+              name: 'tid',
+              type: 'uint128',
+            },
+          ],
+          outputs: {
+            type: 'bool',
+          },
+        },
+      ],
+      variables: [
+        {
+          name: 'AIRDROP_COUNT_PER_MEMBER',
+          type: 'uint128',
+          access: 'constant',
+        },
+      ],
+      maps: [
+        {
+          name: 'map_claimed_member_note',
+          key: 'uint128',
+          value: 'bool',
+        },
+      ],
+      fungible_tokens: [
+        {
+          name: 'MEME',
+        },
+      ],
+      non_fungible_tokens: [],
+      epoch: 'Epoch24',
+      clarity_version: 'Clarity2',
+    };
+    const agent = new MockAgent();
+    agent.disableNetConnect();
+    agent
+      .get(nodeUrl)
+      .intercept({
+        path: `/v2/contracts/interface/${contractAddr}/${contractName}`,
+        method: 'GET',
+      })
+      .reply(200, mockResponse);
+    setGlobalDispatcher(agent);
+
+    const abi = await client.readContractInterface();
+    expect(abi).not.toBeUndefined();
+    expect(abi?.fungible_tokens[0].name).toBe('MEME');
+  });
 });
