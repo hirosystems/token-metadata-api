@@ -4,60 +4,14 @@ import {
   Payload,
   ServerOptions,
   ServerPredicate,
-  StacksEvent,
 } from '@hirosystems/chainhook-client';
 import { randomUUID } from 'node:crypto';
 import { PgStore } from '../../pg/pg-store';
 import { ENV } from '../../env';
 import { logger } from '@hirosystems/api-toolkit';
-import { getSmartContractSip } from '../util/sip-validation';
-import { StacksNodeRpcClient } from '../stacks-node/stacks-node-rpc-client';
-import { ClarityAbi } from '@stacks/transactions';
 
 const PRINT_PREDICATE_UUID = randomUUID();
 const CONTRACT_PREDICATE_UUID = randomUUID();
-
-async function handleContractDeploy(db: PgStore, payload: Payload): Promise<void> {
-  for (const stacksEvent of payload.apply) {
-    const event = stacksEvent as StacksEvent;
-    for (const tx of event.transactions) {
-      const kind = tx.metadata.kind;
-      if (kind.type === 'ContractDeployment') {
-        // Get contract ABI
-        let abi: ClarityAbi | undefined;
-        try {
-          const client = StacksNodeRpcClient.create({
-            contractPrincipal: kind.data.contract_identifier,
-          });
-          abi = await client.readContractInterface();
-          if (!abi) continue;
-        } catch (error) {
-          logger.error(
-            error,
-            `ChainhookObserver unable to read ABI for ${kind.data.contract_identifier}`
-          );
-          continue;
-        }
-        // Is this a token contract?
-        const sip = getSmartContractSip(abi);
-        if (!sip) continue;
-        await db.insertAndEnqueueSmartContract({
-          values: {
-            sip,
-            abi,
-            principal: kind.data.contract_identifier,
-            tx_id: tx.transaction_identifier.hash,
-            block_height: event.block_identifier.index,
-          },
-        });
-        logger.info(`ChainhookObserver detected (${sip}): ${kind.data.contract_identifier}`);
-      }
-    }
-    await db.updateChainTipBlockHeight({ blockHeight: event.block_identifier.index });
-  }
-  // TODO: Rollback
-  await db.enqueueDynamicTokensDueForRefresh();
-}
 
 export async function startChainhookObserver(db: PgStore): Promise<ChainhookEventObserver> {
   const blockHeight = await db.getChainTipBlockHeight();
@@ -88,7 +42,7 @@ export async function startChainhookObserver(db: PgStore): Promise<ChainhookEven
           start_block: blockHeight,
           if_this: {
             scope: 'contract_deployment',
-            implement_trait: '*',
+            deployer: '*',
           },
         },
       },
@@ -116,7 +70,7 @@ export async function startChainhookObserver(db: PgStore): Promise<ChainhookEven
         await db.updatePrintEvent(payload);
         break;
       case CONTRACT_PREDICATE_UUID:
-        await handleContractDeploy(db, payload);
+        await db.updateContractDeployment(payload);
         break;
       default:
         logger.warn({ uuid }, `ChainhookObserver received an unexpected payload`);

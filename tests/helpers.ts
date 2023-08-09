@@ -1296,7 +1296,7 @@ export class TestChainhookPayloadBuilder {
     return this;
   }
 
-  transaction(args: { hash: string }): this {
+  transaction(args: { hash: string; sender?: string }): this {
     this.lastBlock.transactions.push({
       metadata: {
         description:
@@ -1336,7 +1336,7 @@ export class TestChainhookPayloadBuilder {
           mutated_contracts_radius: ['SP466FNC0P7JWTNM2R9T199QRZN1MYEDTAR0KP27.miamicoin-token'],
         },
         result: '(ok true)',
-        sender: 'SP3HXJJMJQ06GNAZ8XWDN1QM48JEDC6PP6W3YZPZJ',
+        sender: args.sender ?? 'SP3HXJJMJQ06GNAZ8XWDN1QM48JEDC6PP6W3YZPZJ',
         success: true,
       },
       operations: [
