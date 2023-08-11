@@ -386,4 +386,168 @@ describe('Chainhook observer', () => {
       expect(token?.token_number).toBe('3');
     });
   });
+
+  describe('chain tip', () => {
+    test('updates chain tip on chainhook event', async () => {
+      await db.updateContractDeployment(
+        new TestChainhookPayloadBuilder()
+          .apply()
+          .block({ height: 100 })
+          .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
+          .contractDeploy('SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft', {
+            maps: [],
+            functions: [],
+            variables: [],
+            fungible_tokens: [],
+            non_fungible_tokens: [],
+          })
+          .build()
+      );
+      await expect(db.getChainTipBlockHeight()).resolves.toBe(100);
+
+      await db.updatePrintEvent(
+        new TestChainhookPayloadBuilder()
+          .apply()
+          .block({ height: 101 })
+          .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
+          .printEvent({
+            type: 'SmartContractEvent',
+            data: {
+              contract_identifier: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft',
+              topic: 'print',
+              raw_value: cvToHex(stringUtf8CV('test')),
+            },
+          })
+          .build()
+      );
+      await expect(db.getChainTipBlockHeight()).resolves.toBe(101);
+    });
+
+    test('keeps only the highest chain tip value', async () => {
+      await db.updateContractDeployment(
+        new TestChainhookPayloadBuilder()
+          .apply()
+          .block({ height: 100 })
+          .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
+          .contractDeploy('SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft', {
+            maps: [],
+            functions: [],
+            variables: [],
+            fungible_tokens: [],
+            non_fungible_tokens: [],
+          })
+          .build()
+      );
+      await expect(db.getChainTipBlockHeight()).resolves.toBe(100);
+
+      await db.updatePrintEvent(
+        new TestChainhookPayloadBuilder()
+          .apply()
+          .block({ height: 65 })
+          .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
+          .printEvent({
+            type: 'SmartContractEvent',
+            data: {
+              contract_identifier: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft',
+              topic: 'print',
+              raw_value: cvToHex(stringUtf8CV('test')),
+            },
+          })
+          .build()
+      );
+      await expect(db.getChainTipBlockHeight()).resolves.toBe(100);
+    });
+
+    test('enqueues dynamic tokens for refresh with standard interval', async () => {
+      const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
+      const contractId = `${address}.friedger-pool-nft`;
+      ENV.METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL = 86400;
+      const values: DbSmartContractInsert = {
+        principal: contractId,
+        sip: DbSipNumber.sip009,
+        abi: '"some"',
+        tx_id: '0x123456',
+        block_height: 1,
+      };
+      await db.insertAndEnqueueSmartContract({ values });
+      await db.insertAndEnqueueSequentialTokens({
+        smart_contract_id: 1,
+        token_count: 1n,
+        type: DbTokenType.nft,
+      });
+      // Set update_mode and updated_at for testing.
+      await db.sql`
+        UPDATE tokens
+        SET update_mode = 'dynamic', updated_at = NOW() - INTERVAL '2 days'
+        WHERE id = 1
+      `;
+      // Mark jobs as done.
+      await db.sql`UPDATE jobs SET status = 'done'`;
+
+      await db.updatePrintEvent(
+        new TestChainhookPayloadBuilder()
+          .apply()
+          .block({ height: 65 })
+          .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
+          .printEvent({
+            type: 'SmartContractEvent',
+            data: {
+              contract_identifier: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft',
+              topic: 'print',
+              raw_value: cvToHex(stringUtf8CV('test')),
+            },
+          })
+          .build()
+      );
+
+      const job = await db.getJob({ id: 2 });
+      expect(job?.status).toBe('pending');
+    });
+
+    test('enqueues dynamic tokens for refresh with ttl', async () => {
+      const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
+      const contractId = `${address}.friedger-pool-nft`;
+      ENV.METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL = 99999;
+      const values: DbSmartContractInsert = {
+        principal: contractId,
+        sip: DbSipNumber.sip009,
+        abi: '"some"',
+        tx_id: '0x123456',
+        block_height: 1,
+      };
+      await db.insertAndEnqueueSmartContract({ values });
+      await db.insertAndEnqueueSequentialTokens({
+        smart_contract_id: 1,
+        token_count: 1n,
+        type: DbTokenType.nft,
+      });
+      // Set update_mode and updated_at for testing. Set TTL to 1 hour.
+      await db.sql`
+        UPDATE tokens
+        SET update_mode = 'dynamic', updated_at = NOW() - INTERVAL '2 hours', ttl = 3600
+        WHERE id = 1
+      `;
+      // Mark jobs as done.
+      await db.sql`UPDATE jobs SET status = 'done'`;
+
+      await db.updatePrintEvent(
+        new TestChainhookPayloadBuilder()
+          .apply()
+          .block({ height: 65 })
+          .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
+          .printEvent({
+            type: 'SmartContractEvent',
+            data: {
+              contract_identifier: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft',
+              topic: 'print',
+              raw_value: cvToHex(stringUtf8CV('test')),
+            },
+          })
+          .build()
+      );
+
+      const job = await db.getJob({ id: 2 });
+      expect(job?.status).toBe('pending');
+    });
+  });
 });
