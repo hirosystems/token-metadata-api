@@ -3,7 +3,7 @@ import { DbSmartContractInsert, DbSipNumber, DbTokenType } from '../src/pg/types
 import { cycleMigrations } from '@hirosystems/api-toolkit';
 import { ENV } from '../src/env';
 import { PgStore, MIGRATIONS_DIR } from '../src/pg/pg-store';
-import { TestChainhookPayloadBuilder } from './helpers';
+import { SIP_009_ABI, TestChainhookPayloadBuilder } from './helpers';
 
 describe('Chainhook observer', () => {
   let db: PgStore;
@@ -19,7 +19,49 @@ describe('Chainhook observer', () => {
   });
 
   describe('contract deployments', () => {
-    //
+    test('enqueues valid token contract', async () => {
+      await db.updateContractDeployment(
+        new TestChainhookPayloadBuilder()
+          .apply()
+          .block({ height: 100 })
+          .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
+          .contractDeploy(
+            'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft',
+            SIP_009_ABI
+          )
+          .build()
+      );
+
+      const dbContract = await db.getSmartContract({ id: 1 });
+      expect(dbContract?.sip).toBe(DbSipNumber.sip009);
+      expect(dbContract?.principal).toBe(
+        'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft'
+      );
+      const jobs = await db.getPendingJobBatch({ limit: 1 });
+      expect(jobs[0].smart_contract_id).toBe(1);
+    });
+
+    test('ignores non-token contract', async () => {
+      await db.updateContractDeployment(
+        new TestChainhookPayloadBuilder()
+          .apply()
+          .block({ height: 100 })
+          .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
+          .contractDeploy('SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft', {
+            maps: [],
+            functions: [],
+            variables: [],
+            fungible_tokens: [],
+            non_fungible_tokens: [],
+          })
+          .build()
+      );
+
+      const dbContract = await db.getSmartContract({ id: 1 });
+      expect(dbContract).toBeUndefined();
+      const jobs = await db.getPendingJobBatch({ limit: 1 });
+      expect(jobs[0]).toBeUndefined();
+    });
   });
 
   describe('print events', () => {

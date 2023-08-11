@@ -6,6 +6,7 @@ import { IncomingMessage, Server, ServerResponse } from 'http';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { Payload, StacksEvent, StacksTransaction } from '@hirosystems/chainhook-client';
 import { StacksTransactionSmartContractEvent } from '@hirosystems/chainhook-client';
+import { ClarityAbi } from '@stacks/transactions';
 
 export type TestFastifyServer = FastifyInstance<
   Server,
@@ -1299,8 +1300,8 @@ export class TestChainhookPayloadBuilder {
   transaction(args: { hash: string; sender?: string }): this {
     this.lastBlock.transactions.push({
       metadata: {
-        description:
-          'invoked: SP466FNC0P7JWTNM2R9T199QRZN1MYEDTAR0KP27.miamicoin-token::transfer(u144, SP3HXJJMJQ06GNAZ8XWDN1QM48JEDC6PP6W3YZPZJ, SPCXZRY4FQZQHQ1EMBSDM1183HDK2ZGHPW3M1MA4, (some 0x54657374205472616e73666572202331))',
+        contract_abi: null,
+        description: 'description',
         execution_cost: {
           read_count: 5,
           read_length: 5526,
@@ -1309,78 +1310,22 @@ export class TestChainhookPayloadBuilder {
           write_length: 1,
         },
         fee: 2574302,
-        kind: {
-          data: {
-            args: [
-              'u144',
-              'SP3HXJJMJQ06GNAZ8XWDN1QM48JEDC6PP6W3YZPZJ',
-              'SPCXZRY4FQZQHQ1EMBSDM1183HDK2ZGHPW3M1MA4',
-              '(some 0x54657374205472616e73666572202331)',
-            ],
-            contract_identifier: 'SP466FNC0P7JWTNM2R9T199QRZN1MYEDTAR0KP27.miamicoin-token',
-            method: 'transfer',
-          },
-          type: 'ContractCall',
-        },
+        kind: { type: 'Coinbase' },
         nonce: 8665,
         position: { index: 1 },
         proof: null,
-        raw_tx:
-          '0x00000000010400e3d94a92b80d0aabe8ef1b50de84449cd61ad63700000000000021d900000000002747de010121c61d96330e34d39bccaa78eb216b25ed05753fd2860e5c99341995421e382c521908da361ee2e71b3f46912ba3821c83e429fc843ef76b7752fae88a0db9bc030200000001010216e3d94a92b80d0aabe8ef1b50de84449cd61ad6371608633eac058f2e6ab41613a0a537c7ea1a79cdd20f6d69616d69636f696e2d746f6b656e096d69616d69636f696e010000000000000090021608633eac058f2e6ab41613a0a537c7ea1a79cdd20f6d69616d69636f696e2d746f6b656e087472616e736665720000000401000000000000000000000000000000900516e3d94a92b80d0aabe8ef1b50de84449cd61ad637051619dfe3c47dff78dc2ea2f2da04281c5b317e11b70a020000001054657374205472616e73666572202331',
+        raw_tx: '0x00',
         receipt: {
           contract_calls_stack: [],
           events: [],
-          mutated_assets_radius: [
-            'SP466FNC0P7JWTNM2R9T199QRZN1MYEDTAR0KP27.miamicoin-token::miamicoin',
-          ],
+          mutated_assets_radius: [],
           mutated_contracts_radius: ['SP466FNC0P7JWTNM2R9T199QRZN1MYEDTAR0KP27.miamicoin-token'],
         },
         result: '(ok true)',
         sender: args.sender ?? 'SP3HXJJMJQ06GNAZ8XWDN1QM48JEDC6PP6W3YZPZJ',
         success: true,
       },
-      operations: [
-        {
-          account: { address: 'SP3HXJJMJQ06GNAZ8XWDN1QM48JEDC6PP6W3YZPZJ' },
-          amount: {
-            currency: {
-              decimals: 6,
-              metadata: {
-                asset_class_identifier:
-                  'SP466FNC0P7JWTNM2R9T199QRZN1MYEDTAR0KP27.miamicoin-token::miamicoin',
-                asset_identifier: null,
-                standard: 'SIP10',
-              },
-              symbol: 'TOKEN',
-            },
-            value: 144,
-          },
-          operation_identifier: { index: 0 },
-          related_operations: [{ index: 1 }],
-          status: 'SUCCESS',
-          type: 'DEBIT',
-        },
-        {
-          account: { address: 'SPCXZRY4FQZQHQ1EMBSDM1183HDK2ZGHPW3M1MA4' },
-          amount: {
-            currency: {
-              decimals: 6,
-              metadata: {
-                asset_class_identifier:
-                  'SP466FNC0P7JWTNM2R9T199QRZN1MYEDTAR0KP27.miamicoin-token::miamicoin',
-                asset_identifier: null,
-                standard: 'SIP10',
-              },
-              symbol: 'TOKEN',
-            },
-            value: 144,
-          },
-          operation_identifier: { index: 1 },
-          related_operations: [{ index: 0 }],
-          status: 'SUCCESS',
-          type: 'CREDIT',
-        },
-      ],
+      operations: [],
       transaction_identifier: {
         hash: args.hash,
       },
@@ -1389,7 +1334,32 @@ export class TestChainhookPayloadBuilder {
   }
 
   printEvent(args: StacksTransactionSmartContractEvent): this {
+    this.lastBlockTx.metadata.kind = {
+      data: {
+        args: [
+          'u144',
+          'SP3HXJJMJQ06GNAZ8XWDN1QM48JEDC6PP6W3YZPZJ',
+          'SPCXZRY4FQZQHQ1EMBSDM1183HDK2ZGHPW3M1MA4',
+          '(some 0x54657374205472616e73666572202331)',
+        ],
+        contract_identifier: 'SP466FNC0P7JWTNM2R9T199QRZN1MYEDTAR0KP27.miamicoin-token',
+        method: 'transfer',
+      },
+      type: 'ContractCall',
+    };
     this.lastBlockTx.metadata.receipt.events.push(args);
+    return this;
+  }
+
+  contractDeploy(contract_identifier: string, abi: any): this {
+    this.lastBlockTx.metadata.kind = {
+      data: {
+        code: 'code',
+        contract_identifier,
+      },
+      type: 'ContractDeployment',
+    };
+    this.lastBlockTx.metadata.contract_abi = abi;
     return this;
   }
 

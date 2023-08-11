@@ -2,6 +2,7 @@ import {
   TokenMetadataUpdateNotification,
   getContractLogMetadataUpdateNotification,
   getContractLogSftMintEvent,
+  getSmartContractSip,
 } from '../token-processor/util/sip-validation';
 import { ENV } from '../env';
 import {
@@ -135,48 +136,31 @@ export class PgStore extends BasePgStore {
   }
 
   async updateContractDeployment(payload: Payload): Promise<void> {
-    // for (const stacksEvent of payload.apply) {
-    //   const event = stacksEvent as StacksEvent;
-    //   for (const tx of event.transactions) {
-    //     const kind = tx.metadata.kind;
-    //     if (kind.type === 'ContractDeployment') {
-    //       // Get contract ABI
-    //       // TODO: This call blocks execution and delays a response to the chainhook node. We should
-    //       // either have chainhooks send us the full ABI with the contract deployment or move this
-    //       // RPC request to its own Job.
-    //       let abi: ClarityAbi | undefined;
-    //       try {
-    //         const client = StacksNodeRpcClient.create({
-    //           contractPrincipal: kind.data.contract_identifier,
-    //         });
-    //         abi = await client.readContractInterface();
-    //         if (!abi) continue;
-    //       } catch (error) {
-    //         logger.error(
-    //           error,
-    //           `ChainhookObserver unable to read ABI for ${kind.data.contract_identifier}`
-    //         );
-    //         continue;
-    //       }
-    //       // Is this a token contract?
-    //       const sip = getSmartContractSip(abi);
-    //       if (!sip) continue;
-    //       await db.insertAndEnqueueSmartContract({
-    //         values: {
-    //           sip,
-    //           abi,
-    //           principal: kind.data.contract_identifier,
-    //           tx_id: tx.transaction_identifier.hash,
-    //           block_height: event.block_identifier.index,
-    //         },
-    //       });
-    //       logger.info(`ChainhookObserver detected (${sip}): ${kind.data.contract_identifier}`);
-    //     }
-    //   }
-    //   await db.updateChainTipBlockHeight({ blockHeight: event.block_identifier.index });
-    // }
-    // // TODO: Rollback
-    // await db.enqueueDynamicTokensDueForRefresh();
+    for (const stacksEvent of payload.apply) {
+      const event = stacksEvent as StacksEvent;
+      for (const tx of event.transactions) {
+        const kind = tx.metadata.kind;
+        if (kind.type === 'ContractDeployment' && tx.metadata.contract_abi !== null) {
+          // Is this a token contract?
+          const abi = tx.metadata.contract_abi as ClarityAbi;
+          const sip = getSmartContractSip(abi);
+          if (!sip) continue;
+          await this.insertAndEnqueueSmartContract({
+            values: {
+              sip,
+              abi,
+              principal: kind.data.contract_identifier,
+              tx_id: tx.transaction_identifier.hash,
+              block_height: event.block_identifier.index,
+            },
+          });
+          logger.info(`ChainhookObserver detected (${sip}): ${kind.data.contract_identifier}`);
+        }
+      }
+      await this.updateChainTipBlockHeight({ blockHeight: event.block_identifier.index });
+    }
+    // TODO: Rollback
+    await this.enqueueDynamicTokensDueForRefresh();
   }
 
   async insertAndEnqueueSmartContract(args: { values: DbSmartContractInsert }): Promise<DbJob> {
