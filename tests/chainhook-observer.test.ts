@@ -20,7 +20,7 @@ describe('Chainhook observer', () => {
 
   describe('contract deployments', () => {
     test('enqueues valid token contract', async () => {
-      await db.updateContractDeployment(
+      await db.updateChainhookPayload(
         new TestChainhookPayloadBuilder()
           .apply()
           .block({ height: 100 })
@@ -42,7 +42,7 @@ describe('Chainhook observer', () => {
     });
 
     test('ignores non-token contract', async () => {
-      await db.updateContractDeployment(
+      await db.updateChainhookPayload(
         new TestChainhookPayloadBuilder()
           .apply()
           .block({ height: 100 })
@@ -87,7 +87,7 @@ describe('Chainhook observer', () => {
       const jobs1 = await db.getPendingJobBatch({ limit: 10 });
       expect(jobs1.length).toBe(0);
 
-      await db.updatePrintEvent(
+      await db.updateChainhookPayload(
         new TestChainhookPayloadBuilder()
           .apply()
           .block({ height: 100 })
@@ -137,7 +137,7 @@ describe('Chainhook observer', () => {
       const jobs1 = await db.getPendingJobBatch({ limit: 10 });
       expect(jobs1.length).toBe(0);
 
-      await db.updatePrintEvent(
+      await db.updateChainhookPayload(
         new TestChainhookPayloadBuilder()
           .apply()
           .block({ height: 100 })
@@ -169,7 +169,7 @@ describe('Chainhook observer', () => {
     });
 
     test('ignores other contract log events', async () => {
-      await db.updatePrintEvent(
+      await db.updateChainhookPayload(
         new TestChainhookPayloadBuilder()
           .apply()
           .block({ height: 100 })
@@ -216,7 +216,7 @@ describe('Chainhook observer', () => {
       const token1 = await db.getToken({ id: 1 });
       expect(token1?.update_mode).toBe('frozen');
 
-      await db.updatePrintEvent(
+      await db.updateChainhookPayload(
         new TestChainhookPayloadBuilder()
           .apply()
           .block({ height: 100 })
@@ -266,7 +266,7 @@ describe('Chainhook observer', () => {
       const jobs1 = await db.getPendingJobBatch({ limit: 10 });
       expect(jobs1.length).toBe(0);
 
-      await db.updatePrintEvent(
+      await db.updateChainhookPayload(
         new TestChainhookPayloadBuilder()
           .apply()
           .block({ height: 100 })
@@ -317,7 +317,7 @@ describe('Chainhook observer', () => {
       const jobs1 = await db.getPendingJobBatch({ limit: 10 });
       expect(jobs1.length).toBe(0);
 
-      await db.updatePrintEvent(
+      await db.updateChainhookPayload(
         new TestChainhookPayloadBuilder()
           .apply()
           .block({ height: 100 })
@@ -358,7 +358,7 @@ describe('Chainhook observer', () => {
       };
       await db.insertAndEnqueueSmartContract({ values });
 
-      await db.updatePrintEvent(
+      await db.updateChainhookPayload(
         new TestChainhookPayloadBuilder()
           .apply()
           .block({ height: 100 })
@@ -389,7 +389,7 @@ describe('Chainhook observer', () => {
 
   describe('chain tip', () => {
     test('updates chain tip on chainhook event', async () => {
-      await db.updateContractDeployment(
+      await db.updateChainhookPayload(
         new TestChainhookPayloadBuilder()
           .apply()
           .block({ height: 100 })
@@ -405,7 +405,7 @@ describe('Chainhook observer', () => {
       );
       await expect(db.getChainTipBlockHeight()).resolves.toBe(100);
 
-      await db.updatePrintEvent(
+      await db.updateChainhookPayload(
         new TestChainhookPayloadBuilder()
           .apply()
           .block({ height: 101 })
@@ -424,7 +424,7 @@ describe('Chainhook observer', () => {
     });
 
     test('keeps only the highest chain tip value', async () => {
-      await db.updateContractDeployment(
+      await db.updateChainhookPayload(
         new TestChainhookPayloadBuilder()
           .apply()
           .block({ height: 100 })
@@ -440,7 +440,7 @@ describe('Chainhook observer', () => {
       );
       await expect(db.getChainTipBlockHeight()).resolves.toBe(100);
 
-      await db.updatePrintEvent(
+      await db.updateChainhookPayload(
         new TestChainhookPayloadBuilder()
           .apply()
           .block({ height: 65 })
@@ -484,7 +484,7 @@ describe('Chainhook observer', () => {
       // Mark jobs as done.
       await db.sql`UPDATE jobs SET status = 'done'`;
 
-      await db.updatePrintEvent(
+      await db.updateChainhookPayload(
         new TestChainhookPayloadBuilder()
           .apply()
           .block({ height: 65 })
@@ -530,7 +530,7 @@ describe('Chainhook observer', () => {
       // Mark jobs as done.
       await db.sql`UPDATE jobs SET status = 'done'`;
 
-      await db.updatePrintEvent(
+      await db.updateChainhookPayload(
         new TestChainhookPayloadBuilder()
           .apply()
           .block({ height: 65 })

@@ -67,10 +67,8 @@ export async function startChainhookObserver(db: PgStore): Promise<ChainhookEven
   await server.start(predicates, async (uuid: string, payload: Payload) => {
     switch (uuid) {
       case PRINT_PREDICATE_UUID:
-        await db.updatePrintEvent(payload);
-        break;
       case CONTRACT_PREDICATE_UUID:
-        await db.updateContractDeployment(payload);
+        await db.updateChainhookPayload(payload);
         break;
       default:
         logger.warn({ uuid }, `ChainhookObserver received an unexpected payload`);

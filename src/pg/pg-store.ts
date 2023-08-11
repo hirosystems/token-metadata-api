@@ -47,7 +47,13 @@ import {
 import { FtOrderBy, Order } from '../api/schemas';
 import { BasePgStore, connectPostgres, logger, runMigrations } from '@hirosystems/api-toolkit';
 import * as path from 'path';
-import { Payload, StacksEvent } from '@hirosystems/chainhook-client';
+import {
+  Payload,
+  StacksEvent,
+  StacksTransaction,
+  StacksTransactionContractDeploymentKind,
+  StacksTransactionSmartContractEvent,
+} from '@hirosystems/chainhook-client';
 import { ClarityAbi } from '@stacks/transactions';
 
 export const MIGRATIONS_DIR = path.join(__dirname, '../../migrations');
@@ -79,82 +85,17 @@ export class PgStore extends BasePgStore {
     return new PgStore(sql);
   }
 
-  async updatePrintEvent(payload: Payload): Promise<void> {
+  async updateChainhookPayload(payload: Payload): Promise<void> {
     for (const stacksEvent of payload.apply) {
       const event = stacksEvent as StacksEvent;
       for (const tx of event.transactions) {
+        if (tx.metadata.kind.type === 'ContractDeployment') {
+          await this.updateContractDeployment(tx, event.block_identifier.index);
+        }
         for (const txEvent of tx.metadata.receipt.events) {
           if (txEvent.type === 'SmartContractEvent') {
-            // SIP-019 notification?
-            const notification = getContractLogMetadataUpdateNotification(
-              tx.metadata.sender,
-              txEvent
-            );
-            if (notification) {
-              logger.info(
-                `PgStore detected SIP-019 notification for ${notification.contract_id} ${
-                  notification.token_ids ?? []
-                }`
-              );
-              try {
-                await this.enqueueTokenMetadataUpdateNotification({ notification });
-              } catch (error) {
-                if (error instanceof ContractNotFoundError) {
-                  logger.warn(
-                    `ChainhookObserver contract ${notification.contract_id} not found, unable to process SIP-019 notification`
-                  );
-                } else {
-                  throw error;
-                }
-              }
-              continue;
-            }
-            // SIP-013 SFT mint?
-            const mint = getContractLogSftMintEvent(txEvent);
-            if (mint) {
-              const contract = await this.getSmartContract({ principal: mint.contractId });
-              if (contract && contract.sip === DbSipNumber.sip013) {
-                await this.insertAndEnqueueTokenArray([
-                  {
-                    smart_contract_id: contract.id,
-                    type: DbTokenType.sft,
-                    token_number: mint.tokenId.toString(),
-                  },
-                ]);
-                logger.info(
-                  `PgStore detected SIP-013 SFT mint event for ${mint.contractId} ${mint.tokenId}`
-                );
-              }
-            }
+            await this.updateSmartContractEvent(tx.metadata.sender, txEvent);
           }
-        }
-      }
-      await this.updateChainTipBlockHeight({ blockHeight: event.block_identifier.index });
-    }
-    // TODO: Rollback
-    await this.enqueueDynamicTokensDueForRefresh();
-  }
-
-  async updateContractDeployment(payload: Payload): Promise<void> {
-    for (const stacksEvent of payload.apply) {
-      const event = stacksEvent as StacksEvent;
-      for (const tx of event.transactions) {
-        const kind = tx.metadata.kind;
-        if (kind.type === 'ContractDeployment' && tx.metadata.contract_abi !== null) {
-          // Is this a token contract?
-          const abi = tx.metadata.contract_abi as ClarityAbi;
-          const sip = getSmartContractSip(abi);
-          if (!sip) continue;
-          await this.insertAndEnqueueSmartContract({
-            values: {
-              sip,
-              abi,
-              principal: kind.data.contract_identifier,
-              tx_id: tx.transaction_identifier.hash,
-              block_height: event.block_identifier.index,
-            },
-          });
-          logger.info(`ChainhookObserver detected (${sip}): ${kind.data.contract_identifier}`);
         }
       }
       await this.updateChainTipBlockHeight({ blockHeight: event.block_identifier.index });
@@ -613,6 +554,71 @@ export class PgStore extends BasePgStore {
         results: results ?? [],
       };
     });
+  }
+
+  private async updateContractDeployment(
+    tx: StacksTransaction,
+    blockHeight: number
+  ): Promise<void> {
+    if (tx.metadata.contract_abi === null) return;
+    const abi = tx.metadata.contract_abi as ClarityAbi;
+    const sip = getSmartContractSip(abi);
+    if (!sip) return;
+    const kind = tx.metadata.kind as StacksTransactionContractDeploymentKind;
+    await this.insertAndEnqueueSmartContract({
+      values: {
+        sip,
+        abi,
+        principal: kind.data.contract_identifier,
+        tx_id: tx.transaction_identifier.hash,
+        block_height: blockHeight,
+      },
+    });
+    logger.info(`PgStore detected (${sip}): ${kind.data.contract_identifier}`);
+  }
+
+  private async updateSmartContractEvent(
+    sender: string,
+    event: StacksTransactionSmartContractEvent
+  ): Promise<void> {
+    // SIP-019 notification?
+    const notification = getContractLogMetadataUpdateNotification(sender, event);
+    if (notification) {
+      logger.info(
+        `PgStore detected SIP-019 notification for ${notification.contract_id} ${
+          notification.token_ids ?? []
+        }`
+      );
+      try {
+        await this.enqueueTokenMetadataUpdateNotification({ notification });
+      } catch (error) {
+        if (error instanceof ContractNotFoundError) {
+          logger.warn(
+            `PgStore contract ${notification.contract_id} not found, unable to process SIP-019 notification`
+          );
+        } else {
+          throw error;
+        }
+      }
+      return;
+    }
+    // SIP-013 SFT mint?
+    const mint = getContractLogSftMintEvent(event);
+    if (mint) {
+      const contract = await this.getSmartContract({ principal: mint.contractId });
+      if (contract && contract.sip === DbSipNumber.sip013) {
+        await this.insertAndEnqueueTokenArray([
+          {
+            smart_contract_id: contract.id,
+            type: DbTokenType.sft,
+            token_number: mint.tokenId.toString(),
+          },
+        ]);
+        logger.info(
+          `PgStore detected SIP-013 SFT mint event for ${mint.contractId} ${mint.tokenId}`
+        );
+      }
+    }
   }
 
   private async isTokenLocaleAvailable(tokenId: number, locale: string): Promise<boolean> {
