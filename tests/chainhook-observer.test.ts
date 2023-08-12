@@ -1,12 +1,30 @@
 import { cvToHex, tupleCV, bufferCV, listCV, uintCV, stringUtf8CV } from '@stacks/transactions';
-import { DbSmartContractInsert, DbSipNumber, DbTokenType } from '../src/pg/types';
+import { DbSmartContractInsert, DbSipNumber, DbTokenType, DbSmartContract } from '../src/pg/types';
 import { cycleMigrations } from '@hirosystems/api-toolkit';
 import { ENV } from '../src/env';
 import { PgStore, MIGRATIONS_DIR } from '../src/pg/pg-store';
 import { SIP_009_ABI, TestChainhookPayloadBuilder } from './helpers';
+import { ProcessSmartContractJob } from '../src/token-processor/queue/job/process-smart-contract-job';
+import { ProcessTokenJob } from '../src/token-processor/queue/job/process-token-job';
 
 describe('Chainhook observer', () => {
   let db: PgStore;
+
+  const createTestTokens = async (principal: string, token_count: bigint) => {
+    const values: DbSmartContractInsert = {
+      principal,
+      sip: DbSipNumber.sip009,
+      abi: '"some"',
+      tx_id: '0x123456',
+      block_height: 1,
+    };
+    await db.insertAndEnqueueSmartContract({ values });
+    await db.insertAndEnqueueSequentialTokens({
+      smart_contract_id: 1,
+      token_count,
+      type: DbTokenType.nft,
+    });
+  };
 
   beforeEach(async () => {
     ENV.PGDATABASE = 'postgres';
@@ -62,26 +80,132 @@ describe('Chainhook observer', () => {
       const jobs = await db.getPendingJobBatch({ limit: 1 });
       expect(jobs[0]).toBeUndefined();
     });
-  });
 
-  describe('print events', () => {
-    test('enqueues SIP-019 notification for all tokens', async () => {
+    test('rolls back contract', async () => {
       const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
       const contractId = `${address}.friedger-pool-nft`;
+      await createTestTokens(contractId, 3n);
 
+      await db.updateChainhookPayload(
+        new TestChainhookPayloadBuilder()
+          .rollback()
+          .block({ height: 100 })
+          .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
+          .contractDeploy(
+            'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft',
+            SIP_009_ABI
+          )
+          .build()
+      );
+
+      // Everything is deleted.
+      const dbContract = await db.getSmartContract({ principal: contractId });
+      expect(dbContract).toBeUndefined();
+      const tokenCount = await db.sql<{ count: string }[]>`SELECT COUNT(*) FROM tokens`;
+      expect(tokenCount[0].count).toBe('0');
+      const jobCount = await db.sql<{ count: string }[]>`SELECT COUNT(*) FROM jobs`;
+      expect(jobCount[0].count).toBe('0');
+    });
+
+    test('contract roll back handles in-flight job correctly', async () => {
+      const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
+      const principal = `${address}.friedger-pool-nft`;
       const values: DbSmartContractInsert = {
-        principal: contractId,
+        principal,
+        sip: DbSipNumber.sip009,
+        abi: '"some"',
+        tx_id: '0x123456',
+        block_height: 1,
+      };
+      const job = await db.insertAndEnqueueSmartContract({ values });
+      const contract = (await db.getSmartContract({ principal })) as DbSmartContract;
+
+      await db.updateChainhookPayload(
+        new TestChainhookPayloadBuilder()
+          .rollback()
+          .block({ height: 100 })
+          .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
+          .contractDeploy(
+            'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft',
+            SIP_009_ABI
+          )
+          .build()
+      );
+
+      const handler = new ProcessSmartContractJob({ db, job });
+      await expect(handler.work()).resolves.not.toThrow();
+      await expect(handler['enqueueTokens'](contract, 1n)).resolves.not.toThrow();
+    });
+
+    test('contract roll back handles in-flight token jobs correctly', async () => {
+      const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
+      const principal = `${address}.friedger-pool-nft`;
+      const values: DbSmartContractInsert = {
+        principal,
         sip: DbSipNumber.sip009,
         abi: '"some"',
         tx_id: '0x123456',
         block_height: 1,
       };
       await db.insertAndEnqueueSmartContract({ values });
-      await db.insertAndEnqueueSequentialTokens({
+      const jobs = await db.insertAndEnqueueSequentialTokens({
         smart_contract_id: 1,
-        token_count: 3n, // 3 tokens
+        token_count: 1n,
         type: DbTokenType.nft,
       });
+
+      await db.updateChainhookPayload(
+        new TestChainhookPayloadBuilder()
+          .rollback()
+          .block({ height: 100 })
+          .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
+          .contractDeploy(
+            'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft',
+            SIP_009_ABI
+          )
+          .build()
+      );
+
+      const handler = new ProcessTokenJob({ db, job: jobs[0] });
+      await expect(handler.work()).resolves.not.toThrow();
+      await expect(
+        db.updateProcessedTokenWithMetadata({
+          id: 1,
+          values: {
+            token: {
+              name: 'test',
+              symbol: 'TEST',
+              decimals: 4,
+              total_supply: '200',
+              uri: 'http://test.com',
+            },
+            metadataLocales: [
+              {
+                metadata: {
+                  sip: 16,
+                  token_id: 1,
+                  name: 'test',
+                  l10n_locale: 'en',
+                  l10n_uri: 'http://test.com',
+                  l10n_default: true,
+                  description: 'test',
+                  image: 'http://test.com',
+                  cached_image: 'http://test.com',
+                },
+              },
+            ],
+          },
+        })
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('print events', () => {
+    test('enqueues SIP-019 notification for all tokens', async () => {
+      const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
+      const contractId = `${address}.friedger-pool-nft`;
+      await createTestTokens(contractId, 3n);
+
       // Mark jobs as done to test
       await db.sql`UPDATE jobs SET status = 'done' WHERE TRUE`;
       const jobs1 = await db.getPendingJobBatch({ limit: 10 });
@@ -118,20 +242,8 @@ describe('Chainhook observer', () => {
     test('enqueues NFT SIP-019 notification for specific tokens', async () => {
       const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
       const contractId = `${address}.friedger-pool-nft`;
+      await createTestTokens(contractId, 3n);
 
-      const values: DbSmartContractInsert = {
-        principal: contractId,
-        sip: DbSipNumber.sip009,
-        abi: '"some"',
-        tx_id: '0x123456',
-        block_height: 1,
-      };
-      await db.insertAndEnqueueSmartContract({ values });
-      await db.insertAndEnqueueSequentialTokens({
-        smart_contract_id: 1,
-        token_count: 3n, // 3 tokens
-        type: DbTokenType.nft,
-      });
       // Mark jobs as done to test
       await db.sql`UPDATE jobs SET status = 'done' WHERE TRUE`;
       const jobs1 = await db.getPendingJobBatch({ limit: 10 });
@@ -192,20 +304,8 @@ describe('Chainhook observer', () => {
     test('ignores SIP-019 notification for frozen tokens', async () => {
       const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
       const contractId = `${address}.friedger-pool-nft`;
+      await createTestTokens(contractId, 1n);
 
-      const values: DbSmartContractInsert = {
-        principal: contractId,
-        sip: DbSipNumber.sip009,
-        abi: '"some"',
-        tx_id: '0x123456',
-        block_height: 1,
-      };
-      await db.insertAndEnqueueSmartContract({ values });
-      await db.insertAndEnqueueSequentialTokens({
-        smart_contract_id: 1,
-        token_count: 1n,
-        type: DbTokenType.nft,
-      });
       // Mark jobs as done to test
       await db.sql`UPDATE jobs SET status = 'done' WHERE TRUE`;
       const jobs1 = await db.getPendingJobBatch({ limit: 10 });
@@ -247,20 +347,8 @@ describe('Chainhook observer', () => {
     test('ignores SIP-019 notification from incorrect sender', async () => {
       const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
       const contractId = `${address}.friedger-pool-nft`;
+      await createTestTokens(contractId, 1n);
 
-      const values: DbSmartContractInsert = {
-        principal: contractId,
-        sip: DbSipNumber.sip009,
-        abi: '"some"',
-        tx_id: '0x123456',
-        block_height: 1,
-      };
-      await db.insertAndEnqueueSmartContract({ values });
-      await db.insertAndEnqueueSequentialTokens({
-        smart_contract_id: 1,
-        token_count: 1n,
-        type: DbTokenType.nft,
-      });
       // Mark jobs as done to test
       await db.sql`UPDATE jobs SET status = 'done' WHERE TRUE`;
       const jobs1 = await db.getPendingJobBatch({ limit: 10 });
@@ -298,20 +386,8 @@ describe('Chainhook observer', () => {
     test('updates token refresh mode on SIP-019 notification', async () => {
       const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
       const contractId = `${address}.friedger-pool-nft`;
+      await createTestTokens(contractId, 1n);
 
-      const values: DbSmartContractInsert = {
-        principal: contractId,
-        sip: DbSipNumber.sip009,
-        abi: '"some"',
-        tx_id: '0x123456',
-        block_height: 1,
-      };
-      await db.insertAndEnqueueSmartContract({ values });
-      await db.insertAndEnqueueSequentialTokens({
-        smart_contract_id: 1,
-        token_count: 1n,
-        type: DbTokenType.nft,
-      });
       // Mark jobs as done to test
       await db.sql`UPDATE jobs SET status = 'done' WHERE TRUE`;
       const jobs1 = await db.getPendingJobBatch({ limit: 10 });
@@ -462,19 +538,7 @@ describe('Chainhook observer', () => {
       const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
       const contractId = `${address}.friedger-pool-nft`;
       ENV.METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL = 86400;
-      const values: DbSmartContractInsert = {
-        principal: contractId,
-        sip: DbSipNumber.sip009,
-        abi: '"some"',
-        tx_id: '0x123456',
-        block_height: 1,
-      };
-      await db.insertAndEnqueueSmartContract({ values });
-      await db.insertAndEnqueueSequentialTokens({
-        smart_contract_id: 1,
-        token_count: 1n,
-        type: DbTokenType.nft,
-      });
+      await createTestTokens(contractId, 1n);
       // Set update_mode and updated_at for testing.
       await db.sql`
         UPDATE tokens

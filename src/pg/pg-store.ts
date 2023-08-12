@@ -90,17 +90,30 @@ export class PgStore extends BasePgStore {
       const event = stacksEvent as StacksEvent;
       for (const tx of event.transactions) {
         if (tx.metadata.kind.type === 'ContractDeployment') {
-          await this.updateContractDeployment(tx, event.block_identifier.index);
+          await this.insertContractDeployment(tx, event.block_identifier.index);
         }
         for (const txEvent of tx.metadata.receipt.events) {
           if (txEvent.type === 'SmartContractEvent') {
-            await this.updateSmartContractEvent(tx.metadata.sender, txEvent);
+            await this.insertSmartContractEvent(tx.metadata.sender, txEvent);
           }
         }
       }
       await this.updateChainTipBlockHeight({ blockHeight: event.block_identifier.index });
     }
-    // TODO: Rollback
+    for (const stacksEvent of payload.rollback) {
+      const event = stacksEvent as StacksEvent;
+      for (const tx of event.transactions) {
+        if (tx.metadata.kind.type === 'ContractDeployment') {
+          await this.rollBackContractDeployment(tx);
+        }
+        for (const txEvent of tx.metadata.receipt.events) {
+          if (txEvent.type === 'SmartContractEvent') {
+            // await this.insertSmartContractEvent(tx.metadata.sender, txEvent);
+          }
+        }
+      }
+      await this.updateChainTipBlockHeight({ blockHeight: event.block_identifier.index });
+    }
     await this.enqueueDynamicTokensDueForRefresh();
   }
 
@@ -235,9 +248,10 @@ export class PgStore extends BasePgStore {
   }): Promise<void> {
     await this.sqlWriteTransaction(async sql => {
       // Update token and clear old metadata (this will cascade into all properties and attributes)
-      await sql`
+      const tokenUpdate = await sql`
         UPDATE tokens SET ${sql(args.values.token)}, updated_at = NOW() WHERE id = ${args.id}
       `;
+      if (tokenUpdate.count === 0) return;
       await sql`DELETE FROM metadata WHERE token_id = ${args.id}`;
       // Write new metadata
       if (args.values.metadataLocales && args.values.metadataLocales.length > 0) {
@@ -556,7 +570,7 @@ export class PgStore extends BasePgStore {
     });
   }
 
-  private async updateContractDeployment(
+  private async insertContractDeployment(
     tx: StacksTransaction,
     blockHeight: number
   ): Promise<void> {
@@ -577,7 +591,14 @@ export class PgStore extends BasePgStore {
     logger.info(`PgStore detected (${sip}): ${kind.data.contract_identifier}`);
   }
 
-  private async updateSmartContractEvent(
+  private async rollBackContractDeployment(tx: StacksTransaction): Promise<void> {
+    const kind = tx.metadata.kind as StacksTransactionContractDeploymentKind;
+    await this.sql`
+      DELETE FROM smart_contracts WHERE principal = ${kind.data.contract_identifier}
+    `;
+  }
+
+  private async insertSmartContractEvent(
     sender: string,
     event: StacksTransactionSmartContractEvent
   ): Promise<void> {
