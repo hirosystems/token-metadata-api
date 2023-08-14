@@ -108,7 +108,7 @@ export class PgStore extends BasePgStore {
         }
         for (const txEvent of tx.metadata.receipt.events) {
           if (txEvent.type === 'SmartContractEvent') {
-            // await this.insertSmartContractEvent(tx.metadata.sender, txEvent);
+            await this.rollBackSmartContractEvent(tx.metadata.sender, txEvent);
           }
         }
       }
@@ -588,7 +588,7 @@ export class PgStore extends BasePgStore {
         block_height: blockHeight,
       },
     });
-    logger.info(`PgStore detected (${sip}): ${kind.data.contract_identifier}`);
+    logger.info(`PgStore apply contract ${kind.data.contract_identifier} (${sip})`);
   }
 
   private async rollBackContractDeployment(tx: StacksTransaction): Promise<void> {
@@ -596,6 +596,7 @@ export class PgStore extends BasePgStore {
     await this.sql`
       DELETE FROM smart_contracts WHERE principal = ${kind.data.contract_identifier}
     `;
+    logger.info(`PgStore rollback contract ${kind.data.contract_identifier}`);
   }
 
   private async insertSmartContractEvent(
@@ -606,9 +607,9 @@ export class PgStore extends BasePgStore {
     const notification = getContractLogMetadataUpdateNotification(sender, event);
     if (notification) {
       logger.info(
-        `PgStore detected SIP-019 notification for ${notification.contract_id} ${
+        `PgStore apply SIP-019 notification ${notification.contract_id} (${
           notification.token_ids ?? []
-        }`
+        })`
       );
       try {
         await this.enqueueTokenMetadataUpdateNotification({ notification });
@@ -635,9 +636,25 @@ export class PgStore extends BasePgStore {
             token_number: mint.tokenId.toString(),
           },
         ]);
-        logger.info(
-          `PgStore detected SIP-013 SFT mint event for ${mint.contractId} ${mint.tokenId}`
-        );
+        logger.info(`PgStore apply SFT mint ${mint.contractId} (${mint.tokenId})`);
+      }
+    }
+  }
+
+  private async rollBackSmartContractEvent(
+    sender: string,
+    event: StacksTransactionSmartContractEvent
+  ): Promise<void> {
+    // SIP-013 SFT mint?
+    const mint = getContractLogSftMintEvent(event);
+    if (mint) {
+      const contract = await this.getSmartContract({ principal: mint.contractId });
+      if (contract && contract.sip === DbSipNumber.sip013) {
+        await this.sql`
+          DELETE FROM tokens
+          WHERE smart_contract_id = ${contract.id} AND token_number = ${mint.tokenId}
+        `;
+        logger.info(`PgStore rollback SFT mint ${mint.contractId} (${mint.tokenId})`);
       }
     }
   }

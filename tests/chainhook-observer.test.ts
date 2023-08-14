@@ -461,6 +461,56 @@ describe('Chainhook observer', () => {
       expect(token?.type).toBe(DbTokenType.sft);
       expect(token?.token_number).toBe('3');
     });
+
+    test('rolls back SIP-013 mint', async () => {
+      const address = 'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9';
+      const contractId = 'key-alex-autoalex-v1';
+      const principal = `${address}.${contractId}`;
+      const values: DbSmartContractInsert = {
+        principal,
+        sip: DbSipNumber.sip013,
+        abi: '"some"',
+        tx_id: '0x123456',
+        block_height: 1,
+      };
+      await db.insertAndEnqueueSmartContract({ values });
+      const contract = await db.getSmartContract({ principal });
+      await db.insertAndEnqueueTokenArray([
+        {
+          smart_contract_id: contract?.id ?? 0,
+          type: DbTokenType.sft,
+          token_number: '200',
+        },
+      ]);
+
+      await db.updateChainhookPayload(
+        new TestChainhookPayloadBuilder()
+          .rollback()
+          .block({ height: 100 })
+          .transaction({ hash: '0x01', sender: address })
+          .printEvent({
+            type: 'SmartContractEvent',
+            data: {
+              contract_identifier: principal,
+              topic: 'print',
+              raw_value: cvToHex(
+                tupleCV({
+                  type: bufferCV(Buffer.from('sft_mint')),
+                  recipient: bufferCV(Buffer.from(address)),
+                  'token-id': uintCV(200),
+                  amount: uintCV(1000),
+                })
+              ),
+            },
+          })
+          .build()
+      );
+
+      const tokenCount = await db.sql<{ count: string }[]>`SELECT COUNT(*) FROM tokens`;
+      expect(tokenCount[0].count).toBe('0');
+      const jobCount = await db.sql<{ count: string }[]>`SELECT COUNT(*) FROM jobs`;
+      expect(jobCount[0].count).toBe('1'); // Only the smart contract job
+    });
   });
 
   describe('chain tip', () => {
