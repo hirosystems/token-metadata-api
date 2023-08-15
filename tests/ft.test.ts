@@ -413,6 +413,15 @@ describe('FT routes', () => {
       expect(response2.statusCode).toBe(200);
       const json2 = response2.json();
       expect(json2.total).toBe(0);
+
+      const response3 = await fastify.inject({
+        method: 'GET',
+        url: '/metadata/ft?name=Miami', // Case insensitive
+      });
+      expect(response3.statusCode).toBe(200);
+      const json3 = response3.json();
+      expect(json3.total).toBe(1);
+      expect(json3.results[0].symbol).toBe('MIA');
     });
 
     test('filters by symbol', async () => {
@@ -433,6 +442,15 @@ describe('FT routes', () => {
       expect(response2.statusCode).toBe(200);
       const json2 = response2.json();
       expect(json2.total).toBe(0);
+
+      const response3 = await fastify.inject({
+        method: 'GET',
+        url: '/metadata/ft?symbol=mia', // Case insensitive
+      });
+      expect(response3.statusCode).toBe(200);
+      const json3 = response3.json();
+      expect(json3.total).toBe(1);
+      expect(json3.results[0].symbol).toBe('MIA');
     });
 
     test('filters by address', async () => {
