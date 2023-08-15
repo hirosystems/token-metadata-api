@@ -86,6 +86,18 @@ export type DbJob = {
   updated_at?: string;
 };
 
+export type DbTokenMetadataNotificationInsert = {
+  smart_contract_id: number;
+  block_height: number;
+  index_block_hash: string;
+  tx_id: string;
+  tx_index: number;
+  event_index: number;
+  token_numbers?: string;
+  update_mode: DbTokenUpdateMode;
+  ttl?: number;
+};
+
 export type DbRateLimitedHostInsert = {
   hostname: string;
   // Will be converted into a timestamp upon insert.

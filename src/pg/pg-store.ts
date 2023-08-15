@@ -35,6 +35,7 @@ import {
   DbPaginatedResult,
   DbFungibleTokenOrder,
   DbSipNumber,
+  DbTokenMetadataNotificationInsert,
 } from './types';
 import {
   ContractNotFoundError,
@@ -48,6 +49,7 @@ import { FtOrderBy, Order } from '../api/schemas';
 import { BasePgStore, connectPostgres, logger, runMigrations } from '@hirosystems/api-toolkit';
 import * as path from 'path';
 import {
+  BlockIdentifier,
   Payload,
   StacksEvent,
   StacksTransaction,
@@ -94,7 +96,7 @@ export class PgStore extends BasePgStore {
         }
         for (const txEvent of tx.metadata.receipt.events) {
           if (txEvent.type === 'SmartContractEvent') {
-            await this.insertSmartContractEvent(tx.metadata.sender, txEvent);
+            await this.insertSmartContractEvent(event.block_identifier, tx, txEvent);
           }
         }
       }
@@ -352,6 +354,8 @@ export class PgStore extends BasePgStore {
    * @param notification - SIP-019 notification
    */
   async enqueueTokenMetadataUpdateNotification(args: {
+    block: BlockIdentifier;
+    tx: StacksTransaction;
     notification: TokenMetadataUpdateNotification;
   }): Promise<void> {
     await this.sqlWriteTransaction(async sql => {
@@ -363,6 +367,16 @@ export class PgStore extends BasePgStore {
         throw new ContractNotFoundError();
       }
       const contractId = contractResult[0].id;
+
+      // Save notification
+      const insert: DbTokenMetadataNotificationInsert = {
+        smart_contract_id: contractId,
+        tx_id: args.tx.transaction_identifier.hash,
+        block_height: args.block.index,
+        index_block_hash: args.block.hash,
+        update_mode: args.notification.update_mode as DbTokenUpdateMode,
+      };
+      await this.sql`INSERT INTO token_metadata_notifications ${sql(insert)}`;
 
       const refreshTokens = async (tokenIds: bigint[]) => {
         const tokens = await sql<DbToken[]>`
@@ -600,11 +614,12 @@ export class PgStore extends BasePgStore {
   }
 
   private async insertSmartContractEvent(
-    sender: string,
+    block: BlockIdentifier,
+    tx: StacksTransaction,
     event: StacksTransactionSmartContractEvent
   ): Promise<void> {
     // SIP-019 notification?
-    const notification = getContractLogMetadataUpdateNotification(sender, event);
+    const notification = getContractLogMetadataUpdateNotification(tx.metadata.sender, event);
     if (notification) {
       logger.info(
         `PgStore apply SIP-019 notification ${notification.contract_id} (${
@@ -612,7 +627,7 @@ export class PgStore extends BasePgStore {
         })`
       );
       try {
-        await this.enqueueTokenMetadataUpdateNotification({ notification });
+        await this.enqueueTokenMetadataUpdateNotification({ block, tx, notification });
       } catch (error) {
         if (error instanceof ContractNotFoundError) {
           logger.warn(

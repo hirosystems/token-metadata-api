@@ -76,7 +76,7 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
         token_ids: (request.body.tokenIds ?? []).map(v => BigInt(v)),
         update_mode: DbTokenUpdateMode.standard,
       };
-      await fastify.db.enqueueTokenMetadataUpdateNotification({ notification });
+      // await fastify.db.enqueueTokenMetadataUpdateNotification({ notification });
       logger.info(
         request.body.tokenIds,
         `AdminRPC refreshing tokens for contract: ${contract.principal}`
