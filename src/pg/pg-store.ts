@@ -509,8 +509,12 @@ export class PgStore extends BasePgStore {
         INNER JOIN metadata AS m ON t.id = m.token_id
         INNER JOIN smart_contracts AS s ON t.smart_contract_id = s.id
         WHERE t.type = 'ft'
-          ${args.filters?.name ? sql`AND t.name LIKE ${'%' + args.filters.name + '%'}` : sql``}
-          ${args.filters?.symbol ? sql`AND t.symbol = ${args.filters.symbol}` : sql``}
+          ${
+            args.filters?.name
+              ? sql`AND LOWER(t.name) LIKE LOWER(${'%' + args.filters.name + '%'})`
+              : sql``
+          }
+          ${args.filters?.symbol ? sql`AND LOWER(t.symbol) = LOWER(${args.filters.symbol})` : sql``}
           ${args.filters?.address ? sql`AND s.principal LIKE ${args.filters.address + '%'}` : sql``}
         ORDER BY ${orderBy} ${order}
         LIMIT ${args.page.limit}
