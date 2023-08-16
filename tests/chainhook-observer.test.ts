@@ -218,6 +218,7 @@ describe('Chainhook observer', () => {
           .transaction({ hash: '0x01', sender: address })
           .printEvent({
             type: 'SmartContractEvent',
+            position: { index: 0 },
             data: {
               contract_identifier: contractId,
               topic: 'print',
@@ -256,6 +257,7 @@ describe('Chainhook observer', () => {
           .transaction({ hash: '0x01', sender: address })
           .printEvent({
             type: 'SmartContractEvent',
+            position: { index: 0 },
             data: {
               contract_identifier: contractId,
               topic: 'print',
@@ -288,6 +290,7 @@ describe('Chainhook observer', () => {
           .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
           .printEvent({
             type: 'SmartContractEvent',
+            position: { index: 0 },
             data: {
               contract_identifier: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft',
               topic: 'print',
@@ -323,6 +326,7 @@ describe('Chainhook observer', () => {
           .transaction({ hash: '0x01', sender: address })
           .printEvent({
             type: 'SmartContractEvent',
+            position: { index: 0 },
             data: {
               contract_identifier: contractId,
               topic: 'print',
@@ -362,6 +366,7 @@ describe('Chainhook observer', () => {
           .transaction({ hash: '0x01', sender: 'SP29BPZ6BD5D8509Y9VP70J0V7VKKDDFCRPHA0T6A' })
           .printEvent({
             type: 'SmartContractEvent',
+            position: { index: 0 },
             data: {
               contract_identifier: 'SP29BPZ6BD5D8509Y9VP70J0V7VKKDDFCRPHA0T6A.another-contract',
               topic: 'print',
@@ -400,6 +405,7 @@ describe('Chainhook observer', () => {
           .transaction({ hash: '0x01', sender: address })
           .printEvent({
             type: 'SmartContractEvent',
+            position: { index: 0 },
             data: {
               contract_identifier: contractId,
               topic: 'print',
@@ -441,6 +447,7 @@ describe('Chainhook observer', () => {
           .transaction({ hash: '0x01', sender: address })
           .printEvent({
             type: 'SmartContractEvent',
+            position: { index: 0 },
             data: {
               contract_identifier: `${address}.${contractId}`,
               topic: 'print',
@@ -490,6 +497,7 @@ describe('Chainhook observer', () => {
           .transaction({ hash: '0x01', sender: address })
           .printEvent({
             type: 'SmartContractEvent',
+            position: { index: 0 },
             data: {
               contract_identifier: principal,
               topic: 'print',
@@ -538,6 +546,7 @@ describe('Chainhook observer', () => {
           .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
           .printEvent({
             type: 'SmartContractEvent',
+            position: { index: 0 },
             data: {
               contract_identifier: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft',
               topic: 'print',
@@ -573,6 +582,7 @@ describe('Chainhook observer', () => {
           .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
           .printEvent({
             type: 'SmartContractEvent',
+            position: { index: 0 },
             data: {
               contract_identifier: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft',
               topic: 'print',
@@ -605,6 +615,7 @@ describe('Chainhook observer', () => {
           .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
           .printEvent({
             type: 'SmartContractEvent',
+            position: { index: 0 },
             data: {
               contract_identifier: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft',
               topic: 'print',
@@ -651,6 +662,7 @@ describe('Chainhook observer', () => {
           .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
           .printEvent({
             type: 'SmartContractEvent',
+            position: { index: 0 },
             data: {
               contract_identifier: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft',
               topic: 'print',

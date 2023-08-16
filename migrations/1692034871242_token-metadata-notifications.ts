@@ -42,7 +42,7 @@ export function up(pgm: MigrationBuilder): void {
       notNull: true,
     },
     ttl: {
-      type: 'int',
+      type: 'numeric',
     },
   });
   pgm.createConstraint(

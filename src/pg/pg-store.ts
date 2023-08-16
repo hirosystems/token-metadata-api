@@ -351,11 +351,11 @@ export class PgStore extends BasePgStore {
    * Enqueues the tokens specified by a SIP-019 notification for metadata refresh. Depending on the
    * token type and notification parameters, this will refresh specific tokens or complete
    * contracts. See SIP-019 for more info.
-   * @param notification - SIP-019 notification
    */
   async enqueueTokenMetadataUpdateNotification(args: {
     block: BlockIdentifier;
     tx: StacksTransaction;
+    event: StacksTransactionSmartContractEvent;
     notification: TokenMetadataUpdateNotification;
   }): Promise<void> {
     await this.sqlWriteTransaction(async sql => {
@@ -367,45 +367,47 @@ export class PgStore extends BasePgStore {
         throw new ContractNotFoundError();
       }
       const contractId = contractResult[0].id;
-
-      // Save notification
-      const insert: DbTokenMetadataNotificationInsert = {
+      const dbNotification: DbTokenMetadataNotificationInsert = {
         smart_contract_id: contractId,
         tx_id: args.tx.transaction_identifier.hash,
         block_height: args.block.index,
         index_block_hash: args.block.hash,
+        tx_index: args.tx.metadata.position.index,
+        event_index: args.event.position.index,
         update_mode: args.notification.update_mode as DbTokenUpdateMode,
+        token_numbers: args.notification.token_ids?.join(',') ?? null,
+        ttl: args.notification.ttl?.toString() ?? null,
       };
-      await this.sql`INSERT INTO token_metadata_notifications ${sql(insert)}`;
-
-      const refreshTokens = async (tokenIds: bigint[]) => {
-        const tokens = await sql<DbToken[]>`
-          SELECT ${this.sql(TOKENS_COLUMNS)} FROM tokens
+      await this.sql`
+        INSERT INTO token_metadata_notifications ${sql(dbNotification)}
+        ON CONFLICT ON CONSTRAINT token_metadata_notifications_unique DO UPDATE SET
+          update_mode = EXCLUDED.update_mode,
+          token_numbers = EXCLUDED.token_numbers,
+          ttl = EXCLUDED.ttl
+      `;
+      const refreshTokens = async (tokenNumbers: bigint[]) => {
+        const tokenIds = await sql<{ id: number }[]>`
+          SELECT id FROM tokens
           WHERE smart_contract_id = ${contractId}
-          ${tokenIds.length ? sql`AND token_number IN ${sql(tokenIds)}` : sql``}
+            AND update_mode <> 'frozen'
+            ${tokenNumbers.length ? sql`AND token_number IN ${sql(tokenNumbers)}` : sql``}
         `;
-        for (const token of tokens) {
-          if (token.update_mode === DbTokenUpdateMode.frozen) {
-            continue; // Can't refresh frozen tokens.
-          }
-          // Update token mode.
-          await sql`
-            UPDATE tokens
-            SET update_mode = ${args.notification.update_mode},
-              ttl = ${args.notification.ttl ? sql`${args.notification.ttl}` : sql`NULL`}
-            WHERE id = ${token.id}
-          `;
-          // Re-enqueue job.
-          await sql`
-            UPDATE jobs
-            SET status = 'pending', updated_at = NOW()
-            WHERE token_id = ${token.id}
-          `;
-        }
+        const ids = tokenIds.map(i => i.id);
+        await sql`
+          UPDATE tokens SET
+            update_mode = ${args.notification.update_mode},
+            ttl = ${args.notification.ttl ? sql`${args.notification.ttl}` : sql`NULL`}
+          WHERE id IN ${sql(ids)}
+        `;
+        await sql`
+          UPDATE jobs
+          SET status = 'pending', updated_at = NOW()
+          WHERE token_id IN ${sql(ids)}
+        `;
       };
-
       switch (args.notification.token_class) {
         case 'nft':
+        case 'sft':
           await refreshTokens(args.notification.token_ids ?? []);
           break;
         case 'ft':
@@ -631,7 +633,7 @@ export class PgStore extends BasePgStore {
         })`
       );
       try {
-        await this.enqueueTokenMetadataUpdateNotification({ block, tx, notification });
+        await this.enqueueTokenMetadataUpdateNotification({ block, event, tx, notification });
       } catch (error) {
         if (error instanceof ContractNotFoundError) {
           logger.warn(

@@ -93,9 +93,9 @@ export type DbTokenMetadataNotificationInsert = {
   tx_id: string;
   tx_index: number;
   event_index: number;
-  token_numbers?: string;
+  token_numbers: string | null;
   update_mode: DbTokenUpdateMode;
-  ttl?: number;
+  ttl: PgNumeric | null;
 };
 
 export type DbRateLimitedHostInsert = {

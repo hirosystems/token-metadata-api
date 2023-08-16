@@ -26,6 +26,7 @@ describe('SIP Validation', () => {
     });
     const event1: StacksTransactionSmartContractEvent = {
       type: 'SmartContractEvent',
+      position: { index: 0 },
       data: {
         contract_identifier: contractId,
         raw_value: cvToHex(tuple1),
@@ -55,6 +56,7 @@ describe('SIP Validation', () => {
     // Invalid notification senders
     const event2: StacksTransactionSmartContractEvent = {
       type: 'SmartContractEvent',
+      position: { index: 0 },
       data: {
         contract_identifier: 'SPCAQ4RCYJ30BYKJ9Z6BRGS3169PWZNN89NH4MCS.hic-1',
         raw_value: cvToHex(tuple1),
@@ -70,6 +72,7 @@ describe('SIP Validation', () => {
     // Sent by the contract owner
     const event3: StacksTransactionSmartContractEvent = {
       type: 'SmartContractEvent',
+      position: { index: 0 },
       data: {
         contract_identifier: 'SPCAQ4RCYJ30BYKJ9Z6BRGS3169PWZNN89NH4MCS.hic-1',
         raw_value: cvToHex(tuple1),
@@ -85,6 +88,7 @@ describe('SIP Validation', () => {
     // Emitted by the correct contract
     const event4: StacksTransactionSmartContractEvent = {
       type: 'SmartContractEvent',
+      position: { index: 0 },
       data: {
         contract_identifier: contractId,
         raw_value: cvToHex(tuple1),
@@ -108,6 +112,7 @@ describe('SIP Validation', () => {
     // Taken from tx 0xfc81a8c30025d7135d4313ea746831de1c7794478d4e0d23ef76970ee071cf20
     const event1: StacksTransactionSmartContractEvent = {
       type: 'SmartContractEvent',
+      position: { index: 0 },
       data: {
         contract_identifier: contractId,
         topic: 'print',
@@ -132,6 +137,7 @@ describe('SIP Validation', () => {
     });
     const event2: StacksTransactionSmartContractEvent = {
       type: 'SmartContractEvent',
+      position: { index: 0 },
       data: {
         contract_identifier: contractId,
         topic: 'print',
@@ -162,6 +168,7 @@ describe('SIP Validation', () => {
     });
     const event: StacksTransactionSmartContractEvent = {
       type: 'SmartContractEvent',
+      position: { index: 0 },
       data: {
         contract_identifier: contractId,
         topic: 'print',
