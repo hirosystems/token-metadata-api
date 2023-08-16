@@ -36,6 +36,8 @@ import {
   DbFungibleTokenOrder,
   DbSipNumber,
   DbTokenMetadataNotificationInsert,
+  DbTokenMetadataNotification,
+  TOKEN_METADATA_NOTIFICATIONS_COLUMNS,
 } from './types';
 import {
   ContractNotFoundError,
@@ -347,6 +349,20 @@ export class PgStore extends BasePgStore {
     }
   }
 
+  async getTokenMetadataNotification(args: {
+    tokenId: number;
+  }): Promise<DbTokenMetadataNotification | undefined> {
+    const result = await this.sql<DbTokenMetadataNotification[]>`
+      SELECT ${this.sql(TOKEN_METADATA_NOTIFICATIONS_COLUMNS.map(c => `n.${c}`))}
+      FROM token_metadata_notifications AS n
+      INNER JOIN tokens AS t ON t.token_metadata_notification_id = n.id
+      WHERE t.id = ${args.tokenId}
+    `;
+    if (result.count) {
+      return result[0];
+    }
+  }
+
   /**
    * Enqueues the tokens specified by a SIP-019 notification for metadata refresh. Depending on the
    * token type and notification parameters, this will refresh specific tokens or complete
@@ -359,15 +375,15 @@ export class PgStore extends BasePgStore {
     notification: TokenMetadataUpdateNotification;
   }): Promise<void> {
     await this.sqlWriteTransaction(async sql => {
-      // First, make sure we have the specified contract.
       const contractResult = await sql<{ id: number }[]>`
         SELECT id FROM smart_contracts WHERE principal = ${args.notification.contract_id}
       `;
-      if (contractResult.count === 0) {
-        throw new ContractNotFoundError();
-      }
+      if (contractResult.count === 0) throw new ContractNotFoundError();
       const contractId = contractResult[0].id;
-      const dbNotification: DbTokenMetadataNotificationInsert = {
+      const tokenNumbers =
+        args.notification.token_class === 'ft' ? [1n] : args.notification.token_ids ?? [];
+
+      const notification: DbTokenMetadataNotificationInsert = {
         smart_contract_id: contractId,
         tx_id: args.tx.transaction_identifier.hash,
         block_height: args.block.index,
@@ -375,45 +391,32 @@ export class PgStore extends BasePgStore {
         tx_index: args.tx.metadata.position.index,
         event_index: args.event.position.index,
         update_mode: args.notification.update_mode as DbTokenUpdateMode,
-        token_numbers: args.notification.token_ids?.join(',') ?? null,
         ttl: args.notification.ttl?.toString() ?? null,
       };
-      await this.sql`
-        INSERT INTO token_metadata_notifications ${sql(dbNotification)}
-        ON CONFLICT ON CONSTRAINT token_metadata_notifications_unique DO UPDATE SET
-          update_mode = EXCLUDED.update_mode,
-          token_numbers = EXCLUDED.token_numbers,
-          ttl = EXCLUDED.ttl
+      await sql`
+        WITH notification_insert AS (
+          INSERT INTO token_metadata_notifications ${sql(notification)}
+          ON CONFLICT ON CONSTRAINT token_metadata_notifications_unique DO UPDATE SET
+            update_mode = EXCLUDED.update_mode,
+            ttl = EXCLUDED.ttl
+          RETURNING id
+        ),
+        updated_tokens AS (
+          UPDATE tokens
+          SET token_metadata_notification_id = (SELECT id FROM notification_insert)
+          WHERE id IN (
+            SELECT t.id FROM tokens AS t
+            LEFT JOIN token_metadata_notifications AS n ON t.token_metadata_notification_id = n.id
+            WHERE t.smart_contract_id = ${contractId}
+              AND (t.token_metadata_notification_id IS NULL OR n.update_mode <> 'frozen')
+              ${tokenNumbers.length ? sql`AND token_number IN ${sql(tokenNumbers)}` : sql``}
+          )
+          RETURNING id
+        ) 
+        UPDATE jobs
+        SET status = 'pending', updated_at = NOW()
+        WHERE token_id IN (SELECT id FROM updated_tokens)
       `;
-      const refreshTokens = async (tokenNumbers: bigint[]) => {
-        const tokenIds = await sql<{ id: number }[]>`
-          SELECT id FROM tokens
-          WHERE smart_contract_id = ${contractId}
-            AND update_mode <> 'frozen'
-            ${tokenNumbers.length ? sql`AND token_number IN ${sql(tokenNumbers)}` : sql``}
-        `;
-        const ids = tokenIds.map(i => i.id);
-        await sql`
-          UPDATE tokens SET
-            update_mode = ${args.notification.update_mode},
-            ttl = ${args.notification.ttl ? sql`${args.notification.ttl}` : sql`NULL`}
-          WHERE id IN ${sql(ids)}
-        `;
-        await sql`
-          UPDATE jobs
-          SET status = 'pending', updated_at = NOW()
-          WHERE token_id IN ${sql(ids)}
-        `;
-      };
-      switch (args.notification.token_class) {
-        case 'nft':
-        case 'sft':
-          await refreshTokens(args.notification.token_ids ?? []);
-          break;
-        case 'ft':
-          await refreshTokens([1n]);
-          break;
-      }
     });
   }
 
@@ -432,13 +435,17 @@ export class PgStore extends BasePgStore {
       UPDATE jobs
       SET status = 'pending', updated_at = NOW()
       WHERE status IN ('done', 'failed') AND token_id = (
-        SELECT id FROM tokens
-        WHERE update_mode = 'dynamic'
+        SELECT t.id
+        FROM tokens AS t
+        LEFT JOIN token_metadata_notifications AS n ON t.token_metadata_notification_id = n.id
+        WHERE n.update_mode = 'dynamic'
         AND CASE
           WHEN ttl IS NOT NULL THEN
-            COALESCE(updated_at, created_at) < (NOW() - INTERVAL '1 seconds' * ttl)
+            COALESCE(t.updated_at, t.created_at) < (NOW() - INTERVAL '1 seconds' * ttl)
           ELSE
-            COALESCE(updated_at, created_at) < (NOW() - INTERVAL '${this.sql(interval)} seconds')
+            COALESCE(t.updated_at, t.created_at) < (NOW() - INTERVAL '${this.sql(
+              interval
+            )} seconds')
         END
       )
     `;
@@ -666,6 +673,27 @@ export class PgStore extends BasePgStore {
     sender: string,
     event: StacksTransactionSmartContractEvent
   ): Promise<void> {
+    // SIP-019 notification?
+    // const notification = getContractLogMetadataUpdateNotification(tx.metadata.sender, event);
+    // if (notification) {
+    //   logger.info(
+    //     `PgStore apply SIP-019 notification ${notification.contract_id} (${
+    //       notification.token_ids ?? []
+    //     })`
+    //   );
+    //   try {
+    //     await this.enqueueTokenMetadataUpdateNotification({ block, event, tx, notification });
+    //   } catch (error) {
+    //     if (error instanceof ContractNotFoundError) {
+    //       logger.warn(
+    //         `PgStore contract ${notification.contract_id} not found, unable to process SIP-019 notification`
+    //       );
+    //     } else {
+    //       throw error;
+    //     }
+    //   }
+    //   return;
+    // }
     // SIP-013 SFT mint?
     const mint = getContractLogSftMintEvent(event);
     if (mint) {

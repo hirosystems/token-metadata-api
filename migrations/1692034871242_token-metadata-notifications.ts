@@ -33,9 +33,6 @@ export function up(pgm: MigrationBuilder): void {
       type: 'int',
       notNull: true,
     },
-    token_numbers: {
-      type: 'text',
-    },
     update_mode: {
       type: 'token_update_mode',
       default: 'standard',
@@ -55,4 +52,16 @@ export function up(pgm: MigrationBuilder): void {
     'token_metadata_notifications_unique',
     'UNIQUE(smart_contract_id, block_height, index_block_hash, tx_id, tx_index, event_index)'
   );
+
+  pgm.addColumn('tokens', {
+    token_metadata_notification_id: {
+      type: 'int',
+    },
+  });
+  pgm.createConstraint(
+    'tokens',
+    'tokens_token_metadata_notification_id_fk',
+    'FOREIGN KEY(token_metadata_notification_id) REFERENCES token_metadata_notifications(id) ON UPDATE CASCADE'
+  );
+  pgm.createIndex('tokens', ['token_metadata_notification_id']);
 }

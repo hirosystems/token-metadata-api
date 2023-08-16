@@ -23,14 +23,6 @@ export function up(pgm: MigrationBuilder): void {
       type: 'numeric',
       notNull: true,
     },
-    update_mode: {
-      type: 'token_update_mode',
-      default: 'standard',
-      notNull: true,
-    },
-    ttl: {
-      type: 'int',
-    },
     uri: {
       type: 'text',
     },
@@ -66,7 +58,5 @@ export function up(pgm: MigrationBuilder): void {
     'UNIQUE(smart_contract_id, token_number)'
   );
   pgm.createIndex('tokens', ['smart_contract_id']);
-  pgm.createIndex('tokens', 'COALESCE(updated_at, created_at)', {
-    where: "update_mode = 'dynamic'",
-  });
+  pgm.createIndex('tokens', 'COALESCE(updated_at, created_at)');
 }
