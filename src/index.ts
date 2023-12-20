@@ -8,11 +8,10 @@ import { JobQueue } from './token-processor/queue/job-queue';
 import { buildApiServer, buildPromServer } from './api/init';
 import { BlockchainSmartContractMonitor } from './token-processor/blockchain-api/blockchain-smart-contract-monitor';
 import { TokenProcessorMetrics } from './token-processor/token-processor-metrics';
-import { registerShutdownConfig } from './shutdown-handler';
 import { ENV } from './env';
-import { logger } from './logger';
 import { buildAdminRpcServer } from './admin-rpc/init';
 import { isProdEnv } from './api/util/helpers';
+import { logger, registerShutdownConfig } from '@hirosystems/api-toolkit';
 
 /**
  * Initializes background services. Only for `default` and `writeonly` run modes.
@@ -112,7 +111,7 @@ async function initApiService(db: PgStore) {
 
 async function initApp() {
   logger.info(`Initializing in ${ENV.RUN_MODE} run mode...`);
-  const db = await PgStore.connect({ skipMigrations: false });
+  const db = await PgStore.connect({ skipMigrations: ENV.RUN_MODE === 'readonly' });
 
   if (['default', 'writeonly'].includes(ENV.RUN_MODE)) {
     await initBackgroundServices(db);

@@ -8,8 +8,8 @@ import FastifyCors from '@fastify/cors';
 import { StatusRoutes } from './routes/status';
 import FastifyMetrics, { IFastifyMetrics } from 'fastify-metrics';
 import { Server } from 'http';
-import { PINO_CONFIG } from '../logger';
 import { isProdEnv } from './util/helpers';
+import { PINO_LOGGER_CONFIG } from '@hirosystems/api-toolkit';
 
 export const Api: FastifyPluginAsync<Record<never, never>, Server, TypeBoxTypeProvider> = async (
   fastify,
@@ -24,7 +24,7 @@ export const Api: FastifyPluginAsync<Record<never, never>, Server, TypeBoxTypePr
 export async function buildApiServer(args: { db: PgStore }) {
   const fastify = Fastify({
     trustProxy: true,
-    logger: PINO_CONFIG,
+    logger: PINO_LOGGER_CONFIG,
   }).withTypeProvider<TypeBoxTypeProvider>();
 
   fastify.decorate('db', args.db);
@@ -41,7 +41,7 @@ export async function buildApiServer(args: { db: PgStore }) {
 export async function buildPromServer(args: { metrics: IFastifyMetrics }) {
   const promServer = Fastify({
     trustProxy: true,
-    logger: PINO_CONFIG,
+    logger: PINO_LOGGER_CONFIG,
   });
 
   promServer.route({

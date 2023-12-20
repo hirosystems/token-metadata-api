@@ -5,8 +5,6 @@ import {
   TransactionVersion,
 } from 'stacks-encoding-native-js';
 import { ENV } from '../../../env';
-import { logger } from '../../../logger';
-import { PgNumeric } from '../../../pg/postgres-tools/types';
 import {
   DbMetadataLocaleInsertBundle,
   DbProcessedTokenUpdateBundle,
@@ -23,6 +21,7 @@ import {
 } from '../../util/metadata-helpers';
 import { RetryableJobError } from '../errors';
 import { Job } from './job';
+import { PgNumeric, logger } from '@hirosystems/api-toolkit';
 
 /**
  * Downloads, parses and indexes metadata info for a single token in the Stacks blockchain by
