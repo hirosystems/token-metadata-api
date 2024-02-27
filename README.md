@@ -1,7 +1,7 @@
-# Token Metadata API
 
-A microservice that indexes metadata for all Fungible, Non-Fungible, and Semi-Fungible Tokens in the
-Stacks blockchain and exposes it via JSON REST API endpoints.
+       /     /   ▶ Token Metadata API   
+      / --- /      Indexes metadata for all Fungible, Non-Fungible, and Semi-Fungible Tokens in the
+     /     /       Stacks blockchain and exposes it via JSON REST API endpoints.
 
 ## Table of Contents
 
