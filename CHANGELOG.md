@@ -1,3 +1,10 @@
+## [0.6.1](https://github.com/hirosystems/token-metadata-api/compare/v0.6.0...v0.6.1) (2024-02-27)
+
+
+### Bug Fixes
+
+* accept FTs with incorrect return type for get-token-supply ([#197](https://github.com/hirosystems/token-metadata-api/issues/197)) ([116248c](https://github.com/hirosystems/token-metadata-api/commit/116248c7af09a6658b5542a4c900159a10c38b47))
+
 ## [0.6.0](https://github.com/hirosystems/token-metadata-api/compare/v0.5.0...v0.6.0) (2023-12-20)
 
 
