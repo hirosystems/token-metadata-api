@@ -7,7 +7,7 @@ export const OpenApiSchemaOptions: SwaggerOptions = {
     info: {
       title: 'Token Metadata API',
       description:
-        'Service that indexes metadata for every SIP-009, SIP-010, and SIP-013 Token in the Stacks blockchain and exposes it via REST API endpoints.',
+        'Welcome to the API reference overview for the [Token Metadata API](https://docs.hiro.so/token-metadata-api). Service that indexes metadata for every SIP-009, SIP-010, and SIP-013 Token in the Stacks blockchain and exposes it via REST API endpoints.',
       version: SERVER_VERSION.tag,
     },
     externalDocs: {
