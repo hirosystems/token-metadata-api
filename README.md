@@ -3,8 +3,6 @@
       / --- /      Indexes metadata for all Fungible, Non-Fungible, and Semi-Fungible Tokens in the
      /     /       Stacks blockchain and exposes it via JSON REST API endpoints.
 
-## Table of Contents
-
 * [Features](#features)
 * [API reference](#api-reference)
 * [Client library](#client-library)
