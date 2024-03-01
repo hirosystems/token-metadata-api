@@ -1,3 +1,24 @@
+## [0.6.0](https://github.com/hirosystems/token-metadata-api/compare/v0.5.0...v0.6.0) (2023-12-20)
+
+
+### Features
+
+* make FT search on name and symbol case insensitive ([#187](https://github.com/hirosystems/token-metadata-api/issues/187)) ([5187e59](https://github.com/hirosystems/token-metadata-api/commit/5187e598e40a3b53400e9c1f63942257192222d5))
+
+
+### Bug Fixes
+
+* run tests in band ([#190](https://github.com/hirosystems/token-metadata-api/issues/190)) ([989575e](https://github.com/hirosystems/token-metadata-api/commit/989575ef8b53a513b77f5b0f509ed538591104f7))
+* semantic release ([#191](https://github.com/hirosystems/token-metadata-api/issues/191)) ([0a81fdb](https://github.com/hirosystems/token-metadata-api/commit/0a81fdb080d962d7390de374327aa2b3d59b28c8))
+* skip migrations during readonly mode ([#183](https://github.com/hirosystems/token-metadata-api/issues/183)) ([f658e0d](https://github.com/hirosystems/token-metadata-api/commit/f658e0d7e9fb4d52a63f936d5e2f55c3e11a3c8a))
+
+## [0.5.0](https://github.com/hirosystems/token-metadata-api/compare/v0.4.0...v0.5.0) (2023-08-02)
+
+
+### Features
+
+* add contract principal to ft index responses ([#180](https://github.com/hirosystems/token-metadata-api/issues/180)) ([57d0468](https://github.com/hirosystems/token-metadata-api/commit/57d04683ce7d72d15484d8cbf8ab36253261bf30))
+
 ## [0.4.0](https://github.com/hirosystems/token-metadata-api/compare/v0.3.1...v0.4.0) (2023-06-30)
 
 

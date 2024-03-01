@@ -189,6 +189,71 @@ describe('ProcessTokenJob', () => {
       });
       expect(bundle?.metadataLocale).toBeUndefined();
     });
+
+    test('accepts FTs with incorrect total supply return type', async () => {
+      const agent = new MockAgent();
+      agent.disableNetConnect();
+      const interceptor = agent.get(
+        `http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`
+      );
+      interceptor
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-ft/get-name',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(stringUtf8CV('FooToken')),
+        });
+      interceptor
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-ft/get-token-uri',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(noneCV()),
+        });
+      interceptor
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-ft/get-symbol',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(stringUtf8CV('FOO')),
+        });
+      interceptor
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-ft/get-decimals',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(uintCV(6)),
+        });
+      interceptor
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-ft/get-total-supply',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          // Simulate an ALEX-style error when fetching `get-total-supply` for wrapped tokens.
+          result: '0x080100000000000000000000000000001774',
+        });
+      setGlobalDispatcher(agent);
+
+      const processor = new ProcessTokenJob({ db, job: tokenJob });
+      await processor.work();
+
+      const token = await db.getToken({ id: 1 });
+      expect(token).not.toBeUndefined();
+      expect(token?.name).toBe('FooToken');
+      expect(token?.symbol).toBe('FOO');
+      expect(token?.decimals).toBe(6);
+      expect(token?.total_supply).toBeUndefined();
+    });
   });
 
   describe('NFT', () => {

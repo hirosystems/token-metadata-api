@@ -13,7 +13,7 @@ import {
   DbTokenType,
 } from '../../../pg/types';
 import { StacksNodeRpcClient } from '../../stacks-node/stacks-node-rpc-client';
-import { TooManyRequestsHttpError } from '../../util/errors';
+import { StacksNodeClarityError, TooManyRequestsHttpError } from '../../util/errors';
 import {
   fetchAllMetadataLocalesFromBaseUri,
   getFetchableUrl,
@@ -106,9 +106,15 @@ export class ProcessTokenJob extends Job {
     }
 
     let fTotalSupply: PgNumeric | undefined;
-    const totalSupply = await client.readUIntFromContract('get-total-supply');
-    if (totalSupply) {
-      fTotalSupply = totalSupply.toString();
+    try {
+      const totalSupply = await client.readUIntFromContract('get-total-supply');
+      if (totalSupply) fTotalSupply = totalSupply.toString();
+    } catch (error) {
+      // We'll treat Clarity errors here as if the supply was `undefined` to accommodate ALEX's
+      // wrapped tokens which return an error in `get-total-supply`.
+      if (!(error instanceof StacksNodeClarityError)) {
+        throw error;
+      }
     }
 
     let metadataLocales: DbMetadataLocaleInsertBundle[] | undefined;
