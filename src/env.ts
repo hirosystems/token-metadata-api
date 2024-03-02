@@ -23,6 +23,8 @@ const schema = Type.Object({
   ADMIN_RPC_PORT: Type.Number({ default: 3001, minimum: 0, maximum: 65535 }),
   /** Port in which to receive chainhook events */
   EVENT_PORT: Type.Number({ default: 3099, minimum: 0, maximum: 65535 }),
+  /** Event server body limit (bytes) */
+  EVENT_SERVER_BODY_LIMIT: Type.Integer({ default: 20971520 }),
   /** Hostname that will be reported to the chainhook node so it can call us back with events */
   EXTERNAL_HOSTNAME: Type.String({ default: '127.0.0.1' }),
 
@@ -45,15 +47,6 @@ const schema = Type.Object({
   PG_CONNECTION_POOL_MAX: Type.Number({ default: 10 }),
   PG_IDLE_TIMEOUT: Type.Number({ default: 30 }),
   PG_MAX_LIFETIME: Type.Number({ default: 60 }),
-
-  BLOCKCHAIN_API_PGHOST: Type.String(),
-  BLOCKCHAIN_API_PGPORT: Type.Number({ default: 5432, minimum: 0, maximum: 65535 }),
-  BLOCKCHAIN_API_PGUSER: Type.String(),
-  BLOCKCHAIN_API_PGPASSWORD: Type.String(),
-  BLOCKCHAIN_API_PGDATABASE: Type.String(),
-  BLOCKCHAIN_API_PG_CONNECTION_POOL_MAX: Type.Number({ default: 10 }),
-  BLOCKCHAIN_API_PG_IDLE_TIMEOUT: Type.Number({ default: 30 }),
-  BLOCKCHAIN_API_PG_MAX_LIFETIME: Type.Number({ default: 60 }),
 
   STACKS_NODE_RPC_HOST: Type.String(),
   STACKS_NODE_RPC_PORT: Type.Number({ minimum: 0, maximum: 65535 }),

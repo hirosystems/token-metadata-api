@@ -7,8 +7,7 @@ import { PgStore } from '../../../pg/pg-store';
 import { logger } from '@hirosystems/api-toolkit';
 
 /**
- * Takes a smart contract and (depending on its SIP) enqueues all of its underlying tokens for
- * metadata retrieval.
+ * Takes a token smart contract and enqueues all of its underlying tokens for metadata retrieval.
  */
 export class ProcessSmartContractJob extends Job {
   private contract?: DbSmartContract;

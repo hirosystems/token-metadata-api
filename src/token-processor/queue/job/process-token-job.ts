@@ -1,9 +1,5 @@
-import { cvToHex, getAddressFromPrivateKey, makeRandomPrivKey, uintCV } from '@stacks/transactions';
-import {
-  ClarityValueUInt,
-  decodeClarityValueToRepr,
-  TransactionVersion,
-} from 'stacks-encoding-native-js';
+import { cvToHex, uintCV } from '@stacks/transactions';
+import { ClarityValueUInt, decodeClarityValueToRepr } from 'stacks-encoding-native-js';
 import { ENV } from '../../../env';
 import {
   DbMetadataLocaleInsertBundle,

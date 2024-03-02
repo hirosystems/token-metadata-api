@@ -6,6 +6,7 @@ import { ENV } from './env';
 import { buildAdminRpcServer } from './admin-rpc/init';
 import { isProdEnv } from './api/util/helpers';
 import { logger, registerShutdownConfig } from '@hirosystems/api-toolkit';
+import { startChainhookServer } from './chainhook/server';
 
 /**
  * Initializes background services. Only for `default` and `writeonly` run modes.
@@ -23,6 +24,15 @@ async function initBackgroundServices(db: PgStore) {
     },
   });
   jobQueue.start();
+
+  const server = await startChainhookServer({ db });
+  registerShutdownConfig({
+    name: 'Chainhook Server',
+    forceKillable: false,
+    handler: async () => {
+      await server.close();
+    },
+  });
 
   const adminRpcServer = await buildAdminRpcServer({ db });
   registerShutdownConfig({
