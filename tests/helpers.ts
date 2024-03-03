@@ -1,12 +1,10 @@
-import * as postgres from 'postgres';
 import { PgStore } from '../src/pg/pg-store';
 import { buildApiServer } from '../src/api/init';
 import { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { IncomingMessage, Server, ServerResponse } from 'http';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
-import { Payload, StacksEvent, StacksTransaction } from '@hirosystems/chainhook-client';
+import { StacksEvent, StacksPayload, StacksTransaction } from '@hirosystems/chainhook-client';
 import { StacksTransactionSmartContractEvent } from '@hirosystems/chainhook-client';
-import { ClarityAbi } from '@stacks/transactions';
 
 export type TestFastifyServer = FastifyInstance<
   Server,
@@ -1235,14 +1233,14 @@ export const SIP_013_ABI = {
 };
 
 export class TestChainhookPayloadBuilder {
-  private payload: Payload = {
+  private payload: StacksPayload = {
     apply: [],
     rollback: [],
     chainhook: {
       uuid: 'test',
       predicate: {
-        scope: 'ordinals_protocol',
-        operation: 'inscription_feed',
+        scope: 'block_height',
+        higher_than: 0,
       },
       is_streaming_blocks: true,
     },
@@ -1293,7 +1291,7 @@ export class TestChainhookPayloadBuilder {
       },
       timestamp: 1634572508,
       transactions: [],
-    } as StacksEvent);
+    });
     return this;
   }
 
@@ -1363,7 +1361,7 @@ export class TestChainhookPayloadBuilder {
     return this;
   }
 
-  build(): Payload {
+  build(): StacksPayload {
     return this.payload;
   }
 }

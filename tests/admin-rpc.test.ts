@@ -11,7 +11,6 @@ describe('Admin RPC', () => {
 
   beforeEach(async () => {
     ENV.PGDATABASE = 'postgres';
-    ENV.BLOCKCHAIN_API_PGDATABASE = 'postgres';
     db = await PgStore.connect({ skipMigrations: true });
     fastify = await buildAdminRpcServer({ db });
     await cycleMigrations(MIGRATIONS_DIR);
@@ -66,7 +65,7 @@ describe('Admin RPC', () => {
   //       tx_id: '0x1234',
   //       block_height: 1,
   //     };
-  //     const job1 = await db.insertAndEnqueueSmartContract({ values });
+  //     const job1 = await db.chainhook.insertAndEnqueueSmartContract({ values });
   //     // Simulate done job
   //     await db.sql`UPDATE jobs SET status = ${DbJobStatus.done}`;
 
@@ -128,8 +127,8 @@ describe('Admin RPC', () => {
   //       tx_id: '0x123456',
   //       block_height: 1,
   //     };
-  //     await db.insertAndEnqueueSmartContract({ values });
-  //     const inputJobs = await db.insertAndEnqueueSequentialTokens({
+  //     await db.chainhook.insertAndEnqueueSmartContract({ values });
+  //     const inputJobs = await db.chainhook.insertAndEnqueueSequentialTokens({
   //       smart_contract_id: 1,
   //       token_count: 1n,
   //       type: DbTokenType.nft,
@@ -161,8 +160,8 @@ describe('Admin RPC', () => {
   //       tx_id: '0x123456',
   //       block_height: 1,
   //     };
-  //     await db.insertAndEnqueueSmartContract({ values });
-  //     const inputJobs = await db.insertAndEnqueueSequentialTokens({
+  //     await db.chainhook.insertAndEnqueueSmartContract({ values });
+  //     const inputJobs = await db.chainhook.insertAndEnqueueSequentialTokens({
   //       smart_contract_id: 1,
   //       token_count: 2n,
   //       type: DbTokenType.nft,
@@ -209,8 +208,8 @@ describe('Admin RPC', () => {
   //       tx_id: '0x123456',
   //       block_height: 1,
   //     };
-  //     await db.insertAndEnqueueSmartContract({ values });
-  //     await db.insertAndEnqueueSequentialTokens({
+  //     await db.chainhook.insertAndEnqueueSmartContract({ values });
+  //     await db.chainhook.insertAndEnqueueSequentialTokens({
   //       smart_contract_id: 1,
   //       token_count: 1n,
   //       type: DbTokenType.nft,

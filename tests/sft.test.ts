@@ -30,12 +30,12 @@ describe('SFT routes', () => {
       tx_id: '0x123456',
       block_height: 1,
     };
-    await db.insertAndEnqueueSmartContract({ values });
+    await db.chainhook.insertAndEnqueueSmartContract({ values });
   };
 
   const enqueueToken = async () => {
     await enqueueContract();
-    await db.insertAndEnqueueTokenArray([
+    await db.chainhook.insertAndEnqueueTokens([
       {
         smart_contract_id: 1,
         type: DbTokenType.sft,

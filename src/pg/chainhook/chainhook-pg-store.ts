@@ -1,8 +1,7 @@
 import { BasePgStoreModule, logger } from '@hirosystems/api-toolkit';
 import {
   BlockIdentifier,
-  Payload,
-  StacksEvent,
+  StacksPayload,
   StacksTransaction,
   StacksTransactionContractDeploymentKind,
   StacksTransactionFtBurnEvent,
@@ -32,7 +31,7 @@ import {
 import { ClarityTypeID, decodeClarityValue } from 'stacks-encoding-native-js';
 
 export class ChainhookPgStore extends BasePgStoreModule {
-  async processPayload(payload: Payload): Promise<void> {
+  async processPayload(payload: StacksPayload): Promise<void> {
     await this.sqlWriteTransaction(async sql => {
       // ROLLBACK
       // for (const stacksEvent of payload.rollback) {
@@ -51,8 +50,7 @@ export class ChainhookPgStore extends BasePgStoreModule {
       // }
 
       // APPLY
-      for (const stacksEvent of payload.apply) {
-        const block = stacksEvent as StacksEvent;
+      for (const block of payload.apply) {
         for (const tx of block.transactions) {
           if (tx.metadata.kind.type === 'ContractDeployment') {
             await this.applyContractDeployment(tx, block.block_identifier.index);
@@ -267,9 +265,7 @@ export class ChainhookPgStore extends BasePgStoreModule {
     `;
   }
 
-  private async insertAndEnqueueSmartContract(args: {
-    values: DbSmartContractInsert;
-  }): Promise<DbJob> {
+  async insertAndEnqueueSmartContract(args: { values: DbSmartContractInsert }): Promise<DbJob> {
     const result = await this.sql<DbJob[]>`
       WITH smart_contract_inserts AS (
         INSERT INTO smart_contracts ${this.sql(args.values)}

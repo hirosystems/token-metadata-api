@@ -41,8 +41,8 @@ describe('ProcessTokenJob', () => {
         tx_id: '0x123456',
         block_height: 1,
       };
-      await db.insertAndEnqueueSmartContract({ values });
-      [tokenJob] = await db.insertAndEnqueueSequentialTokens({
+      await db.chainhook.insertAndEnqueueSmartContract({ values });
+      [tokenJob] = await db.chainhook.insertAndEnqueueSequentialTokens({
         smart_contract_id: 1,
         token_count: 1n,
         type: DbTokenType.ft,
@@ -267,8 +267,8 @@ describe('ProcessTokenJob', () => {
         tx_id: '0x123456',
         block_height: 1,
       };
-      await db.insertAndEnqueueSmartContract({ values });
-      [tokenJob] = await db.insertAndEnqueueSequentialTokens({
+      await db.chainhook.insertAndEnqueueSmartContract({ values });
+      [tokenJob] = await db.chainhook.insertAndEnqueueSequentialTokens({
         smart_contract_id: 1,
         token_count: 1n,
         type: DbTokenType.nft,
@@ -660,8 +660,8 @@ describe('ProcessTokenJob', () => {
         tx_id: '0x123456',
         block_height: 1,
       };
-      await db.insertAndEnqueueSmartContract({ values });
-      [tokenJob] = await db.insertAndEnqueueTokenArray([
+      await db.chainhook.insertAndEnqueueSmartContract({ values });
+      [tokenJob] = await db.chainhook.insertAndEnqueueTokens([
         {
           smart_contract_id: 1,
           type: DbTokenType.sft,
@@ -728,8 +728,8 @@ describe('ProcessTokenJob', () => {
         tx_id: '0x123456',
         block_height: 1,
       };
-      await db.insertAndEnqueueSmartContract({ values });
-      [tokenJob] = await db.insertAndEnqueueSequentialTokens({
+      await db.chainhook.insertAndEnqueueSmartContract({ values });
+      [tokenJob] = await db.chainhook.insertAndEnqueueSequentialTokens({
         smart_contract_id: 1,
         token_count: 1n,
         type: DbTokenType.nft,

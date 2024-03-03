@@ -27,28 +27,28 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
       },
     },
     async (request, reply) => {
-      const contract = await fastify.apiDb?.getSmartContract({
-        contractId: request.body.contractId,
-      });
-      if (!contract) {
-        await reply.code(422).send({ error: 'Contract not found' });
-        return;
-      }
-      const sip = getSmartContractSip(contract.abi as ClarityAbi);
-      if (!sip) {
-        await reply.code(422).send({ error: 'Not a token contract' });
-        return;
-      }
-      await fastify.db.insertAndEnqueueSmartContract({
-        values: {
-          principal: contract.contract_id,
-          sip: sip,
-          abi: contract.abi,
-          tx_id: contract.tx_id,
-          block_height: contract.block_height,
-        },
-      });
-      logger.info(`AdminRPC imported contract: ${contract.contract_id}`);
+      // const contract = await fastify.apiDb?.getSmartContract({
+      //   contractId: request.body.contractId,
+      // });
+      // if (!contract) {
+      //   await reply.code(422).send({ error: 'Contract not found' });
+      //   return;
+      // }
+      // const sip = getSmartContractSip(contract.abi as ClarityAbi);
+      // if (!sip) {
+      //   await reply.code(422).send({ error: 'Not a token contract' });
+      //   return;
+      // }
+      // await fastify.db.chainhook.insertAndEnqueueSmartContract({
+      //   values: {
+      //     principal: contract.contract_id,
+      //     sip: sip,
+      //     abi: contract.abi,
+      //     tx_id: contract.tx_id,
+      //     block_height: contract.block_height,
+      //   },
+      // });
+      // logger.info(`AdminRPC imported contract: ${contract.contract_id}`);
       await reply.code(200).send();
     }
   );
@@ -65,22 +65,22 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
       },
     },
     async (request, reply) => {
-      const contract = await fastify.db.getSmartContract({ principal: request.body.contractId });
-      if (!contract) {
-        await reply.code(422).send({ error: 'Contract not found' });
-        return;
-      }
-      const notification: TokenMetadataUpdateNotification = {
-        token_class: tokenClassFromSipNumber(contract.sip),
-        contract_id: contract.principal,
-        token_ids: (request.body.tokenIds ?? []).map(v => BigInt(v)),
-        update_mode: DbTokenUpdateMode.standard,
-      };
-      // await fastify.db.enqueueTokenMetadataUpdateNotification({ notification });
-      logger.info(
-        request.body.tokenIds,
-        `AdminRPC refreshing tokens for contract: ${contract.principal}`
-      );
+      // const contract = await fastify.db.getSmartContract({ principal: request.body.contractId });
+      // if (!contract) {
+      //   await reply.code(422).send({ error: 'Contract not found' });
+      //   return;
+      // }
+      // const notification: TokenMetadataUpdateNotification = {
+      //   token_class: tokenClassFromSipNumber(contract.sip),
+      //   contract_id: contract.principal,
+      //   token_ids: (request.body.tokenIds ?? []).map(v => BigInt(v)),
+      //   update_mode: DbTokenUpdateMode.standard,
+      // };
+      // // await fastify.db.enqueueTokenMetadataUpdateNotification({ notification });
+      // logger.info(
+      //   request.body.tokenIds,
+      //   `AdminRPC refreshing tokens for contract: ${contract.principal}`
+      // );
       await reply.code(200).send();
     }
   );

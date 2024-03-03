@@ -4,6 +4,7 @@ import {
   Payload,
   ServerOptions,
   ServerPredicate,
+  StacksPayload,
 } from '@hirosystems/chainhook-client';
 import { randomUUID } from 'node:crypto';
 import { PgStore } from '../pg/pg-store';
@@ -52,7 +53,7 @@ export async function startChainhookServer(args: { db: PgStore }): Promise<Chain
         payload.chainhook.is_streaming_blocks ? 'streamed' : 'replay'
       } payload from predicate ${uuid}`
     );
-    await args.db.chainhook.processPayload(payload);
+    await args.db.chainhook.processPayload(payload as StacksPayload);
   });
   return server;
 }

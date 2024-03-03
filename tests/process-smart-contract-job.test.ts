@@ -33,7 +33,7 @@ describe('ProcessSmartContractJob', () => {
       tx_id: '0x123456',
       block_height: 1,
     };
-    const job = await db.insertAndEnqueueSmartContract({ values });
+    const job = await db.chainhook.insertAndEnqueueSmartContract({ values });
     const processor = new ProcessSmartContractJob({
       db,
       job,
@@ -68,7 +68,7 @@ describe('ProcessSmartContractJob', () => {
       tx_id: '0x123456',
       block_height: 1,
     };
-    const job = await db.insertAndEnqueueSmartContract({ values });
+    const job = await db.chainhook.insertAndEnqueueSmartContract({ values });
     const processor = new ProcessSmartContractJob({
       db,
       job,
@@ -103,7 +103,7 @@ describe('ProcessSmartContractJob', () => {
       tx_id: '0x123456',
       block_height: 1,
     };
-    const job = await db.insertAndEnqueueSmartContract({ values });
+    const job = await db.chainhook.insertAndEnqueueSmartContract({ values });
     const processor = new ProcessSmartContractJob({
       db,
       job,
@@ -125,7 +125,7 @@ describe('ProcessSmartContractJob', () => {
   //     tx_id: '0x123456',
   //     block_height: 1,
   //   };
-  //   const job = await db.insertAndEnqueueSmartContract({ values });
+  //   const job = await db.chainhook.insertAndEnqueueSmartContract({ values });
 
   //   // Create mint events.
   //   const event1: BlockchainDbContractLog = {

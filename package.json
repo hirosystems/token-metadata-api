@@ -57,7 +57,7 @@
     "@types/node": "^18.11.9",
     "env-schema": "^5.1.0",
     "evt": "^1.11.2",
-    "fastify": "^4.9.2",
+    "fastify": "^4.3.0",
     "fastify-metrics": "^9.2.4",
     "json5": "^2.2.3",
     "node-pg-migrate": "^6.2.2",

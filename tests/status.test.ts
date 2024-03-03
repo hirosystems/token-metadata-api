@@ -33,7 +33,7 @@ describe('Status routes', () => {
   });
 
   test('returns status counts', async () => {
-    await db.insertAndEnqueueSmartContract({
+    await db.chainhook.insertAndEnqueueSmartContract({
       values: {
         principal: 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
         sip: DbSipNumber.sip009,
@@ -48,7 +48,7 @@ describe('Status routes', () => {
         block_height: 1,
       },
     });
-    await db.insertAndEnqueueSequentialTokens({
+    await db.chainhook.insertAndEnqueueSequentialTokens({
       smart_contract_id: 1,
       token_count: 1n,
       type: DbTokenType.nft,

@@ -48,7 +48,7 @@ describe('Job', () => {
       tx_id: '0x123456',
       block_height: 1,
     };
-    dbJob = await db.insertAndEnqueueSmartContract({ values });
+    dbJob = await db.chainhook.insertAndEnqueueSmartContract({ values });
   });
 
   afterEach(async () => {
