@@ -1,8 +1,8 @@
 import { cycleMigrations } from '@hirosystems/api-toolkit';
-import { ENV } from '../src/env';
-import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
-import { DbSmartContractInsert, DbSipNumber, DbTokenType } from '../src/pg/types';
-import { TestFastifyServer, startTestApiServer } from './helpers';
+import { ENV } from '../../src/env';
+import { MIGRATIONS_DIR, PgStore } from '../../src/pg/pg-store';
+import { DbSmartContractInsert, DbSipNumber, DbTokenType } from '../../src/pg/types';
+import { TestFastifyServer, startTestApiServer } from '../helpers';
 
 describe('ETag cache', () => {
   let db: PgStore;
@@ -28,8 +28,8 @@ describe('ETag cache', () => {
       tx_id: '0x123456',
       block_height: 1,
     };
-    await db.insertAndEnqueueSmartContract({ values });
-    await db.insertAndEnqueueSequentialTokens({
+    await db.chainhook.insertAndEnqueueSmartContract({ values });
+    await db.chainhook.insertAndEnqueueSequentialTokens({
       smart_contract_id: 1,
       token_count: 1n,
       type: DbTokenType.ft,
@@ -97,8 +97,8 @@ describe('ETag cache', () => {
       tx_id: '0x123456',
       block_height: 1,
     };
-    await db.insertAndEnqueueSmartContract({ values });
-    await db.insertAndEnqueueSequentialTokens({
+    await db.chainhook.insertAndEnqueueSmartContract({ values });
+    await db.chainhook.insertAndEnqueueSequentialTokens({
       smart_contract_id: 1,
       token_count: 1n,
       type: DbTokenType.nft,
@@ -168,8 +168,8 @@ describe('ETag cache', () => {
       tx_id: '0x123456',
       block_height: 1,
     };
-    await db.insertAndEnqueueSmartContract({ values });
-    await db.insertAndEnqueueTokenArray([
+    await db.chainhook.insertAndEnqueueSmartContract({ values });
+    await db.chainhook.insertAndEnqueueTokens([
       {
         smart_contract_id: 1,
         type: DbTokenType.sft,

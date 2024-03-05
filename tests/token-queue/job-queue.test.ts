@@ -1,14 +1,12 @@
-import * as postgres from 'postgres';
-import { ENV } from '../src/env';
-import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
-import { DbJob, DbJobStatus, DbSipNumber, DbSmartContractInsert } from '../src/pg/types';
-import { JobQueue } from '../src/token-processor/queue/job-queue';
-import { PgBlockchainApiStore } from '../src/pg/blockchain-api/pg-blockchain-api-store';
-import { MockPgBlockchainApiStore, sleep } from './helpers';
+import { ENV } from '../../src/env';
+import { MIGRATIONS_DIR, PgStore } from '../../src/pg/pg-store';
+import { DbJob, DbJobStatus, DbSipNumber, DbSmartContractInsert } from '../../src/pg/types';
+import { JobQueue } from '../../src/token-processor/queue/job-queue';
+import { sleep } from '../helpers';
 import { cycleMigrations } from '@hirosystems/api-toolkit';
 
 class TestJobQueue extends JobQueue {
-  constructor(args: { db: PgStore; apiDb: PgBlockchainApiStore }) {
+  constructor(args: { db: PgStore }) {
     super(args);
     this['isRunning'] = true; // Simulate a running queue.
   }
@@ -28,7 +26,7 @@ describe('JobQueue', () => {
     ENV.PGDATABASE = 'postgres';
     db = await PgStore.connect({ skipMigrations: true });
     await cycleMigrations(MIGRATIONS_DIR);
-    queue = new TestJobQueue({ db, apiDb: new PgBlockchainApiStore(postgres()) });
+    queue = new TestJobQueue({ db });
   });
 
   afterEach(async () => {
@@ -45,7 +43,7 @@ describe('JobQueue', () => {
       tx_id: '0x123456',
       block_height: 1,
     };
-    const job1 = await db.insertAndEnqueueSmartContract({ values: values1 });
+    const job1 = await db.chainhook.insertAndEnqueueSmartContract({ values: values1 });
     await queue.testAdd(job1);
 
     const count1 = await db.sql<
@@ -60,7 +58,7 @@ describe('JobQueue', () => {
       tx_id: '0x123456',
       block_height: 1,
     };
-    const job2 = await db.insertAndEnqueueSmartContract({ values: values2 });
+    const job2 = await db.chainhook.insertAndEnqueueSmartContract({ values: values2 });
     await queue.testAdd(job2);
 
     const count2 = await db.sql<
@@ -79,7 +77,7 @@ describe('JobQueue', () => {
       tx_id: '0x123456',
       block_height: 1,
     };
-    const job1 = await db.insertAndEnqueueSmartContract({ values: values1 });
+    const job1 = await db.chainhook.insertAndEnqueueSmartContract({ values: values1 });
     // Set it as queued already as if something had gone wrong.
     await db.sql`UPDATE jobs SET status='queued' WHERE id=${job1.id}`;
 
@@ -90,7 +88,7 @@ describe('JobQueue', () => {
       tx_id: '0x123456',
       block_height: 1,
     };
-    const job2 = await db.insertAndEnqueueSmartContract({ values: values2 });
+    const job2 = await db.chainhook.insertAndEnqueueSmartContract({ values: values2 });
 
     const values3: DbSmartContractInsert = {
       principal: 'ABCD.test-ft3',
@@ -99,7 +97,7 @@ describe('JobQueue', () => {
       tx_id: '0x123456',
       block_height: 1,
     };
-    const job3 = await db.insertAndEnqueueSmartContract({ values: values3 });
+    const job3 = await db.chainhook.insertAndEnqueueSmartContract({ values: values3 });
 
     // Queued is taken first.
     const added1 = await queue.testAddJobBatch();
@@ -125,9 +123,9 @@ describe('JobQueue', () => {
       tx_id: '0x123456',
       block_height: 1,
     };
-    await db.insertAndEnqueueSmartContract({ values: values1 });
+    await db.chainhook.insertAndEnqueueSmartContract({ values: values1 });
 
-    const queue = new JobQueue({ db, apiDb: new MockPgBlockchainApiStore() });
+    const queue = new JobQueue({ db });
 
     // Close DB and start the queue. If the error is not handled correctly, the test will fail.
     await db.close();

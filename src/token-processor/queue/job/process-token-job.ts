@@ -1,9 +1,5 @@
-import { cvToHex, getAddressFromPrivateKey, makeRandomPrivKey, uintCV } from '@stacks/transactions';
-import {
-  ClarityValueUInt,
-  decodeClarityValueToRepr,
-  TransactionVersion,
-} from 'stacks-encoding-native-js';
+import { cvToHex, uintCV } from '@stacks/transactions';
+import { ClarityValueUInt, decodeClarityValueToRepr } from 'stacks-encoding-native-js';
 import { ENV } from '../../../env';
 import {
   DbMetadataLocaleInsertBundle,
@@ -40,22 +36,22 @@ export class ProcessTokenJob extends Job {
     const [token, contract] = await this.db.sqlTransaction(async sql => {
       const token = await this.db.getToken({ id: tokenId });
       if (!token) {
-        throw Error(`ProcessTokenJob token not found with id ${tokenId}`);
+        logger.warn(`ProcessTokenJob token not found id=${tokenId}`);
+        return [undefined, undefined];
       }
       const contract = await this.db.getSmartContract({ id: token.smart_contract_id });
       if (!contract) {
-        throw Error(`ProcessTokenJob contract not found with id ${token.smart_contract_id}`);
+        logger.warn(`ProcessTokenJob contract not found id=${token.smart_contract_id}`);
+        return [token, undefined];
       }
       return [token, contract];
     });
     this.token = token;
     this.contract = contract;
+    if (!token || !contract) return;
 
-    const randomPrivKey = makeRandomPrivKey();
-    const senderAddress = getAddressFromPrivateKey(randomPrivKey.data, TransactionVersion.Mainnet);
-    const client = new StacksNodeRpcClient({
+    const client = StacksNodeRpcClient.create({
       contractPrincipal: contract.principal,
-      senderAddress: senderAddress,
     });
     logger.info(`ProcessTokenJob processing ${this.description()}`);
     try {

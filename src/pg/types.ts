@@ -60,8 +60,6 @@ export type DbToken = {
   smart_contract_id: number;
   type: DbTokenType;
   token_number: bigint;
-  update_mode: DbTokenUpdateMode;
-  ttl?: number;
   uri?: string;
   name?: string;
   decimals?: number;
@@ -69,6 +67,7 @@ export type DbToken = {
   symbol?: string;
   created_at: string;
   updated_at?: string;
+  token_medatada_notification_id?: number;
 };
 
 export type DbJobInsert = {
@@ -84,6 +83,29 @@ export type DbJob = {
   retry_count: number;
   created_at: string;
   updated_at?: string;
+};
+
+export type DbTokenMetadataNotificationInsert = {
+  smart_contract_id: number;
+  block_height: number;
+  index_block_hash: string;
+  tx_id: string;
+  tx_index: number;
+  event_index: number;
+  update_mode: DbTokenUpdateMode;
+  ttl: PgNumeric | null;
+};
+
+export type DbTokenMetadataNotification = {
+  id: number;
+  smart_contract_id: number;
+  block_height: number;
+  index_block_hash: string;
+  tx_id: string;
+  tx_index: number;
+  event_index: number;
+  update_mode: DbTokenUpdateMode;
+  ttl: bigint | null;
 };
 
 export type DbRateLimitedHostInsert = {
@@ -243,8 +265,6 @@ export const TOKENS_COLUMNS = [
   'smart_contract_id',
   'type',
   'token_number',
-  'update_mode',
-  'ttl',
   'uri',
   'name',
   'decimals',
@@ -288,3 +308,15 @@ export const METADATA_ATTRIBUTES_COLUMNS = [
 export const METADATA_PROPERTIES_COLUMNS = ['id', 'metadata_id', 'name', 'value'];
 
 export const RATE_LIMITED_HOSTS_COLUMNS = ['id', 'hostname', 'created_at', 'retry_after'];
+
+export const TOKEN_METADATA_NOTIFICATIONS_COLUMNS = [
+  'id',
+  'smart_contract_id',
+  'block_height',
+  'index_block_hash',
+  'tx_id',
+  'tx_index',
+  'event_index',
+  'update_mode',
+  'ttl',
+];

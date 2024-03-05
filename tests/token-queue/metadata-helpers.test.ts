@@ -1,17 +1,17 @@
 import { MockAgent, setGlobalDispatcher } from 'undici';
-import { ENV } from '../src/env';
+import { ENV } from '../../src/env';
 import {
   HttpError,
   MetadataParseError,
   MetadataSizeExceededError,
   MetadataTimeoutError,
-} from '../src/token-processor/util/errors';
+} from '../../src/token-processor/util/errors';
 import {
   getFetchableUrl,
   getMetadataFromUri,
   getTokenSpecificUri,
   fetchMetadata,
-} from '../src/token-processor/util/metadata-helpers';
+} from '../../src/token-processor/util/metadata-helpers';
 
 describe('Metadata Helpers', () => {
   test('performs timed and limited request', async () => {

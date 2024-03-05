@@ -1,9 +1,9 @@
-import { ENV } from '../src/env';
-import { processImageUrl } from '../src/token-processor/util/image-cache';
+import { ENV } from '../../src/env';
+import { processImageUrl } from '../../src/token-processor/util/image-cache';
 
 describe('Image cache', () => {
   beforeAll(() => {
-    ENV.METADATA_IMAGE_CACHE_PROCESSOR = './tests/test-image-cache.js';
+    ENV.METADATA_IMAGE_CACHE_PROCESSOR = './tests/token-queue/test-image-cache.js';
   });
 
   test('transforms image URL correctly', async () => {

@@ -1,10 +1,10 @@
 import { cycleMigrations } from '@hirosystems/api-toolkit';
-import { ENV } from '../src/env';
-import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
-import { DbJob, DbSipNumber, DbSmartContractInsert } from '../src/pg/types';
-import { RetryableJobError } from '../src/token-processor/queue/errors';
-import { Job } from '../src/token-processor/queue/job/job';
-import { UserError } from '../src/token-processor/util/errors';
+import { ENV } from '../../src/env';
+import { MIGRATIONS_DIR, PgStore } from '../../src/pg/pg-store';
+import { DbJob, DbSipNumber, DbSmartContractInsert } from '../../src/pg/types';
+import { RetryableJobError } from '../../src/token-processor/queue/errors';
+import { Job } from '../../src/token-processor/queue/job/job';
+import { UserError } from '../../src/token-processor/util/errors';
 
 class TestRetryableJob extends Job {
   description(): string {
@@ -48,7 +48,7 @@ describe('Job', () => {
       tx_id: '0x123456',
       block_height: 1,
     };
-    dbJob = await db.insertAndEnqueueSmartContract({ values });
+    dbJob = await db.chainhook.insertAndEnqueueSmartContract({ values });
   });
 
   afterEach(async () => {

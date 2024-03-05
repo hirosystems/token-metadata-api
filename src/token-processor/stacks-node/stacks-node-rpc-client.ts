@@ -2,12 +2,14 @@ import {
   ClarityTypeID,
   ClarityValue,
   ClarityValueUInt,
+  TransactionVersion,
   decodeClarityValue,
 } from 'stacks-encoding-native-js';
 import { request, errors } from 'undici';
 import { ENV } from '../../env';
 import { RetryableJobError } from '../queue/errors';
 import { StacksNodeClarityError, HttpError, StacksNodeJsonParseError } from '../util/errors';
+import { ClarityAbi, getAddressFromPrivateKey, makeRandomPrivKey } from '@stacks/transactions';
 
 interface ReadOnlyContractCallSuccessResponse {
   okay: true;
@@ -33,6 +35,16 @@ export class StacksNodeRpcClient {
   private readonly senderAddress: string;
   private readonly basePath: string;
 
+  static create(args: { contractPrincipal: string }): StacksNodeRpcClient {
+    const randomPrivKey = makeRandomPrivKey();
+    const senderAddress = getAddressFromPrivateKey(randomPrivKey.data, TransactionVersion.Mainnet);
+    const client = new StacksNodeRpcClient({
+      contractPrincipal: args.contractPrincipal,
+      senderAddress: senderAddress,
+    });
+    return client;
+  }
+
   constructor(args: { contractPrincipal: string; senderAddress: string }) {
     [this.contractAddress, this.contractName] = args.contractPrincipal.split('.');
     this.senderAddress = args.senderAddress;
@@ -57,6 +69,27 @@ export class StacksNodeRpcClient {
       return BigInt(uintVal.value.toString());
     } catch (error) {
       throw new RetryableJobError(`Invalid uint value '${uintVal.value}'`);
+    }
+  }
+
+  async readContractInterface(): Promise<ClarityAbi | undefined> {
+    const url = `${this.basePath}/v2/contracts/interface/${this.contractAddress}/${this.contractName}`;
+    try {
+      const result = await request(url, {
+        method: 'GET',
+        throwOnError: true,
+      });
+      const text = await result.body.text();
+      try {
+        return JSON.parse(text) as ClarityAbi;
+      } catch (error) {
+        throw new StacksNodeJsonParseError(`JSON parse error ${url}: ${text}`);
+      }
+    } catch (error) {
+      if (error instanceof errors.UndiciError) {
+        throw new HttpError(`${url}: ${error}`, error);
+      }
+      throw error;
     }
   }
 

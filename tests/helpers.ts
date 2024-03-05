@@ -1,15 +1,10 @@
-import * as postgres from 'postgres';
 import { PgStore } from '../src/pg/pg-store';
 import { buildApiServer } from '../src/api/init';
 import { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { IncomingMessage, Server, ServerResponse } from 'http';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
-import {
-  PgBlockchainApiStore,
-  BlockchainDbSmartContract,
-  BlockchainDbContractLog,
-  BlockchainDbBlock,
-} from '../src/pg/blockchain-api/pg-blockchain-api-store';
+import { StacksEvent, StacksPayload, StacksTransaction } from '@hirosystems/chainhook-client';
+import { StacksTransactionSmartContractEvent } from '@hirosystems/chainhook-client';
 
 export type TestFastifyServer = FastifyInstance<
   Server,
@@ -26,74 +21,6 @@ export async function startTestApiServer(db: PgStore): Promise<TestFastifyServer
 export const sleep = (time: number) => {
   return new Promise(resolve => setTimeout(resolve, time));
 };
-
-export class MockPgBlockchainApiStore extends PgBlockchainApiStore {
-  constructor() {
-    super(postgres());
-  }
-
-  private cursor<T>(logs: T[]): AsyncIterable<T[]> {
-    return {
-      [Symbol.asyncIterator]: (): AsyncIterator<T[], any, undefined> => {
-        return {
-          next: () => {
-            if (logs.length) {
-              const value = logs.shift() as T;
-              return Promise.resolve({ value: [value], done: false });
-            }
-            return Promise.resolve({ value: [] as T[], done: true });
-          },
-        };
-      },
-    };
-  }
-
-  public smartContract?: BlockchainDbSmartContract;
-  getSmartContract(args: { contractId: string }): Promise<BlockchainDbSmartContract | undefined> {
-    return Promise.resolve(this.smartContract);
-  }
-
-  public contractLog?: BlockchainDbContractLog;
-  getSmartContractLog(args: {
-    txId: string;
-    eventIndex: number;
-  }): Promise<BlockchainDbContractLog | undefined> {
-    return Promise.resolve(this.contractLog);
-  }
-
-  public contractLogsByContract?: BlockchainDbContractLog[];
-  getSmartContractLogsByContractCursor(args: {
-    contractId: string;
-  }): AsyncIterable<BlockchainDbContractLog[]> {
-    return this.cursor(this.contractLogsByContract ?? []);
-  }
-
-  public smartContracts?: BlockchainDbSmartContract[];
-  getSmartContractsCursor(args: {
-    fromBlockHeight: number;
-    toBlockHeight: number;
-  }): AsyncIterable<BlockchainDbSmartContract[]> {
-    return this.cursor(this.smartContracts ?? []);
-  }
-
-  public block?: BlockchainDbBlock;
-  getBlock(args: { blockHash: string }): Promise<BlockchainDbBlock | undefined> {
-    return Promise.resolve(this.block);
-  }
-
-  public currentBlockHeight?: number;
-  getCurrentBlockHeight(): Promise<number | undefined> {
-    return Promise.resolve(this.currentBlockHeight);
-  }
-
-  public smartContractLogs?: BlockchainDbContractLog[];
-  getSmartContractLogsCursor(args: {
-    fromBlockHeight: number;
-    toBlockHeight: number;
-  }): AsyncIterable<BlockchainDbContractLog[]> {
-    return this.cursor(this.smartContractLogs ?? []);
-  }
-}
 
 export const SIP_009_ABI = {
   maps: [
@@ -1304,3 +1231,137 @@ export const SIP_013_ABI = {
   fungible_tokens: [{ name: 'key-alex-autoalex-v1' }],
   non_fungible_tokens: [],
 };
+
+export class TestChainhookPayloadBuilder {
+  private payload: StacksPayload = {
+    apply: [],
+    rollback: [],
+    chainhook: {
+      uuid: 'test',
+      predicate: {
+        scope: 'block_height',
+        higher_than: 0,
+      },
+      is_streaming_blocks: true,
+    },
+  };
+  private action: 'apply' | 'rollback' = 'apply';
+  private get lastBlock(): StacksEvent {
+    return this.payload[this.action][this.payload[this.action].length - 1] as StacksEvent;
+  }
+  private get lastBlockTx(): StacksTransaction {
+    return this.lastBlock.transactions[this.lastBlock.transactions.length - 1];
+  }
+
+  streamingBlocks(streaming: boolean): this {
+    this.payload.chainhook.is_streaming_blocks = streaming;
+    return this;
+  }
+
+  apply(): this {
+    this.action = 'apply';
+    return this;
+  }
+
+  rollback(): this {
+    this.action = 'rollback';
+    return this;
+  }
+
+  block(args: { height: number; hash?: string; timestamp?: number }): this {
+    this.payload[this.action].push({
+      block_identifier: {
+        hash: args.hash ?? '0x9430a78c5e166000980136a22764af72ff0f734b2108e33cfe5f9e3d4430adda',
+        index: args.height,
+      },
+      metadata: {
+        bitcoin_anchor_block_identifier: {
+          hash: '0x0000000000000000000bb26339f877f36e92d5a11d75fc2e34aed3f7623937fe',
+          index: 705573,
+        },
+        confirm_microblock_identifier: null,
+        pox_cycle_index: 18,
+        pox_cycle_length: 2100,
+        pox_cycle_position: 1722,
+        stacks_block_hash: '0xbccf63ec2438cf497786ce617ec7e64e2b27ee023a28a0927ee36b81870115d2',
+      },
+      parent_block_identifier: {
+        hash: '0xca71af03f9a3012491af2f59f3244ecb241551803d641f8c8306ffa1187938b4',
+        index: args.height - 1,
+      },
+      timestamp: 1634572508,
+      transactions: [],
+    });
+    return this;
+  }
+
+  transaction(args: { hash: string; sender?: string }): this {
+    this.lastBlock.transactions.push({
+      metadata: {
+        contract_abi: null,
+        description: 'description',
+        execution_cost: {
+          read_count: 5,
+          read_length: 5526,
+          runtime: 6430000,
+          write_count: 2,
+          write_length: 1,
+        },
+        fee: 2574302,
+        kind: { type: 'Coinbase' },
+        nonce: 8665,
+        position: { index: 1 },
+        proof: null,
+        raw_tx: '0x00',
+        receipt: {
+          contract_calls_stack: [],
+          events: [],
+          mutated_assets_radius: [],
+          mutated_contracts_radius: ['SP466FNC0P7JWTNM2R9T199QRZN1MYEDTAR0KP27.miamicoin-token'],
+        },
+        result: '(ok true)',
+        sender: args.sender ?? 'SP3HXJJMJQ06GNAZ8XWDN1QM48JEDC6PP6W3YZPZJ',
+        success: true,
+      },
+      operations: [],
+      transaction_identifier: {
+        hash: args.hash,
+      },
+    });
+    return this;
+  }
+
+  printEvent(args: StacksTransactionSmartContractEvent): this {
+    this.lastBlockTx.metadata.kind = {
+      data: {
+        args: [
+          'u144',
+          'SP3HXJJMJQ06GNAZ8XWDN1QM48JEDC6PP6W3YZPZJ',
+          'SPCXZRY4FQZQHQ1EMBSDM1183HDK2ZGHPW3M1MA4',
+          '(some 0x54657374205472616e73666572202331)',
+        ],
+        contract_identifier: 'SP466FNC0P7JWTNM2R9T199QRZN1MYEDTAR0KP27.miamicoin-token',
+        method: 'transfer',
+      },
+      type: 'ContractCall',
+    };
+    this.lastBlockTx.metadata.receipt.events.push(args);
+    return this;
+  }
+
+  contractDeploy(contract_identifier: string, abi: any): this {
+    this.lastBlockTx.metadata.kind = {
+      data: {
+        code: 'code',
+        contract_identifier,
+      },
+      type: 'ContractDeployment',
+    };
+    this.lastBlockTx.metadata.contract_abi = abi;
+    return this;
+  }
+
+  build(): StacksPayload {
+    return this.payload;
+  }
+}

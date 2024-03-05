@@ -1,5 +1,4 @@
 import fastify from 'fastify';
-import { PgBlockchainApiStore } from '../../../pg/blockchain-api/pg-blockchain-api-store';
 import { PgStore } from '../../../pg/pg-store';
 
 declare module 'fastify' {
@@ -11,6 +10,5 @@ declare module 'fastify' {
     TypeProvider = FastifyTypeProviderDefault
   > {
     db: PgStore;
-    apiDb?: PgBlockchainApiStore;
   }
 }

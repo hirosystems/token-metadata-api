@@ -1,8 +1,8 @@
 import { cycleMigrations } from '@hirosystems/api-toolkit';
-import { ENV } from '../src/env';
-import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
-import { DbSipNumber, DbSmartContractInsert, DbTokenType } from '../src/pg/types';
-import { startTestApiServer, TestFastifyServer } from './helpers';
+import { ENV } from '../../src/env';
+import { MIGRATIONS_DIR, PgStore } from '../../src/pg/pg-store';
+import { DbSipNumber, DbSmartContractInsert, DbTokenType } from '../../src/pg/types';
+import { startTestApiServer, TestFastifyServer } from '../helpers';
 
 describe('SFT routes', () => {
   let db: PgStore;
@@ -30,12 +30,12 @@ describe('SFT routes', () => {
       tx_id: '0x123456',
       block_height: 1,
     };
-    await db.insertAndEnqueueSmartContract({ values });
+    await db.chainhook.insertAndEnqueueSmartContract({ values });
   };
 
   const enqueueToken = async () => {
     await enqueueContract();
-    await db.insertAndEnqueueTokenArray([
+    await db.chainhook.insertAndEnqueueTokens([
       {
         smart_contract_id: 1,
         type: DbTokenType.sft,

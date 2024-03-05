@@ -1,6 +1,6 @@
 import { cvToHex, noneCV, stringUtf8CV, uintCV } from '@stacks/transactions';
 import { errors, MockAgent, setGlobalDispatcher } from 'undici';
-import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
+import { MIGRATIONS_DIR, PgStore } from '../../src/pg/pg-store';
 import {
   DbJob,
   DbJobStatus,
@@ -9,12 +9,12 @@ import {
   DbSipNumber,
   DbSmartContractInsert,
   DbTokenType,
-} from '../src/pg/types';
-import { ENV } from '../src/env';
-import { ProcessTokenJob } from '../src/token-processor/queue/job/process-token-job';
-import { parseRetryAfterResponseHeader } from '../src/token-processor/util/helpers';
-import { RetryableJobError } from '../src/token-processor/queue/errors';
-import { TooManyRequestsHttpError } from '../src/token-processor/util/errors';
+} from '../../src/pg/types';
+import { ENV } from '../../src/env';
+import { ProcessTokenJob } from '../../src/token-processor/queue/job/process-token-job';
+import { parseRetryAfterResponseHeader } from '../../src/token-processor/util/helpers';
+import { RetryableJobError } from '../../src/token-processor/queue/errors';
+import { TooManyRequestsHttpError } from '../../src/token-processor/util/errors';
 import { cycleMigrations } from '@hirosystems/api-toolkit';
 
 describe('ProcessTokenJob', () => {
@@ -41,8 +41,8 @@ describe('ProcessTokenJob', () => {
         tx_id: '0x123456',
         block_height: 1,
       };
-      await db.insertAndEnqueueSmartContract({ values });
-      [tokenJob] = await db.insertAndEnqueueSequentialTokens({
+      await db.chainhook.insertAndEnqueueSmartContract({ values });
+      [tokenJob] = await db.chainhook.insertAndEnqueueSequentialTokens({
         smart_contract_id: 1,
         token_count: 1n,
         type: DbTokenType.ft,
@@ -267,8 +267,8 @@ describe('ProcessTokenJob', () => {
         tx_id: '0x123456',
         block_height: 1,
       };
-      await db.insertAndEnqueueSmartContract({ values });
-      [tokenJob] = await db.insertAndEnqueueSequentialTokens({
+      await db.chainhook.insertAndEnqueueSmartContract({ values });
+      [tokenJob] = await db.chainhook.insertAndEnqueueSequentialTokens({
         smart_contract_id: 1,
         token_count: 1n,
         type: DbTokenType.nft,
@@ -276,7 +276,7 @@ describe('ProcessTokenJob', () => {
     });
 
     test('parses metadata with arbitrary types', async () => {
-      ENV.METADATA_IMAGE_CACHE_PROCESSOR = './tests/test-image-cache.js';
+      ENV.METADATA_IMAGE_CACHE_PROCESSOR = './tests/token-queue/test-image-cache.js';
       const metadata = {
         name: 'Mutant Monkeys #1',
         image:
@@ -660,8 +660,8 @@ describe('ProcessTokenJob', () => {
         tx_id: '0x123456',
         block_height: 1,
       };
-      await db.insertAndEnqueueSmartContract({ values });
-      [tokenJob] = await db.insertAndEnqueueTokenArray([
+      await db.chainhook.insertAndEnqueueSmartContract({ values });
+      [tokenJob] = await db.chainhook.insertAndEnqueueTokens([
         {
           smart_contract_id: 1,
           type: DbTokenType.sft,
@@ -728,8 +728,8 @@ describe('ProcessTokenJob', () => {
         tx_id: '0x123456',
         block_height: 1,
       };
-      await db.insertAndEnqueueSmartContract({ values });
-      [tokenJob] = await db.insertAndEnqueueSequentialTokens({
+      await db.chainhook.insertAndEnqueueSmartContract({ values });
+      [tokenJob] = await db.chainhook.insertAndEnqueueSequentialTokens({
         smart_contract_id: 1,
         token_count: 1n,
         type: DbTokenType.nft,
