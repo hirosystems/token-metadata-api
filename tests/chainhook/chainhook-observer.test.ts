@@ -1,11 +1,11 @@
 import { cvToHex, tupleCV, bufferCV, listCV, uintCV, stringUtf8CV } from '@stacks/transactions';
-import { DbSmartContractInsert, DbSipNumber, DbTokenType, DbSmartContract } from '../src/pg/types';
+import { DbSmartContractInsert, DbSipNumber, DbTokenType, DbSmartContract } from '../../src/pg/types';
 import { cycleMigrations } from '@hirosystems/api-toolkit';
-import { ENV } from '../src/env';
-import { PgStore, MIGRATIONS_DIR } from '../src/pg/pg-store';
-import { SIP_009_ABI, TestChainhookPayloadBuilder } from './helpers';
-import { ProcessSmartContractJob } from '../src/token-processor/queue/job/process-smart-contract-job';
-import { ProcessTokenJob } from '../src/token-processor/queue/job/process-token-job';
+import { ENV } from '../../src/env';
+import { PgStore, MIGRATIONS_DIR } from '../../src/pg/pg-store';
+import { SIP_009_ABI, TestChainhookPayloadBuilder } from '../helpers';
+import { ProcessSmartContractJob } from '../../src/token-processor/queue/job/process-smart-contract-job';
+import { ProcessTokenJob } from '../../src/token-processor/queue/job/process-token-job';
 
 describe('Chainhook observer', () => {
   let db: PgStore;

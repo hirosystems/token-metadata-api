@@ -1,8 +1,8 @@
-import { ENV } from '../src/env';
-import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
-import { DbJob, DbJobStatus, DbSipNumber, DbSmartContractInsert } from '../src/pg/types';
-import { JobQueue } from '../src/token-processor/queue/job-queue';
-import { sleep } from './helpers';
+import { ENV } from '../../src/env';
+import { MIGRATIONS_DIR, PgStore } from '../../src/pg/pg-store';
+import { DbJob, DbJobStatus, DbSipNumber, DbSmartContractInsert } from '../../src/pg/types';
+import { JobQueue } from '../../src/token-processor/queue/job-queue';
+import { sleep } from '../helpers';
 import { cycleMigrations } from '@hirosystems/api-toolkit';
 
 class TestJobQueue extends JobQueue {

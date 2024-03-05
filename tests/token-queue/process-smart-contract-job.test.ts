@@ -1,15 +1,15 @@
 import { bufferCV, cvToHex, tupleCV, uintCV } from '@stacks/transactions';
 import { MockAgent, setGlobalDispatcher } from 'undici';
-import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
+import { MIGRATIONS_DIR, PgStore } from '../../src/pg/pg-store';
 import {
   DbSipNumber,
   DbSmartContractInsert,
   DbToken,
   DbTokenType,
   TOKENS_COLUMNS,
-} from '../src/pg/types';
-import { ProcessSmartContractJob } from '../src/token-processor/queue/job/process-smart-contract-job';
-import { ENV } from '../src/env';
+} from '../../src/pg/types';
+import { ProcessSmartContractJob } from '../../src/token-processor/queue/job/process-smart-contract-job';
+import { ENV } from '../../src/env';
 import { cycleMigrations } from '@hirosystems/api-toolkit';
 
 describe('ProcessSmartContractJob', () => {

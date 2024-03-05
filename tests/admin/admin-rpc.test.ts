@@ -1,9 +1,9 @@
 import { cycleMigrations } from '@hirosystems/api-toolkit';
-import { buildAdminRpcServer } from '../src/admin-rpc/init';
-import { ENV } from '../src/env';
-import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
-import { DbJobStatus, DbSipNumber, DbSmartContractInsert, DbTokenType } from '../src/pg/types';
-import { TestFastifyServer } from './helpers';
+import { buildAdminRpcServer } from '../../src/admin-rpc/init';
+import { ENV } from '../../src/env';
+import { MIGRATIONS_DIR, PgStore } from '../../src/pg/pg-store';
+import { DbJobStatus, DbSipNumber, DbSmartContractInsert, DbTokenType } from '../../src/pg/types';
+import { TestFastifyServer } from '../helpers';
 
 describe('Admin RPC', () => {
   let db: PgStore;

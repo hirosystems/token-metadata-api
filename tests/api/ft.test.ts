@@ -1,13 +1,13 @@
 import { cycleMigrations } from '@hirosystems/api-toolkit';
-import { ENV } from '../src/env';
-import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
+import { ENV } from '../../src/env';
+import { MIGRATIONS_DIR, PgStore } from '../../src/pg/pg-store';
 import {
   DbFungibleTokenMetadataItem,
   DbSipNumber,
   DbSmartContractInsert,
   DbTokenType,
-} from '../src/pg/types';
-import { startTestApiServer, TestFastifyServer } from './helpers';
+} from '../../src/pg/types';
+import { startTestApiServer, TestFastifyServer } from '../helpers';
 
 describe('FT routes', () => {
   let db: PgStore;

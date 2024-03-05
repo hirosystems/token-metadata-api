@@ -8,7 +8,7 @@ import {
   uintCV,
 } from '@stacks/transactions';
 import { principalCV } from '@stacks/transactions/dist/clarity/types/principalCV';
-import { getContractLogMetadataUpdateNotification } from '../src/token-processor/util/sip-validation';
+import { getContractLogMetadataUpdateNotification } from '../../src/token-processor/util/sip-validation';
 import { StacksTransactionSmartContractEvent } from '@hirosystems/chainhook-client';
 
 describe('SIP Validation', () => {

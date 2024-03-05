@@ -1,8 +1,8 @@
 import { cycleMigrations } from '@hirosystems/api-toolkit';
-import { ENV } from '../src/env';
-import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
-import { DbSmartContractInsert, DbSipNumber, DbTokenType } from '../src/pg/types';
-import { TestFastifyServer, startTestApiServer } from './helpers';
+import { ENV } from '../../src/env';
+import { MIGRATIONS_DIR, PgStore } from '../../src/pg/pg-store';
+import { DbSmartContractInsert, DbSipNumber, DbTokenType } from '../../src/pg/types';
+import { TestFastifyServer, startTestApiServer } from '../helpers';
 
 describe('ETag cache', () => {
   let db: PgStore;

@@ -1,6 +1,6 @@
 import { cvToHex, noneCV, stringUtf8CV, uintCV } from '@stacks/transactions';
 import { errors, MockAgent, setGlobalDispatcher } from 'undici';
-import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
+import { MIGRATIONS_DIR, PgStore } from '../../src/pg/pg-store';
 import {
   DbJob,
   DbJobStatus,
@@ -9,12 +9,12 @@ import {
   DbSipNumber,
   DbSmartContractInsert,
   DbTokenType,
-} from '../src/pg/types';
-import { ENV } from '../src/env';
-import { ProcessTokenJob } from '../src/token-processor/queue/job/process-token-job';
-import { parseRetryAfterResponseHeader } from '../src/token-processor/util/helpers';
-import { RetryableJobError } from '../src/token-processor/queue/errors';
-import { TooManyRequestsHttpError } from '../src/token-processor/util/errors';
+} from '../../src/pg/types';
+import { ENV } from '../../src/env';
+import { ProcessTokenJob } from '../../src/token-processor/queue/job/process-token-job';
+import { parseRetryAfterResponseHeader } from '../../src/token-processor/util/helpers';
+import { RetryableJobError } from '../../src/token-processor/queue/errors';
+import { TooManyRequestsHttpError } from '../../src/token-processor/util/errors';
 import { cycleMigrations } from '@hirosystems/api-toolkit';
 
 describe('ProcessTokenJob', () => {
@@ -276,7 +276,7 @@ describe('ProcessTokenJob', () => {
     });
 
     test('parses metadata with arbitrary types', async () => {
-      ENV.METADATA_IMAGE_CACHE_PROCESSOR = './tests/test-image-cache.js';
+      ENV.METADATA_IMAGE_CACHE_PROCESSOR = './tests/token-queue/test-image-cache.js';
       const metadata = {
         name: 'Mutant Monkeys #1',
         image:

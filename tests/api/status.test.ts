@@ -1,8 +1,8 @@
 import { cycleMigrations } from '@hirosystems/api-toolkit';
-import { ENV } from '../src/env';
-import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
-import { DbSipNumber, DbTokenType } from '../src/pg/types';
-import { startTestApiServer, TestFastifyServer } from './helpers';
+import { ENV } from '../../src/env';
+import { MIGRATIONS_DIR, PgStore } from '../../src/pg/pg-store';
+import { DbSipNumber, DbTokenType } from '../../src/pg/types';
+import { startTestApiServer, TestFastifyServer } from '../helpers';
 
 describe('Status routes', () => {
   let db: PgStore;
