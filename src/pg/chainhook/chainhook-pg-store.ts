@@ -34,20 +34,23 @@ export class ChainhookPgStore extends BasePgStoreModule {
   async processPayload(payload: StacksPayload): Promise<void> {
     await this.sqlWriteTransaction(async sql => {
       // ROLLBACK
-      // for (const stacksEvent of payload.rollback) {
-      //   const event = stacksEvent as StacksEvent;
-      //   for (const tx of event.transactions) {
-      //     if (tx.metadata.kind.type === 'ContractDeployment') {
-      //       await this.rollBackContractDeployment(tx);
-      //     }
-      //     for (const txEvent of tx.metadata.receipt.events) {
-      //       if (txEvent.type === 'SmartContractEvent') {
-      //         await this.rollBackSmartContractEvent(tx.metadata.sender, txEvent);
-      //       }
-      //     }
-      //   }
-      //   await this.updateChainTipBlockHeight({ blockHeight: event.block_identifier.index });
-      // }
+      for (const block of payload.rollback) {
+        for (const tx of block.transactions) {
+          if (tx.metadata.kind.type === 'ContractDeployment') {
+            await this.rollBackContractDeployment(tx);
+          }
+          for (const event of tx.metadata.receipt.events) {
+            switch (event.type) {
+              case 'SmartContractEvent':
+                await this.rollBackPrintEvent(tx, event);
+                break;
+              case 'NFTMintEvent':
+                await this.rollBackNftMintEvent(event);
+                break;
+            }
+          }
+        }
+      }
 
       // APPLY
       for (const block of payload.apply) {
@@ -70,9 +73,11 @@ export class ChainhookPgStore extends BasePgStoreModule {
             }
           }
         }
+
+        await this.enqueueDynamicTokensDueForRefresh();
         await this.updateChainTipBlockHeight(block.block_identifier.index);
+        logger.info(`ChainhookPgStore ingested block ${block.block_identifier.index}`);
       }
-      await this.enqueueDynamicTokensDueForRefresh();
     });
   }
 
@@ -99,7 +104,7 @@ export class ChainhookPgStore extends BasePgStoreModule {
     await this.sql`
       DELETE FROM smart_contracts WHERE principal = ${kind.data.contract_identifier}
     `;
-    logger.info(`PgStore rollback contract ${kind.data.contract_identifier}`);
+    logger.info(`ChainhookPgStore rollback contract ${kind.data.contract_identifier}`);
   }
 
   private async applyPrintEvent(
@@ -147,47 +152,47 @@ export class ChainhookPgStore extends BasePgStoreModule {
   }
 
   private async rollBackPrintEvent(
-    sender: string,
+    tx: StacksTransaction,
     event: StacksTransactionSmartContractEvent
   ): Promise<void> {
     // SIP-019 notification?
-    // const notification = getContractLogMetadataUpdateNotification(tx.metadata.sender, event);
-    // if (notification) {
-    //   logger.info(
-    //     `PgStore apply SIP-019 notification ${notification.contract_id} (${
-    //       notification.token_ids ?? []
-    //     })`
-    //   );
-    //   try {
-    //     await this.enqueueTokenMetadataUpdateNotification({ block, event, tx, notification });
-    //   } catch (error) {
-    //     if (error instanceof ContractNotFoundError) {
-    //       logger.warn(
-    //         `PgStore contract ${notification.contract_id} not found, unable to process SIP-019 notification`
-    //       );
-    //     } else {
-    //       throw error;
-    //     }
-    //   }
-    //   return;
-    // }
+    const notification = getContractLogMetadataUpdateNotification(tx.metadata.sender, event);
+    if (notification) {
+      // logger.info(
+      //   `PgStore apply SIP-019 notification ${notification.contract_id} (${
+      //     notification.token_ids ?? []
+      //   })`
+      // );
+      // try {
+      //   await this.enqueueTokenMetadataUpdateNotification({ block, event, tx, notification });
+      // } catch (error) {
+      //   if (error instanceof ContractNotFoundError) {
+      //     logger.warn(
+      //       `PgStore contract ${notification.contract_id} not found, unable to process SIP-019 notification`
+      //     );
+      //   } else {
+      //     throw error;
+      //   }
+      // }
+      return;
+    }
     // SIP-013 SFT mint?
-    // const mint = getContractLogSftMintEvent(event);
-    // if (mint) {
-    //   const contract = await this.getSmartContract({ principal: mint.contractId });
-    //   if (contract && contract.sip === DbSipNumber.sip013) {
-    //     await this.sql`
-    //       DELETE FROM tokens
-    //       WHERE smart_contract_id = ${contract.id} AND token_number = ${mint.tokenId}
-    //     `;
-    //     logger.info(`PgStore rollback SFT mint ${mint.contractId} (${mint.tokenId})`);
-    //   }
-    // }
+    const mint = getContractLogSftMintEvent(event);
+    if (mint) {
+      const smart_contract_id = await this.findSmartContractId(mint.contractId, DbSipNumber.sip013);
+      if (smart_contract_id) {
+        await this.sql`
+          DELETE FROM tokens
+          WHERE smart_contract_id = ${smart_contract_id} AND token_number = ${mint.tokenId}
+        `;
+        logger.info(`ChainhookPgStore rollback SFT mint ${mint.contractId} (${mint.tokenId})`);
+      }
+    }
   }
 
   private async applyFtMintOrBurnEvent(
     event: StacksTransactionFtMintEvent | StacksTransactionFtBurnEvent
-  ) {
+  ): Promise<void> {
     const action = event.type === 'FTMintEvent' ? 'mint' : 'burn';
     const principal = event.data.asset_identifier.split('::')[0];
     try {
@@ -209,7 +214,7 @@ export class ChainhookPgStore extends BasePgStoreModule {
     }
   }
 
-  private async applyNftMintEvent(event: StacksTransactionNftMintEvent) {
+  private async applyNftMintEvent(event: StacksTransactionNftMintEvent): Promise<void> {
     const principal = event.data.asset_identifier.split('::')[0];
     try {
       const value = decodeClarityValue(event.data.raw_value);
@@ -227,6 +232,10 @@ export class ChainhookPgStore extends BasePgStoreModule {
         logger.warn(`ChainhookPgStore detected NFT mint for non-existing contract ${principal}`);
       else throw error;
     }
+  }
+
+  private async rollBackNftMintEvent(event: StacksTransactionNftMintEvent): Promise<void> {
+    //
   }
 
   private async findSmartContractId(principal: string, sip: DbSipNumber): Promise<number> {
@@ -330,7 +339,7 @@ export class ChainhookPgStore extends BasePgStoreModule {
               ${tokenNumbers.length ? sql`AND token_number IN ${sql(tokenNumbers)}` : sql``}
           )
           RETURNING id
-        ) 
+        )
         UPDATE jobs
         SET status = 'pending', updated_at = NOW()
         WHERE token_id IN (SELECT id FROM updated_tokens)
