@@ -3,8 +3,12 @@ import { buildApiServer } from '../src/api/init';
 import { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { IncomingMessage, Server, ServerResponse } from 'http';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
-import { StacksEvent, StacksPayload, StacksTransaction } from '@hirosystems/chainhook-client';
-import { StacksTransactionSmartContractEvent } from '@hirosystems/chainhook-client';
+import {
+  StacksEvent,
+  StacksPayload,
+  StacksTransaction,
+  StacksTransactionEvent,
+} from '@hirosystems/chainhook-client';
 
 export type TestFastifyServer = FastifyInstance<
   Server,
@@ -1331,20 +1335,7 @@ export class TestChainhookPayloadBuilder {
     return this;
   }
 
-  printEvent(args: StacksTransactionSmartContractEvent): this {
-    this.lastBlockTx.metadata.kind = {
-      data: {
-        args: [
-          'u144',
-          'SP3HXJJMJQ06GNAZ8XWDN1QM48JEDC6PP6W3YZPZJ',
-          'SPCXZRY4FQZQHQ1EMBSDM1183HDK2ZGHPW3M1MA4',
-          '(some 0x54657374205472616e73666572202331)',
-        ],
-        contract_identifier: 'SP466FNC0P7JWTNM2R9T199QRZN1MYEDTAR0KP27.miamicoin-token',
-        method: 'transfer',
-      },
-      type: 'ContractCall',
-    };
+  event(args: StacksTransactionEvent): this {
     this.lastBlockTx.metadata.receipt.events.push(args);
     return this;
   }

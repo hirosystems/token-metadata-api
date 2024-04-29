@@ -42,7 +42,7 @@ export class ChainhookPgStore extends BasePgStoreModule {
           for (const event of tx.metadata.receipt.events) {
             switch (event.type) {
               case 'SmartContractEvent':
-                await this.rollBackPrintEvent(tx, event);
+                await this.rollBackPrintEvent(block.block_identifier, tx, event);
                 break;
               case 'NFTMintEvent':
                 await this.rollBackNftMintEvent(event);
@@ -152,28 +152,33 @@ export class ChainhookPgStore extends BasePgStoreModule {
   }
 
   private async rollBackPrintEvent(
+    block: BlockIdentifier,
     tx: StacksTransaction,
     event: StacksTransactionSmartContractEvent
   ): Promise<void> {
     // SIP-019 notification?
     const notification = getContractLogMetadataUpdateNotification(tx.metadata.sender, event);
     if (notification) {
-      // logger.info(
-      //   `PgStore apply SIP-019 notification ${notification.contract_id} (${
-      //     notification.token_ids ?? []
-      //   })`
-      // );
-      // try {
-      //   await this.enqueueTokenMetadataUpdateNotification({ block, event, tx, notification });
-      // } catch (error) {
-      //   if (error instanceof ContractNotFoundError) {
-      //     logger.warn(
-      //       `PgStore contract ${notification.contract_id} not found, unable to process SIP-019 notification`
-      //     );
-      //   } else {
-      //     throw error;
-      //   }
-      // }
+      const contractResult = await this.sql<{ id: number }[]>`
+        SELECT id FROM smart_contracts WHERE principal = ${notification.contract_id}
+      `;
+      if (contractResult.count === 0) {
+        logger.warn(
+          `ChainhookPgStore rollback SIP-019 notification for non-existing contract ${notification.contract_id}`
+        );
+        return;
+      }
+      const contractId = contractResult[0].id;
+      await this.sql`
+        DELETE FROM token_metadata_notifications
+        WHERE smart_contract_id = ${contractId}
+          AND block_height = ${block.index}
+          AND index_block_hash = ${block.hash}
+          AND tx_id = ${tx.transaction_identifier.hash}
+          AND tx_index = ${tx.metadata.position.index}
+          AND event_index = ${event.position.index}
+      `;
+      // TODO: Return to old mode
       return;
     }
     // SIP-013 SFT mint?
@@ -196,7 +201,7 @@ export class ChainhookPgStore extends BasePgStoreModule {
     const action = event.type === 'FTMintEvent' ? 'mint' : 'burn';
     const principal = event.data.asset_identifier.split('::')[0];
     try {
-      // TODO: We should only update the FT's total supply here, not the entire metadata.
+      // TODO: We only need to update the FT's total supply here, not the entire metadata.
       await this.insertAndEnqueueTokens([
         {
           smart_contract_id: await this.findSmartContractId(principal, DbSipNumber.sip010),
@@ -235,7 +240,17 @@ export class ChainhookPgStore extends BasePgStoreModule {
   }
 
   private async rollBackNftMintEvent(event: StacksTransactionNftMintEvent): Promise<void> {
-    //
+    const principal = event.data.asset_identifier.split('::')[0];
+    const smart_contract_id = await this.findSmartContractId(principal, DbSipNumber.sip009);
+    if (smart_contract_id) {
+      const value = decodeClarityValue(event.data.raw_value);
+      if (value.type_id !== ClarityTypeID.UInt) return;
+      await this.sql`
+        DELETE FROM tokens
+        WHERE smart_contract_id = ${smart_contract_id} AND token_number = ${value.value}
+      `;
+      logger.info(`ChainhookPgStore rollback NFT mint ${principal} (${value.value})`);
+    }
   }
 
   private async findSmartContractId(principal: string, sip: DbSipNumber): Promise<number> {

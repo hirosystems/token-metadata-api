@@ -1,5 +1,10 @@
 import { cvToHex, tupleCV, bufferCV, listCV, uintCV, stringUtf8CV } from '@stacks/transactions';
-import { DbSmartContractInsert, DbSipNumber, DbTokenType, DbSmartContract } from '../../src/pg/types';
+import {
+  DbSmartContractInsert,
+  DbSipNumber,
+  DbTokenType,
+  DbSmartContract,
+} from '../../src/pg/types';
 import { cycleMigrations } from '@hirosystems/api-toolkit';
 import { ENV } from '../../src/env';
 import { PgStore, MIGRATIONS_DIR } from '../../src/pg/pg-store';
@@ -217,7 +222,7 @@ describe('Chainhook observer', () => {
             .apply()
             .block({ height: 100 })
             .transaction({ hash: '0x01', sender: address })
-            .printEvent({
+            .event({
               type: 'SmartContractEvent',
               position: { index: 0 },
               data: {
@@ -258,7 +263,105 @@ describe('Chainhook observer', () => {
             .apply()
             .block({ height: 100 })
             .transaction({ hash: '0x01', sender: address })
-            .printEvent({
+            .event({
+              type: 'SmartContractEvent',
+              position: { index: 0 },
+              data: {
+                contract_identifier: contractId,
+                topic: 'print',
+                raw_value: cvToHex(
+                  tupleCV({
+                    notification: bufferCV(Buffer.from('token-metadata-update')),
+                    payload: tupleCV({
+                      'token-class': bufferCV(Buffer.from('nft')),
+                      'contract-id': bufferCV(Buffer.from(contractId)),
+                      'token-ids': listCV([uintCV(1), uintCV(2)]),
+                    }),
+                  })
+                ),
+              },
+            })
+            .build()
+        );
+
+        const jobs2 = await db.getPendingJobBatch({ limit: 10 });
+        expect(jobs2.length).toBe(2); // Only two tokens
+        expect(jobs2[0].token_id).toBe(1);
+        expect(jobs2[1].token_id).toBe(2);
+        const notif = await db.getTokenMetadataNotification({ tokenId: 3 });
+        expect(notif).toBeUndefined();
+      });
+
+      test('rolls back notification', async () => {
+        const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
+        const contractId = `${address}.friedger-pool-nft`;
+        await createTestTokens(contractId, 3n);
+
+        // Write 2 notifications, test rollback changes ref to old notification.
+        await db.chainhook.processPayload(
+          new TestChainhookPayloadBuilder()
+            .apply()
+            .block({ height: 100 })
+            .transaction({ hash: '0x01', sender: address })
+            .event({
+              type: 'SmartContractEvent',
+              position: { index: 0 },
+              data: {
+                contract_identifier: contractId,
+                topic: 'print',
+                raw_value: cvToHex(
+                  tupleCV({
+                    notification: bufferCV(Buffer.from('token-metadata-update')),
+                    payload: tupleCV({
+                      'token-class': bufferCV(Buffer.from('nft')),
+                      'contract-id': bufferCV(Buffer.from(contractId)),
+                      'token-ids': listCV([uintCV(1)]),
+                      'update-mode': bufferCV(Buffer.from('frozen')),
+                    }),
+                  })
+                ),
+              },
+            })
+            .build()
+        );
+        await db.chainhook.processPayload(
+          new TestChainhookPayloadBuilder()
+            .apply()
+            .block({ height: 101 })
+            .transaction({ hash: '0x01', sender: address })
+            .event({
+              type: 'SmartContractEvent',
+              position: { index: 0 },
+              data: {
+                contract_identifier: contractId,
+                topic: 'print',
+                raw_value: cvToHex(
+                  tupleCV({
+                    notification: bufferCV(Buffer.from('token-metadata-update')),
+                    payload: tupleCV({
+                      'token-class': bufferCV(Buffer.from('nft')),
+                      'contract-id': bufferCV(Buffer.from(contractId)),
+                      'token-ids': listCV([uintCV(1)]),
+                      'update-mode': bufferCV(Buffer.from('frozen')),
+                    }),
+                  })
+                ),
+              },
+            })
+            .build()
+        );
+
+        // Mark jobs as done to test
+        await db.sql`UPDATE jobs SET status = 'done' WHERE TRUE`;
+        const jobs1 = await db.getPendingJobBatch({ limit: 10 });
+        expect(jobs1.length).toBe(0);
+
+        await db.chainhook.processPayload(
+          new TestChainhookPayloadBuilder()
+            .apply()
+            .block({ height: 100 })
+            .transaction({ hash: '0x01', sender: address })
+            .event({
               type: 'SmartContractEvent',
               position: { index: 0 },
               data: {
@@ -293,7 +396,7 @@ describe('Chainhook observer', () => {
             .apply()
             .block({ height: 100 })
             .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
-            .printEvent({
+            .event({
               type: 'SmartContractEvent',
               position: { index: 0 },
               data: {
@@ -320,7 +423,7 @@ describe('Chainhook observer', () => {
             .apply()
             .block({ height: 90 })
             .transaction({ hash: '0x01', sender: address })
-            .printEvent({
+            .event({
               type: 'SmartContractEvent',
               position: { index: 0 },
               data: {
@@ -351,7 +454,7 @@ describe('Chainhook observer', () => {
             .apply()
             .block({ height: 100 })
             .transaction({ hash: '0x01', sender: address })
-            .printEvent({
+            .event({
               type: 'SmartContractEvent',
               position: { index: 0 },
               data: {
@@ -395,7 +498,7 @@ describe('Chainhook observer', () => {
             .block({ height: 100 })
             // Incorrect sender
             .transaction({ hash: '0x01', sender: 'SP29BPZ6BD5D8509Y9VP70J0V7VKKDDFCRPHA0T6A' })
-            .printEvent({
+            .event({
               type: 'SmartContractEvent',
               position: { index: 0 },
               data: {
@@ -434,7 +537,7 @@ describe('Chainhook observer', () => {
             .apply()
             .block({ height: 100 })
             .transaction({ hash: '0x01', sender: address })
-            .printEvent({
+            .event({
               type: 'SmartContractEvent',
               position: { index: 0 },
               data: {
@@ -478,7 +581,7 @@ describe('Chainhook observer', () => {
             .apply()
             .block({ height: 100 })
             .transaction({ hash: '0x01', sender: address })
-            .printEvent({
+            .event({
               type: 'SmartContractEvent',
               position: { index: 0 },
               data: {
@@ -528,7 +631,7 @@ describe('Chainhook observer', () => {
             .rollback()
             .block({ height: 100 })
             .transaction({ hash: '0x01', sender: address })
-            .printEvent({
+            .event({
               type: 'SmartContractEvent',
               position: { index: 0 },
               data: {
@@ -555,6 +658,163 @@ describe('Chainhook observer', () => {
     });
   });
 
+  describe('NFT events', () => {
+    test('NFT mint enqueues metadata fetch', async () => {
+      const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
+      const contractId = `${address}.friedger-pool-nft`;
+      await createTestTokens(contractId, 3n);
+
+      // Mark jobs as done to test
+      await db.sql`UPDATE jobs SET status = 'done' WHERE TRUE`;
+      const jobs1 = await db.getPendingJobBatch({ limit: 10 });
+      expect(jobs1.length).toBe(0);
+
+      // Get 4th token via mint
+      await db.chainhook.processPayload(
+        new TestChainhookPayloadBuilder()
+          .apply()
+          .block({ height: 100 })
+          .transaction({ hash: '0x01', sender: address })
+          .event({
+            type: 'NFTMintEvent',
+            position: { index: 0 },
+            data: {
+              asset_identifier: `${contractId}::friedger-nft`,
+              recipient: address,
+              raw_value: cvToHex(uintCV(4)),
+            },
+          })
+          .build()
+      );
+
+      const jobs2 = await db.getPendingJobBatch({ limit: 10 });
+      expect(jobs2.length).toBe(1);
+      const token = await db.getToken({ id: 4 });
+      expect(token).not.toBeUndefined();
+    });
+
+    test('NFT mint roll back removes token', async () => {
+      const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
+      const contractId = `${address}.friedger-pool-nft`;
+      await createTestTokens(contractId, 3n);
+
+      // Roll back token 3
+      await db.chainhook.processPayload(
+        new TestChainhookPayloadBuilder()
+          .rollback()
+          .block({ height: 100 })
+          .transaction({ hash: '0x01', sender: address })
+          .event({
+            type: 'NFTMintEvent',
+            position: { index: 0 },
+            data: {
+              asset_identifier: `${contractId}::friedger-nft`,
+              recipient: address,
+              raw_value: cvToHex(uintCV(3)),
+            },
+          })
+          .build()
+      );
+
+      const tokenCount = await db.sql<{ count: string }[]>`SELECT COUNT(*) FROM tokens`;
+      expect(tokenCount[0].count).toBe('2');
+      const jobCount = await db.sql<{ count: string }[]>`SELECT COUNT(*) FROM jobs`;
+      expect(jobCount[0].count).toBe('3'); // Only the contract + other token jobs
+    });
+  });
+
+  describe('FT events', () => {
+    test('FT mints enqueue refresh', async () => {
+      const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
+      const contractId = `${address}.usdc`;
+      const values: DbSmartContractInsert = {
+        principal: contractId,
+        sip: DbSipNumber.sip010,
+        abi: '"some"',
+        tx_id: '0x123456',
+        block_height: 1,
+      };
+      await db.chainhook.insertAndEnqueueSmartContract({ values });
+      await db.chainhook.insertAndEnqueueSequentialTokens({
+        smart_contract_id: 1,
+        token_count: 1n,
+        type: DbTokenType.ft,
+      });
+
+      // Mark jobs as done to test
+      await db.sql`UPDATE jobs SET status = 'done' WHERE TRUE`;
+      const jobs1 = await db.getPendingJobBatch({ limit: 10 });
+      expect(jobs1.length).toBe(0);
+
+      await db.chainhook.processPayload(
+        new TestChainhookPayloadBuilder()
+          .apply()
+          .block({ height: 100 })
+          .transaction({ hash: '0x01', sender: address })
+          .event({
+            type: 'FTMintEvent',
+            position: { index: 0 },
+            data: {
+              asset_identifier: `${contractId}::friedger-nft`,
+              recipient: address,
+              amount: '2000',
+            },
+          })
+          .build()
+      );
+
+      const tokenCount = await db.sql<{ count: string }[]>`SELECT COUNT(*) FROM tokens`;
+      expect(tokenCount[0].count).toBe('1');
+      const jobs = await db.getPendingJobBatch({ limit: 1 });
+      expect(jobs[0].token_id).toBe(1);
+    });
+
+    test('FT burns enqueue refresh', async () => {
+      const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
+      const contractId = `${address}.usdc`;
+      const values: DbSmartContractInsert = {
+        principal: contractId,
+        sip: DbSipNumber.sip010,
+        abi: '"some"',
+        tx_id: '0x123456',
+        block_height: 1,
+      };
+      await db.chainhook.insertAndEnqueueSmartContract({ values });
+      await db.chainhook.insertAndEnqueueSequentialTokens({
+        smart_contract_id: 1,
+        token_count: 1n,
+        type: DbTokenType.ft,
+      });
+
+      // Mark jobs as done to test
+      await db.sql`UPDATE jobs SET status = 'done' WHERE TRUE`;
+      const jobs1 = await db.getPendingJobBatch({ limit: 10 });
+      expect(jobs1.length).toBe(0);
+
+      await db.chainhook.processPayload(
+        new TestChainhookPayloadBuilder()
+          .apply()
+          .block({ height: 100 })
+          .transaction({ hash: '0x01', sender: address })
+          .event({
+            type: 'FTBurnEvent',
+            position: { index: 0 },
+            data: {
+              asset_identifier: `${contractId}::friedger-nft`,
+              sender: address,
+              amount: '2000',
+            },
+          })
+          .build()
+      );
+
+      const tokenCount = await db.sql<{ count: string }[]>`SELECT COUNT(*) FROM tokens`;
+      expect(tokenCount[0].count).toBe('1');
+      const jobs = await db.getPendingJobBatch({ limit: 1 });
+      expect(jobs[0].token_id).toBe(1);
+    });
+  });
+
   describe('chain tip', () => {
     test('updates chain tip on chainhook event', async () => {
       await db.chainhook.processPayload(
@@ -578,7 +838,7 @@ describe('Chainhook observer', () => {
           .apply()
           .block({ height: 101 })
           .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
-          .printEvent({
+          .event({
             type: 'SmartContractEvent',
             position: { index: 0 },
             data: {
@@ -614,7 +874,7 @@ describe('Chainhook observer', () => {
           .apply()
           .block({ height: 65 })
           .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
-          .printEvent({
+          .event({
             type: 'SmartContractEvent',
             position: { index: 0 },
             data: {
@@ -639,7 +899,7 @@ describe('Chainhook observer', () => {
           .apply()
           .block({ height: 90 })
           .transaction({ hash: '0x01', sender: address })
-          .printEvent({
+          .event({
             type: 'SmartContractEvent',
             position: { index: 0 },
             data: {
@@ -673,7 +933,7 @@ describe('Chainhook observer', () => {
           .apply()
           .block({ height: 65 })
           .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
-          .printEvent({
+          .event({
             type: 'SmartContractEvent',
             position: { index: 0 },
             data: {
@@ -712,7 +972,7 @@ describe('Chainhook observer', () => {
           .apply()
           .block({ height: 90 })
           .transaction({ hash: '0x01', sender: address })
-          .printEvent({
+          .event({
             type: 'SmartContractEvent',
             position: { index: 0 },
             data: {
@@ -747,7 +1007,7 @@ describe('Chainhook observer', () => {
           .apply()
           .block({ height: 65 })
           .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
-          .printEvent({
+          .event({
             type: 'SmartContractEvent',
             position: { index: 0 },
             data: {
