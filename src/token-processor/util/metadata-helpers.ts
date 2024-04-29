@@ -6,6 +6,7 @@ import {
   DbMetadataInsert,
   DbMetadataLocaleInsertBundle,
   DbMetadataPropertyInsert,
+  DbSmartContract,
   DbToken,
 } from '../../pg/types';
 import { ENV } from '../../env';
@@ -42,11 +43,13 @@ const METADATA_FETCH_HTTP_AGENT = new Agent({
  * JSON and parses it looking for other localizations. If those are found, each of them is then
  * downloaded, parsed, and returned for DB insertion.
  * @param uri - token metadata URI
+ * @param contract - contract DB entry
  * @param token - token DB entry
  * @returns parsed metadata ready for insertion
  */
 export async function fetchAllMetadataLocalesFromBaseUri(
   uri: string,
+  contract: DbSmartContract,
   token: DbToken
 ): Promise<DbMetadataLocaleInsertBundle[]> {
   const tokenUri = getTokenSpecificUri(uri, token.token_number);
@@ -80,7 +83,7 @@ export async function fetchAllMetadataLocalesFromBaseUri(
     }
   }
 
-  return parseMetadataForInsertion(rawMetadataLocales, token);
+  return parseMetadataForInsertion(rawMetadataLocales, contract, token);
 }
 
 /**
@@ -106,6 +109,7 @@ export function getTokenSpecificUri(uri: string, tokenNumber: bigint, locale?: s
 
 async function parseMetadataForInsertion(
   rawMetadataLocales: RawMetadataLocale[],
+  contract: DbSmartContract,
   token: DbToken
 ): Promise<DbMetadataLocaleInsertBundle[]> {
   // Keep the default because we may need to fall back into its data.
@@ -128,7 +132,7 @@ async function parseMetadataForInsertion(
     let cachedImage: string | null = null;
     if (image && typeof image === 'string') {
       const normalizedUrl = getImageUrl(image);
-      cachedImage = await processImageUrl(normalizedUrl);
+      cachedImage = await processImageUrl(normalizedUrl, contract.principal, token.token_number);
     }
     // Localized values override defaults.
     const metadataInsert: DbMetadataInsert = {

@@ -11,7 +11,11 @@ import { logger } from '@hirosystems/api-toolkit';
  * URL is returned immediately. If a data-uri is passed, it is also immediately returned without
  * being passed to the script.
  */
-export async function processImageUrl(imgUrl: string): Promise<string> {
+export async function processImageUrl(
+  imgUrl: string,
+  contractPrincipal: string,
+  tokenNumber: bigint
+): Promise<string> {
   const imageCacheProcessor = ENV.METADATA_IMAGE_CACHE_PROCESSOR;
   if (!imageCacheProcessor) {
     return imgUrl;
@@ -25,7 +29,11 @@ export async function processImageUrl(imgUrl: string): Promise<string> {
     stdout: string;
     stderr: string;
   }>((resolve, reject) => {
-    const cp = child_process.spawn(imageCacheProcessor, [imgUrl], { cwd: repoDir });
+    const cp = child_process.spawn(
+      imageCacheProcessor,
+      [imgUrl, contractPrincipal, tokenNumber.toString()],
+      { cwd: repoDir }
+    );
     let stdout = '';
     let stderr = '';
     cp.stdout.on('data', data => (stdout += data));
