@@ -14,7 +14,7 @@ describe('Image cache', () => {
     const transformed = await processImageUrl(url, contract, tokenNumber);
     expect(transformed).toStrictEqual([
       'http://cloudflare-ipfs.com/test/image.png?processed=true',
-      'http://cloudflare-ipfs.com/test/image.png?processed=true&thumbnail=true',
+      'http://cloudflare-ipfs.com/test/image.png?processed=true&thumb=true',
     ]);
   });
 
