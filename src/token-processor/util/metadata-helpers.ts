@@ -129,10 +129,15 @@ async function parseMetadataForInsertion(
       metadata.image_url ??
       defaultInsert?.metadata.image ??
       null;
-    let cachedImage: string | null = null;
+    let cachedImage: string | undefined;
+    let cachedThumbnailImage: string | undefined;
     if (image && typeof image === 'string') {
       const normalizedUrl = getImageUrl(image);
-      cachedImage = await processImageUrl(normalizedUrl, contract.principal, token.token_number);
+      [cachedImage, cachedThumbnailImage] = await processImageUrl(
+        normalizedUrl,
+        contract.principal,
+        token.token_number
+      );
     }
     // Localized values override defaults.
     const metadataInsert: DbMetadataInsert = {
@@ -142,7 +147,8 @@ async function parseMetadataForInsertion(
       description:
         metadata.description?.toString() ?? defaultInsert?.metadata.description?.toString() ?? null,
       image: image?.toString(),
-      cached_image: cachedImage,
+      cached_image: cachedImage ?? null,
+      cached_thumbnail_image: cachedThumbnailImage ?? null,
       l10n_default: raw.default,
       l10n_locale: raw.locale ?? null,
       l10n_uri: raw.uri,

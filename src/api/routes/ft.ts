@@ -79,6 +79,7 @@ const IndexRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTy
           sender_address: t.principal?.split('.')[0],
           image_uri: t.cached_image,
           image_canonical_uri: t.image,
+          image_thumbnail_uri: t.cached_thumbnail_image,
           contract_principal: t.principal,
         })),
       });
@@ -129,6 +130,8 @@ const ShowRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTyp
           sender_address: metadataBundle?.smartContract.principal.split('.')[0],
           image_uri: metadataBundle?.metadataLocale?.metadata?.cached_image ?? undefined,
           image_canonical_uri: metadataBundle?.metadataLocale?.metadata?.image ?? undefined,
+          image_thumbnail_uri:
+            metadataBundle?.metadataLocale?.metadata?.cached_thumbnail_image ?? undefined,
           metadata: parseMetadataLocaleBundle(metadataBundle?.metadataLocale),
         });
       } catch (error) {

@@ -15,13 +15,13 @@ export async function processImageUrl(
   imgUrl: string,
   contractPrincipal: string,
   tokenNumber: bigint
-): Promise<string> {
+): Promise<string[]> {
   const imageCacheProcessor = ENV.METADATA_IMAGE_CACHE_PROCESSOR;
   if (!imageCacheProcessor) {
-    return imgUrl;
+    return [imgUrl];
   }
   if (imgUrl.startsWith('data:')) {
-    return imgUrl;
+    return [imgUrl];
   }
   const repoDir = process.cwd();
   const { code, stdout, stderr } = await new Promise<{
@@ -44,10 +44,9 @@ export async function processImageUrl(
   if (code !== 0 && stderr) {
     logger.warn(stderr, `METADATA_IMAGE_CACHE_PROCESSOR error`);
   }
-  const result = stdout.trim();
+  const result = stdout.trim().split('\n');
   try {
-    const url = new URL(result);
-    return url.toString();
+    return result.map(r => new URL(r).toString());
   } catch (error) {
     throw new Error(
       `Image processing script returned an invalid url for ${imgUrl}: ${result}, stderr: ${stderr}`
