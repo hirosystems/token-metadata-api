@@ -20,6 +20,7 @@ export function parseMetadataLocaleBundle(
       description: locale.metadata.description,
       image: locale.metadata.image,
       cached_image: locale.metadata.cached_image,
+      cached_thumbnail_image: locale.metadata.cached_thumbnail_image,
     };
     if (locale.attributes.length > 0) {
       response.attributes = locale.attributes.map(item => ({

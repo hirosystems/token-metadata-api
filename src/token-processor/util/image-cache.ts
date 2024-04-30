@@ -11,13 +11,17 @@ import { logger } from '@hirosystems/api-toolkit';
  * URL is returned immediately. If a data-uri is passed, it is also immediately returned without
  * being passed to the script.
  */
-export async function processImageUrl(imgUrl: string): Promise<string> {
+export async function processImageUrl(
+  imgUrl: string,
+  contractPrincipal: string,
+  tokenNumber: bigint
+): Promise<string[]> {
   const imageCacheProcessor = ENV.METADATA_IMAGE_CACHE_PROCESSOR;
   if (!imageCacheProcessor) {
-    return imgUrl;
+    return [imgUrl];
   }
   if (imgUrl.startsWith('data:')) {
-    return imgUrl;
+    return [imgUrl];
   }
   const repoDir = process.cwd();
   const { code, stdout, stderr } = await new Promise<{
@@ -25,7 +29,11 @@ export async function processImageUrl(imgUrl: string): Promise<string> {
     stdout: string;
     stderr: string;
   }>((resolve, reject) => {
-    const cp = child_process.spawn(imageCacheProcessor, [imgUrl], { cwd: repoDir });
+    const cp = child_process.spawn(
+      imageCacheProcessor,
+      [imgUrl, contractPrincipal, tokenNumber.toString()],
+      { cwd: repoDir }
+    );
     let stdout = '';
     let stderr = '';
     cp.stdout.on('data', data => (stdout += data));
@@ -36,10 +44,9 @@ export async function processImageUrl(imgUrl: string): Promise<string> {
   if (code !== 0 && stderr) {
     logger.warn(stderr, `METADATA_IMAGE_CACHE_PROCESSOR error`);
   }
-  const result = stdout.trim();
+  const result = stdout.trim().split('\n');
   try {
-    const url = new URL(result);
-    return url.toString();
+    return result.map(r => new URL(r).toString());
   } catch (error) {
     throw new Error(
       `Image processing script returned an invalid url for ${imgUrl}: ${result}, stderr: ${stderr}`

@@ -175,6 +175,7 @@ export const Metadata = Type.Object(
     description: Type.Optional(TokenDescription),
     image: Type.Optional(TokenImage),
     cached_image: Type.Optional(TokenCachedImage),
+    cached_thumbnail_image: Type.Optional(TokenCachedImage),
     attributes: Type.Optional(Type.Array(MetadataAttribute)),
     properties: Type.Optional(MetadataProperties),
     localization: Type.Optional(MetadataLocalization),
@@ -264,6 +265,7 @@ export const FtMetadataResponse = Type.Object(
     token_uri: Type.Optional(TokenUri),
     description: Type.Optional(TokenDescription),
     image_uri: Type.Optional(TokenCachedImage),
+    image_thumbnail_uri: Type.Optional(TokenCachedImage),
     image_canonical_uri: Type.Optional(TokenImage),
     tx_id: Type.String({
       examples: ['0xef2ac1126e16f46843228b1dk4830e19eb7599129e4jf392cab9e65ae83a45c0'],
@@ -283,6 +285,7 @@ export const FtBasicMetadataResponse = Type.Object(
     token_uri: Type.Optional(TokenUri),
     description: Type.Optional(TokenDescription),
     image_uri: Type.Optional(TokenCachedImage),
+    image_thumbnail_uri: Type.Optional(TokenCachedImage),
     image_canonical_uri: Type.Optional(TokenImage),
     tx_id: Type.String({
       examples: ['0xef2ac1126e16f46843228b1dk4830e19eb7599129e4jf392cab9e65ae83a45c0'],
