@@ -4,7 +4,13 @@ import { ENV } from '../src/env';
 import { BlockchainDbSmartContract } from '../src/pg/blockchain-api/pg-blockchain-api-store';
 import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
 import { DbJobStatus, DbSipNumber, DbSmartContractInsert, DbTokenType } from '../src/pg/types';
-import { MockPgBlockchainApiStore, SIP_010_ABI, TestFastifyServer } from './helpers';
+import {
+  MockPgBlockchainApiStore,
+  SIP_010_ABI,
+  TestFastifyServer,
+  enqueueToken,
+  sleep,
+} from './helpers';
 
 describe('Admin RPC', () => {
   let db: PgStore;
@@ -232,6 +238,62 @@ describe('Admin RPC', () => {
 
       const jobs = await db.getPendingJobBatch({ limit: 2 });
       expect(jobs.length).toBe(2);
+    });
+  });
+
+  describe('/cache-images', () => {
+    test('reprocesses token images', async () => {
+      ENV.METADATA_IMAGE_CACHE_PROCESSOR = './tests/test-image-cache.js';
+      const principal = 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world';
+      await enqueueToken(db, principal);
+      await db.updateProcessedTokenWithMetadata({
+        id: 1,
+        values: {
+          token: {
+            name: 'hello-world',
+            symbol: 'HELLO',
+            decimals: 6,
+            total_supply: '1',
+            uri: 'http://test.com/uri.json',
+          },
+          metadataLocales: [
+            {
+              metadata: {
+                sip: 16,
+                token_id: 1,
+                name: 'hello-world',
+                l10n_locale: 'en',
+                l10n_uri: null,
+                l10n_default: true,
+                description: 'test',
+                image: 'http://test.com/image.png',
+                cached_image: null,
+                cached_thumbnail_image: null,
+              },
+            },
+          ],
+        },
+      });
+      const response = await fastify.inject({
+        url: '/metadata/admin/cache-images',
+        method: 'POST',
+        payload: JSON.stringify({
+          contractId: principal,
+        }),
+        headers: { 'content-type': 'application/json' },
+      });
+      expect(response.statusCode).toBe(200);
+      await sleep(1000); // Wait for changes to complete.
+      const bundle = await db.getTokenMetadataBundle({
+        contractPrincipal: principal,
+        tokenNumber: 1,
+      });
+      expect(bundle.metadataLocale?.metadata.cached_image).toBe(
+        'http://test.com/image.png?processed=true'
+      );
+      expect(bundle.metadataLocale?.metadata.cached_thumbnail_image).toBe(
+        'http://test.com/image.png?processed=true&thumb=true'
+      );
     });
   });
 });

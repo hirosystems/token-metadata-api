@@ -3,6 +3,7 @@ import { ENV } from '../../env';
 import { MetadataParseError } from './errors';
 import { parseDataUrl, getFetchableUrl } from './metadata-helpers';
 import { logger } from '@hirosystems/api-toolkit';
+import { PgStore } from '../../pg/pg-store';
 
 /**
  * If an external image processor script is configured, then it will process the given image URL for
@@ -23,6 +24,7 @@ export async function processImageUrl(
   if (imgUrl.startsWith('data:')) {
     return [imgUrl];
   }
+  logger.info(`ImageCache processing image for token ${contractPrincipal} (${tokenNumber})...`);
   const repoDir = process.cwd();
   const { code, stdout, stderr } = await new Promise<{
     code: number;
@@ -42,7 +44,7 @@ export async function processImageUrl(
     cp.on('error', error => reject(error));
   });
   if (code !== 0 && stderr) {
-    logger.warn(stderr, `METADATA_IMAGE_CACHE_PROCESSOR error`);
+    logger.warn(stderr, `ImageCache error`);
   }
   const result = stdout.trim().split('\n');
   try {
@@ -68,4 +70,27 @@ export function getImageUrl(uri: string): string {
   }
   const fetchableUrl = getFetchableUrl(uri);
   return fetchableUrl.toString();
+}
+
+export async function reprocessTokenImageCache(
+  db: PgStore,
+  contractPrincipal: string,
+  tokenIds?: number[]
+): Promise<void> {
+  await db.sqlWriteTransaction(async sql => {
+    const imageUris = await db.getTokenImageUris(contractPrincipal, tokenIds);
+    for (const token of imageUris) {
+      try {
+        const [cached, thumbnail] = await processImageUrl(
+          getFetchableUrl(token.image).toString(),
+          contractPrincipal,
+          BigInt(token.token_number)
+        );
+        if (cached && thumbnail)
+          await db.updateTokenCachedImages(token.token_id, cached, thumbnail);
+      } catch (error) {
+        logger.error(error, `ImageCache unable to reprocess token image cache`);
+      }
+    }
+  });
 }
