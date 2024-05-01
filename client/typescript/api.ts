@@ -502,14 +502,18 @@ export interface NotFoundErrorResponse {
  * @export
  * @interface Order
  */
-export interface Order {
+export enum Order {
+  asc = 'asc',
+  desc = 'desc',
 }
 /**
  * 
  * @export
  * @interface OrderBy
  */
-export interface OrderBy {
+export enum OrderBy {
+  name = 'name',
+  symbol = 'symbol',
 }
 /**
  * 
