@@ -11,7 +11,6 @@ import {
   BlockchainDbBlock,
 } from '../src/pg/blockchain-api/pg-blockchain-api-store';
 import { DbSipNumber, DbSmartContractInsert, DbTokenType } from '../src/pg/types';
-import db from 'node-pg-migrate/dist/db';
 
 export type TestFastifyServer = FastifyInstance<
   Server,
