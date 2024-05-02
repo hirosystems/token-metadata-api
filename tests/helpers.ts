@@ -10,6 +10,7 @@ import {
   BlockchainDbContractLog,
   BlockchainDbBlock,
 } from '../src/pg/blockchain-api/pg-blockchain-api-store';
+import { DbSipNumber, DbSmartContractInsert, DbTokenType } from '../src/pg/types';
 
 export type TestFastifyServer = FastifyInstance<
   Server,
@@ -93,6 +94,34 @@ export class MockPgBlockchainApiStore extends PgBlockchainApiStore {
   }): AsyncIterable<BlockchainDbContractLog[]> {
     return this.cursor(this.smartContractLogs ?? []);
   }
+}
+
+export async function enqueueContract(
+  db: PgStore,
+  principal: string = 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+  sip: DbSipNumber = DbSipNumber.sip010
+) {
+  const values: DbSmartContractInsert = {
+    principal,
+    sip,
+    abi: '"some"',
+    tx_id: '0x123456',
+    block_height: 1,
+  };
+  await db.insertAndEnqueueSmartContract({ values });
+}
+
+export async function enqueueToken(
+  db: PgStore,
+  principal: string = 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+  sip: DbSipNumber = DbSipNumber.sip010
+) {
+  await enqueueContract(db, principal, sip);
+  await db.insertAndEnqueueSequentialTokens({
+    smart_contract_id: 1,
+    token_count: 1n,
+    type: DbTokenType.ft,
+  });
 }
 
 export const SIP_009_ABI = {
