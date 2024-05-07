@@ -1,3 +1,17 @@
+## [0.7.0-beta.1](https://github.com/hirosystems/token-metadata-api/compare/v0.6.3...v0.7.0-beta.1) (2024-05-07)
+
+
+### Features
+
+* add admin rpc to reprocess token image cache ([#205](https://github.com/hirosystems/token-metadata-api/issues/205)) ([2fdcb33](https://github.com/hirosystems/token-metadata-api/commit/2fdcb33908062770da4e334810fd04bb378db66a))
+* update ts client with image thumbnails ([#206](https://github.com/hirosystems/token-metadata-api/issues/206)) ([c24cb56](https://github.com/hirosystems/token-metadata-api/commit/c24cb56b854123b252eb2e2616bb8589c5b36f0f))
+* upload token images to gcs ([#204](https://github.com/hirosystems/token-metadata-api/issues/204)) ([1cec219](https://github.com/hirosystems/token-metadata-api/commit/1cec2195a2b3df9e9c85f0152732594caa8c8c51))
+
+
+### Bug Fixes
+
+* get gcs auth token dynamically for image cache ([#210](https://github.com/hirosystems/token-metadata-api/issues/210)) ([8434b22](https://github.com/hirosystems/token-metadata-api/commit/8434b229f6d38e6799bf84bd6f1eb4de106996bb))
+
 ## [0.6.3](https://github.com/hirosystems/token-metadata-api/compare/v0.6.2...v0.6.3) (2024-05-07)
 
 
