@@ -119,6 +119,7 @@ describe('SFT routes', () => {
               description: 'test',
               image: null,
               cached_image: null,
+              cached_thumbnail_image: null,
             },
           },
         ],
@@ -182,6 +183,7 @@ describe('SFT routes', () => {
               description: 'test',
               image: 'http://test.com/image.png',
               cached_image: 'http://test.com/image.png?processed=true',
+              cached_thumbnail_image: 'http://test.com/image.png?thumb=true',
             },
             attributes: [
               {
@@ -224,6 +226,7 @@ describe('SFT routes', () => {
         name: 'key-alex-autoalex-v1',
         image: 'http://test.com/image.png',
         cached_image: 'http://test.com/image.png?processed=true',
+        cached_thumbnail_image: 'http://test.com/image.png?thumb=true',
         attributes: [
           {
             display_type: 'number',
