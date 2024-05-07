@@ -1,3 +1,10 @@
+## [0.6.3](https://github.com/hirosystems/token-metadata-api/compare/v0.6.2...v0.6.3) (2024-05-07)
+
+
+### Bug Fixes
+
+* retry `NoSuchContract` clarity errors ([#209](https://github.com/hirosystems/token-metadata-api/issues/209)) ([b7b6e84](https://github.com/hirosystems/token-metadata-api/commit/b7b6e84c5849fdfa0ce4d9520d0f8ae84f692910))
+
 ## [0.6.2](https://github.com/hirosystems/token-metadata-api/compare/v0.6.1...v0.6.2) (2024-05-07)
 
 
