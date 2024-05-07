@@ -16,6 +16,8 @@ const RawMetadata = Type.Object(
     // Properties below are not SIP-016 compliant.
     imageUrl: Type.Optional(Type.Any()),
     image_url: Type.Optional(Type.Any()),
+    image_uri: Type.Optional(Type.Any()),
+    image_canonical_uri: Type.Optional(Type.Any()),
   },
   { additionalProperties: true }
 );
