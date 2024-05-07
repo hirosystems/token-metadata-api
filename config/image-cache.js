@@ -34,6 +34,9 @@ const IMAGE_RESIZE_WIDTH = parseInt(process.env['IMAGE_CACHE_RESIZE_WIDTH'] ?? '
 const GCS_BUCKET_NAME = process.env['IMAGE_CACHE_GCS_BUCKET_NAME'];
 const GCS_OBJECT_NAME_PREFIX = process.env['IMAGE_CACHE_GCS_OBJECT_NAME_PREFIX'];
 const CDN_BASE_PATH = process.env['IMAGE_CACHE_CDN_BASE_PATH'];
+const TIMEOUT = parseInt(process.env['METADATA_FETCH_TIMEOUT_MS'] ?? '30');
+const MAX_REDIRECTIONS = parseInt(process.env['METADATA_FETCH_MAX_REDIRECTIONS'] ?? '0');
+const MAX_RESPONSE_SIZE = parseInt(process.env['IMAGE_CACHE_MAX_BYTE_SIZE'] ?? '-1');
 
 async function getGcsAuthToken() {
   const envToken = process.env['IMAGE_CACHE_GCS_AUTH_TOKEN'];
@@ -78,10 +81,10 @@ fetch(
   IMAGE_URL,
   {
     dispatcher: new Agent({
-      headersTimeout: process.env['METADATA_FETCH_TIMEOUT_MS'],
-      bodyTimeout: process.env['METADATA_FETCH_TIMEOUT_MS'],
-      maxRedirections: process.env['METADATA_FETCH_MAX_REDIRECTIONS'],
-      maxResponseSize: process.env['IMAGE_CACHE_MAX_BYTE_SIZE'],
+      headersTimeout: TIMEOUT,
+      bodyTimeout: TIMEOUT,
+      maxRedirections: MAX_REDIRECTIONS,
+      maxResponseSize: MAX_RESPONSE_SIZE,
       connect: {
         rejectUnauthorized: false, // Ignore SSL cert errors.
       },
