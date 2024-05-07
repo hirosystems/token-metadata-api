@@ -1,3 +1,10 @@
+## [0.6.2](https://github.com/hirosystems/token-metadata-api/compare/v0.6.1...v0.6.2) (2024-05-07)
+
+
+### Bug Fixes
+
+* handle missing image uris ([#207](https://github.com/hirosystems/token-metadata-api/issues/207)) ([a540ae0](https://github.com/hirosystems/token-metadata-api/commit/a540ae033c52161c5a5040304b8b992d31a4077c))
+
 ## [0.6.1](https://github.com/hirosystems/token-metadata-api/compare/v0.6.0...v0.6.1) (2024-02-27)
 
 
