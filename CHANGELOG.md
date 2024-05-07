@@ -1,3 +1,24 @@
+## [0.6.3](https://github.com/hirosystems/token-metadata-api/compare/v0.6.2...v0.6.3) (2024-05-07)
+
+
+### Bug Fixes
+
+* retry `NoSuchContract` clarity errors ([#209](https://github.com/hirosystems/token-metadata-api/issues/209)) ([b7b6e84](https://github.com/hirosystems/token-metadata-api/commit/b7b6e84c5849fdfa0ce4d9520d0f8ae84f692910))
+
+## [0.6.2](https://github.com/hirosystems/token-metadata-api/compare/v0.6.1...v0.6.2) (2024-05-07)
+
+
+### Bug Fixes
+
+* handle missing image uris ([#207](https://github.com/hirosystems/token-metadata-api/issues/207)) ([a540ae0](https://github.com/hirosystems/token-metadata-api/commit/a540ae033c52161c5a5040304b8b992d31a4077c))
+
+## [0.6.1](https://github.com/hirosystems/token-metadata-api/compare/v0.6.0...v0.6.1) (2024-02-27)
+
+
+### Bug Fixes
+
+* accept FTs with incorrect return type for get-token-supply ([#197](https://github.com/hirosystems/token-metadata-api/issues/197)) ([116248c](https://github.com/hirosystems/token-metadata-api/commit/116248c7af09a6658b5542a4c900159a10c38b47))
+
 ## [0.6.0](https://github.com/hirosystems/token-metadata-api/compare/v0.5.0...v0.6.0) (2023-12-20)
 
 

@@ -127,6 +127,8 @@ async function parseMetadataForInsertion(
       metadata.image ??
       metadata.imageUrl ??
       metadata.image_url ??
+      metadata.image_uri ??
+      metadata.image_canonical_uri ??
       defaultInsert?.metadata.image ??
       null;
     let cachedImage: string | undefined;
@@ -146,7 +148,7 @@ async function parseMetadataForInsertion(
       name: name.toString(),
       description:
         metadata.description?.toString() ?? defaultInsert?.metadata.description?.toString() ?? null,
-      image: image?.toString(),
+      image: image ? image.toString() : null,
       cached_image: cachedImage ?? null,
       cached_thumbnail_image: cachedThumbnailImage ?? null,
       l10n_default: raw.default,

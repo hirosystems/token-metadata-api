@@ -49,6 +49,27 @@ describe('StacksNodeRpcClient', () => {
     );
   });
 
+  test('contract not found errors get retried', async () => {
+    const mockResponse = {
+      okay: false,
+      cause: `Unchecked(NoSuchContract("${contractPrincipal}"))`,
+    };
+    const agent = new MockAgent();
+    agent.disableNetConnect();
+    agent
+      .get(nodeUrl)
+      .intercept({
+        path: `/v2/contracts/call-read/${contractAddr}/${contractName}/get-token-uri`,
+        method: 'POST',
+      })
+      .reply(200, mockResponse);
+    setGlobalDispatcher(agent);
+
+    await expect(client.readStringFromContract('get-token-uri', [])).rejects.toThrow(
+      RetryableJobError
+    );
+  });
+
   test('other node errors fail immediately', async () => {
     const mockResponse = {
       okay: false,
