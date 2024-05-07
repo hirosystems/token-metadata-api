@@ -16,7 +16,8 @@
  * * `IMAGE_CACHE_GCS_BUCKET_NAME`: Google Cloud Storage bucket name. Example: 'assets.dev.hiro.so'
  * * `IMAGE_CACHE_GCS_OBJECT_NAME_PREFIX`: Path for object storage inside the bucket. Example:
  *   'token-metadata-api/mainnet/'
- * * `IMAGE_CACHE_GCS_AUTH_TOKEN`: Google Cloud Storage authorization token.
+ * * `IMAGE_CACHE_GCS_AUTH_TOKEN`: Google Cloud Storage authorization token. If undefined, the token
+ *   will be fetched dynamically from Google.
  * * `IMAGE_CACHE_CDN_BASE_PATH`: Base path for URLs that will be returned to the API for storage.
  *   Example: 'https://assets.dev.hiro.so/token-metadata-api/mainnet/'
  */
@@ -32,17 +33,34 @@ const TOKEN_NUMBER = process.argv[4];
 const IMAGE_RESIZE_WIDTH = parseInt(process.env['IMAGE_CACHE_RESIZE_WIDTH'] ?? '300');
 const GCS_BUCKET_NAME = process.env['IMAGE_CACHE_GCS_BUCKET_NAME'];
 const GCS_OBJECT_NAME_PREFIX = process.env['IMAGE_CACHE_GCS_OBJECT_NAME_PREFIX'];
-const GCS_AUTH_TOKEN = process.env['IMAGE_CACHE_GCS_AUTH_TOKEN'];
 const CDN_BASE_PATH = process.env['IMAGE_CACHE_CDN_BASE_PATH'];
 
-async function upload(stream, name) {
+async function getGcsAuthToken() {
+  const envToken = process.env['IMAGE_CACHE_GCS_AUTH_TOKEN'];
+  if (envToken !== undefined) return envToken;
+  try {
+    const response = await request(
+      'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',
+      {
+        method: 'GET',
+        headers: { 'Metadata-Flavor': 'Google' },
+      }
+    );
+    if (response.data?.access_token) return response.data.access_token;
+    throw new Error(`GCS token not found`);
+  } catch (error) {
+    throw new Error(`Error fetching GCS access token: ${error.message}`);
+  }
+}
+
+async function upload(stream, name, authToken) {
   try {
     const response = await request(
       `https://storage.googleapis.com/upload/storage/v1/b/${GCS_BUCKET_NAME}/o?uploadType=media&name=${GCS_OBJECT_NAME_PREFIX}${name}`,
       {
         method: 'POST',
         body: stream,
-        headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${GCS_AUTH_TOKEN}` },
+        headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${authToken}` },
       }
     );
     if (response.statusCode !== 200) throw new Error(`GCS error: ${response.statusCode}`);
@@ -81,9 +99,10 @@ fetch(
     passThrough.pipe(fullSizeTransform);
     passThrough.pipe(thumbnailTransform);
 
+    const authToken = await getGcsAuthToken();
     const results = await Promise.all([
-      upload(fullSizeTransform, `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}.png`),
-      upload(thumbnailTransform, `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}-thumb.png`),
+      upload(fullSizeTransform, `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}.png`, authToken),
+      upload(thumbnailTransform, `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}-thumb.png`, authToken),
     ]);
 
     // The API will read these strings as CDN URLs.
