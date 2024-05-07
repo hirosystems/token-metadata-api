@@ -16,6 +16,8 @@
  * * `IMAGE_CACHE_GCS_BUCKET_NAME`: Google Cloud Storage bucket name. Example: 'assets.dev.hiro.so'
  * * `IMAGE_CACHE_GCS_OBJECT_NAME_PREFIX`: Path for object storage inside the bucket. Example:
  *   'token-metadata-api/mainnet/'
+ * * `IMAGE_CACHE_GCS_AUTH_TOKEN`: Google Cloud Storage authorization token. If undefined, the token
+ *   will be fetched dynamically from Google.
  * * `IMAGE_CACHE_CDN_BASE_PATH`: Base path for URLs that will be returned to the API for storage.
  *   Example: 'https://assets.dev.hiro.so/token-metadata-api/mainnet/'
  */
@@ -34,6 +36,8 @@ const GCS_OBJECT_NAME_PREFIX = process.env['IMAGE_CACHE_GCS_OBJECT_NAME_PREFIX']
 const CDN_BASE_PATH = process.env['IMAGE_CACHE_CDN_BASE_PATH'];
 
 async function getGcsAuthToken() {
+  const envToken = process.env['IMAGE_CACHE_GCS_AUTH_TOKEN'];
+  if (envToken !== undefined) return envToken;
   try {
     const response = await request(
       'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',
