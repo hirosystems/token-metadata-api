@@ -46,7 +46,11 @@ async function getGcsAuthToken() {
         headers: { 'Metadata-Flavor': 'Google' },
       }
     );
-    if (response.data?.access_token) return response.data.access_token;
+    if (response.data?.access_token) {
+      // Cache the token so we can reuse it for other images.
+      process.env['IMAGE_CACHE_GCS_AUTH_TOKEN'] = response.data.access_token;
+      return response.data.access_token;
+    }
     throw new Error(`GCS token not found`);
   } catch (error) {
     throw new Error(`Error fetching GCS access token: ${error.message}`);
@@ -99,15 +103,26 @@ fetch(
     passThrough.pipe(fullSizeTransform);
     passThrough.pipe(thumbnailTransform);
 
-    const authToken = await getGcsAuthToken();
-    const results = await Promise.all([
-      upload(fullSizeTransform, `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}.png`, authToken),
-      upload(thumbnailTransform, `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}-thumb.png`, authToken),
-    ]);
-
-    // The API will read these strings as CDN URLs.
-    for (const result of results) console.log(result);
+    let didRetryUnauthorized = false;
+    while (true) {
+      const authToken = await getGcsAuthToken();
+      try {
+        const results = await Promise.all([
+          upload(fullSizeTransform, `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}.png`, authToken),
+          upload(thumbnailTransform, `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}-thumb.png`, authToken),
+        ]);
+        // The API will read these strings as CDN URLs.
+        for (const result of results) console.log(result);
+        break;
+      } catch (error) {
+        if ((error.message.endsWith('403') || error.message.endsWith('401')) && !didRetryUnauthorized) {
+          // Force a dynamic token refresh and try again.
+          process.env['IMAGE_CACHE_GCS_AUTH_TOKEN'] = undefined;
+          didRetryUnauthorized = true;
+        } else throw error;
+      }
+    }
   })
   .catch(error => {
-    throw new Error(`Error processing image: ${error.message}`);
+    throw new Error(`Error fetching image: ${error}`);
   });

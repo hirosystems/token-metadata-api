@@ -24,13 +24,14 @@ export async function processImageUrl(
   if (imgUrl.startsWith('data:')) {
     return [imgUrl];
   }
+
   logger.info(`ImageCache processing image for token ${contractPrincipal} (${tokenNumber})...`);
   const repoDir = process.cwd();
   const { code, stdout, stderr } = await new Promise<{
     code: number;
     stdout: string;
     stderr: string;
-  }>((resolve, reject) => {
+  }>(resolve => {
     const cp = child_process.spawn(
       imageCacheProcessor,
       [imgUrl, contractPrincipal, tokenNumber.toString()],
@@ -41,11 +42,9 @@ export async function processImageUrl(
     cp.stdout.on('data', data => (stdout += data));
     cp.stderr.on('data', data => (stderr += data));
     cp.on('close', code => resolve({ code: code ?? 0, stdout, stderr }));
-    cp.on('error', error => reject(error));
   });
-  if (code !== 0 && stderr) {
-    logger.warn(stderr, `ImageCache error`);
-  }
+  if (code !== 0) throw new Error(`ImageCache error: ${stderr}`);
+
   const result = stdout.trim().split('\n');
   try {
     return result.map(r => new URL(r).toString());
