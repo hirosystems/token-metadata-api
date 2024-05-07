@@ -45,7 +45,7 @@ async function getGcsAuthToken() {
     if (response.data?.access_token) return response.data.access_token;
     throw new Error(`GCS token not found`);
   } catch (error) {
-    throw new Error(`Error fetching access token from GCP metadata server: ${error.message}`);
+    throw new Error(`Error fetching GCS access token: ${error.message}`);
   }
 }
 
@@ -89,8 +89,8 @@ fetch(
     const passThrough = new PassThrough();
     const fullSizeTransform = sharp().png();
     const thumbnailTransform = sharp()
-    .resize({ width: IMAGE_RESIZE_WIDTH, withoutEnlargement: true })
-    .png();
+      .resize({ width: IMAGE_RESIZE_WIDTH, withoutEnlargement: true })
+      .png();
     imageReadStream.pipe(passThrough);
     passThrough.pipe(fullSizeTransform);
     passThrough.pipe(thumbnailTransform);
