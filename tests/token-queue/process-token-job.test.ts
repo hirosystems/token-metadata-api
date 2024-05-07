@@ -254,6 +254,96 @@ describe('ProcessTokenJob', () => {
       expect(token?.decimals).toBe(6);
       expect(token?.total_supply).toBeUndefined();
     });
+
+    test('accepts FTs with invalid image entries', async () => {
+      // `image_location` is not a recognized field.
+      const json = `{
+        "name": "MEME Token",
+        "symbol": "MEME",
+        "decimals": 6,
+        "total_supply": 6969696696.969696,
+        "token_uri": "https://static.wixstatic.com/media/1f3f2b_21fe381c89284e328827e6c35f4b5513~mv2.png/v1/fill/w_952,h_966,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/Untitled%20design%20-%202023-03-30T220301_142.png",
+        "description": "$MEME, some random meme. Don't buy it.",
+        "image_location": "https://static.wixstatic.com/media/1f3f2b_21fe381c89284e328827e6c35f4b5513~mv2.png/v1/fill/w_952,h_966,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/Untitled%20design%20-%202023-03-30T220301_142.png",
+        "tx_id": "0x0a24b5b49ef70222382cb3bf40faf98deb835ec3531be98ab5a20ac047220a0c",
+        "sender_address": "SP2GEP37WGW6QRFHVDAM3XW9Z716SRS94FJXPZFT3",
+        "metadata": {
+          "sip": 16,
+          "name": "MEME Token",
+          "description": "$MEME, some random meme. Don't buy it.",
+          "image": "https://static.wixstatic.com/media/1f3f2b_21fe381c89284e328827e6c35f4b5513~mv2.png/v1/fill/w_952,h_966,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/Untitled%20design%20-%202023-03-30T220301_142.png",
+          "cached_image": "https://static.wixstatic.com/media/1f3f2b_21fe381c89284e328827e6c35f4b5513~mv2.png/v1/fill/w_952,h_966,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/Untitled%20design%20-%202023-03-30T220301_142.png"
+        }
+      }`;
+      const agent = new MockAgent();
+      agent.disableNetConnect();
+      agent
+        .get('https://www.100x.fi')
+        .intercept({
+          path: '/meme1.json',
+          method: 'GET',
+        })
+        .reply(200, json);
+      const interceptor = agent.get(
+        `http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`
+      );
+      interceptor
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-ft/get-name',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(stringUtf8CV('meme')),
+        });
+      interceptor
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-ft/get-token-uri',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(stringUtf8CV('https://www.100x.fi/meme1.json')),
+        });
+      interceptor
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-ft/get-symbol',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(stringUtf8CV('MEME')),
+        });
+      interceptor
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-ft/get-decimals',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(uintCV(8)),
+        });
+      interceptor
+        .intercept({
+          path: '/v2/contracts/call-read/ABCD/test-ft/get-total-supply',
+          method: 'POST',
+        })
+        .reply(200, {
+          okay: true,
+          result: cvToHex(uintCV(2100000000000000)),
+        });
+      setGlobalDispatcher(agent);
+
+      const processor = new ProcessTokenJob({ db, job: tokenJob });
+      await processor.work();
+
+      const token = await db.getTokenMetadataBundle({
+        contractPrincipal: 'ABCD.test-ft',
+        tokenNumber: 1,
+      });
+      expect(token).not.toBeUndefined();
+      expect(token?.metadataLocale?.metadata?.image).toBe(null);
+    });
   });
 
   describe('NFT', () => {
