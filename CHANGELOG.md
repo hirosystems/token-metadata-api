@@ -1,3 +1,10 @@
+## [0.7.0-beta.2](https://github.com/hirosystems/token-metadata-api/compare/v0.7.0-beta.1...v0.7.0-beta.2) (2024-05-07)
+
+
+### Bug Fixes
+
+* reuse gcs token and validate image cache script errors ([#213](https://github.com/hirosystems/token-metadata-api/issues/213)) ([5e1af5c](https://github.com/hirosystems/token-metadata-api/commit/5e1af5c28cd0b1313f78a59b015669ceb07e5738))
+
 ## [0.7.0-beta.1](https://github.com/hirosystems/token-metadata-api/compare/v0.6.3...v0.7.0-beta.1) (2024-05-07)
 
 
