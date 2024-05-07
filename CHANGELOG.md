@@ -1,3 +1,10 @@
+## [0.7.0-beta.3](https://github.com/hirosystems/token-metadata-api/compare/v0.7.0-beta.2...v0.7.0-beta.3) (2024-05-07)
+
+
+### Bug Fixes
+
+* image cache agent arg types ([5826628](https://github.com/hirosystems/token-metadata-api/commit/5826628a329225fbf697a092dc201fc74fb96d43))
+
 ## [0.7.0-beta.2](https://github.com/hirosystems/token-metadata-api/compare/v0.7.0-beta.1...v0.7.0-beta.2) (2024-05-07)
 
 
