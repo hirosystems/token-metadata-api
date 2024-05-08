@@ -103,16 +103,22 @@ fetch(
     while (true) {
       const authToken = await getGcsAuthToken();
       try {
-        console.log(
-          upload(fullSizeTransform, `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}.png`, authToken)
+        const url1 = upload(
+          fullSizeTransform,
+          `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}.png`,
+          authToken
         );
-        console.log(
-          upload(thumbnailTransform, `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}-thumb.png`, authToken)
+        const url2 = upload(
+          thumbnailTransform,
+          `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}-thumb.png`,
+          authToken
         );
         // const results = await Promise.all([
         // ]);
         // The API will read these strings as CDN URLs.
         // for (const result of results) console.log(result);
+        console.log(url1);
+        console.log(url2);
         break;
       } catch (error) {
         console.error(`Upload error: ${error}`);
