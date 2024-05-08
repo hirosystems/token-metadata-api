@@ -23,7 +23,7 @@
  */
 
 const sharp = require('sharp');
-const { request, fetch, errors, Agent } = require('undici');
+const { request, fetch, Agent } = require('undici');
 const { Readable, PassThrough } = require('node:stream');
 
 const IMAGE_URL = process.argv[2];
@@ -62,25 +62,22 @@ async function getGcsAuthToken() {
 }
 
 async function fetchImage() {
-  const response = await fetch(
-    IMAGE_URL,
-    {
-      dispatcher: new Agent({
-        headersTimeout: TIMEOUT,
-        bodyTimeout: 1, //TIMEOUT,
-        maxRedirections: MAX_REDIRECTIONS,
-        maxResponseSize: MAX_RESPONSE_SIZE,
-        throwOnError: true,
-        connect: {
-          rejectUnauthorized: false, // Ignore SSL cert errors.
-        },
-      }),
-    }
-  );
+  const response = await fetch(IMAGE_URL, {
+    dispatcher: new Agent({
+      headersTimeout: TIMEOUT,
+      bodyTimeout: 1, //TIMEOUT,
+      maxRedirections: MAX_REDIRECTIONS,
+      maxResponseSize: MAX_RESPONSE_SIZE,
+      throwOnError: true,
+      connect: {
+        rejectUnauthorized: false, // Ignore SSL cert errors.
+      },
+    }),
+  });
   return response.body;
 }
 
-async function upload(stream, name, authToken) {
+async function uploadCachedImage(stream, name, authToken) {
   try {
     const response = await request(
       `https://storage.googleapis.com/upload/storage/v1/b/${GCS_BUCKET_NAME}/o?uploadType=media&name=${GCS_OBJECT_NAME_PREFIX}${name}`,
@@ -117,8 +114,16 @@ fetchImage()
       const authToken = await getGcsAuthToken();
       try {
         const results = await Promise.all([
-          upload(fullSizeTransform, `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}.png`, authToken),
-          upload(thumbnailTransform, `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}-thumb.png`, authToken),
+          uploadCachedImage(
+            fullSizeTransform,
+            `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}.png`,
+            authToken
+          ),
+          uploadCachedImage(
+            thumbnailTransform,
+            `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}-thumb.png`,
+            authToken
+          ),
         ]);
         // The API will read these strings as CDN URLs.
         for (const result of results) console.log(result);
@@ -137,15 +142,14 @@ fetchImage()
     process.exit(0);
   })
   .catch(error => {
-    console.error(`Undici fetch error detected`);
     console.error(error);
     if (
-      error instanceof errors.HeadersTimeoutError ||
-      error instanceof errors.BodyTimeoutError ||
-      error instanceof errors.ConnectTimeoutError
+      error.code == 'UND_ERR_HEADERS_TIMEOUT' ||
+      error.code == 'UND_ERR_BODY_TIMEOUT' ||
+      error.code == 'UND_ERR_CONNECT_TIMEOUT'
     ) {
       process.exit(2);
-    } else if (error instanceof errors.ResponseStatusCodeError && error.statusCode === 429) {
+    } else if (error.code == 'UND_ERR_RESPONSE_STATUS_CODE' && error.statusCode === 429) {
       process.exit(3);
     }
     process.exit(1);
