@@ -119,10 +119,9 @@ fetch(
           // Force a dynamic token refresh and try again.
           process.env['IMAGE_CACHE_GCS_AUTH_TOKEN'] = undefined;
           didRetryUnauthorized = true;
-        } else throw error;
+        } else throw new Error(`Image upload error: ${error}`);
       }
     }
-    process.exit(0);
   })
   .catch(error => {
     console.error(error);
