@@ -126,14 +126,15 @@ fetch(
   })
   .catch(error => {
     console.error(error);
+    let exitCode = 1;
     if (
       error.code == 'UND_ERR_HEADERS_TIMEOUT' ||
       error.code == 'UND_ERR_BODY_TIMEOUT' ||
       error.code == 'UND_ERR_CONNECT_TIMEOUT'
     ) {
-      process.exit(2);
+      exitCode = 2;
     } else if (error.code == 'UND_ERR_RESPONSE_STATUS_CODE' && error.statusCode === 429) {
-      process.exit(3);
+      exitCode = 3
     }
-    process.exit(1);
+    process.exit(exitCode);
   });
