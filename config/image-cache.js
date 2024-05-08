@@ -60,15 +60,20 @@ async function getGcsAuthToken() {
 }
 
 async function upload(stream, name, authToken) {
-  await request(
-    `https://storage.googleapis.com/upload/storage/v1/b/${GCS_BUCKET_NAME}/o?uploadType=media&name=${GCS_OBJECT_NAME_PREFIX}${name}`,
-    {
-      method: 'POST',
-      body: stream,
-      headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${authToken}` },
-      throwOnError: true,
-    }
-  );
+  try {
+    const response = await request(
+      `https://storage.googleapis.com/upload/storage/v1/b/${GCS_BUCKET_NAME}/o?uploadType=media&name=${GCS_OBJECT_NAME_PREFIX}${name}`,
+      {
+        method: 'POST',
+        body: stream,
+        headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${authToken}` },
+        throwOnError: true,
+      }
+    );
+    logger.error(response);
+  } catch (error) {
+    logger.error(`Upload !!! ${error}`);
+  }
   return `${CDN_BASE_PATH}${name}`;
 }
 
@@ -116,10 +121,6 @@ fetch(
           `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}-thumb.png`,
           authToken
         );
-        // const results = await Promise.all([
-        // ]);
-        // The API will read these strings as CDN URLs.
-        // for (const result of results) console.log(result);
         console.log(url1);
         console.log(url2);
         console.error(`uploads done`);
