@@ -71,6 +71,7 @@ async function upload(stream, name, authToken) {
       }
     );
     logger.error(response);
+    logger.error(await response.body.text());
   } catch (error) {
     logger.error(`Upload !!! ${error}`);
   }
