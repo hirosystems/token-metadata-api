@@ -5,6 +5,7 @@ import { parseDataUrl, getFetchableDecentralizedStorageUrl } from './metadata-he
 import { logger } from '@hirosystems/api-toolkit';
 import { PgStore } from '../../pg/pg-store';
 import { errors } from 'undici';
+import { RetryableJobError } from '../queue/errors';
 
 /**
  * If an external image processor script is configured in the `METADATA_IMAGE_CACHE_PROCESSOR` ENV
@@ -50,12 +51,12 @@ export async function processImageCache(
         );
       }
     case 2:
-      // This should be retryable.
-      throw new MetadataTimeoutError(imgUrl);
+      throw new RetryableJobError(`ImageCache fetch timed out`, new MetadataTimeoutError(imgUrl));
     case 3:
-      // We got rate limited during the image fetch. Report this as a retryable error with a
-      // synthetic rate limit error.
-      throw new TooManyRequestsHttpError(new URL(imgUrl), new errors.ResponseStatusCodeError());
+      throw new RetryableJobError(
+        `ImageCache fetch rate limited`,
+        new TooManyRequestsHttpError(new URL(imgUrl), new errors.ResponseStatusCodeError())
+      );
     default:
       throw new Error(`ImageCache script error (code ${code}): ${stderr}`);
   }
