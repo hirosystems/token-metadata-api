@@ -82,11 +82,15 @@ async function callImageCacheScript(
       [imgUrl, contractPrincipal, tokenNumber.toString()],
       { cwd: repoDir }
     );
+    let code = 0;
     let stdout = '';
     let stderr = '';
     cp.stdout.on('data', data => (stdout += data));
     cp.stderr.on('data', data => (stderr += data));
-    cp.on('close', code => resolve({ code: code ?? 0, stdout, stderr }));
+    cp.on('close', _ => resolve({ code, stdout, stderr }));
+    cp.on('exit', processCode => {
+      code = processCode ?? 0;
+    });
   });
 }
 

@@ -125,6 +125,7 @@ fetch(
     process.exit(0);
   })
   .catch(error => {
+    console.error(`Fetch error detected: ${error.code}`);
     console.error(error);
     let exitCode = 1;
     if (
