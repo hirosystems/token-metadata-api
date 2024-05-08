@@ -49,12 +49,13 @@ async function getGcsAuthToken() {
         headers: { 'Metadata-Flavor': 'Google' },
       }
     );
-    if (response.data?.access_token) {
+    const json = await response.body.json();
+    if (response.statusCode === 200 && json.access_token) {
       // Cache the token so we can reuse it for other images.
-      process.env['IMAGE_CACHE_GCS_AUTH_TOKEN'] = response.data.access_token;
-      return response.data.access_token;
+      process.env['IMAGE_CACHE_GCS_AUTH_TOKEN'] = json.access_token;
+      return json.access_token;
     }
-    throw new Error(`GCS token not found`);
+    throw new Error(`GCS access token not found ${response.statusCode}: ${json}`);
   } catch (error) {
     throw new Error(`Error fetching GCS access token: ${error.message}`);
   }
@@ -118,7 +119,10 @@ fetch(
         for (const result of results) console.log(result);
         break;
       } catch (error) {
-        if ((error.message.endsWith('403') || error.message.endsWith('401')) && !didRetryUnauthorized) {
+        if (
+          (error.message.endsWith('403') || error.message.endsWith('401')) &&
+          !didRetryUnauthorized
+        ) {
           // Force a dynamic token refresh and try again.
           process.env['IMAGE_CACHE_GCS_AUTH_TOKEN'] = undefined;
           didRetryUnauthorized = true;
