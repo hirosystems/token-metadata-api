@@ -32,6 +32,8 @@ describe('Image cache', () => {
 
   test('handles script errors', async () => {
     ENV.METADATA_IMAGE_CACHE_PROCESSOR = './tests/test-image-cache-error.js';
-    await expect(processImageCache(url, contract, tokenNumber)).rejects.toThrow(/ImageCache error/);
+    await expect(processImageCache(url, contract, tokenNumber)).rejects.toThrow(
+      /ImageCache script error/
+    );
   });
 });
