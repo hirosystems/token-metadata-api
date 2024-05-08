@@ -1,3 +1,10 @@
+## [0.7.0-beta.4](https://github.com/hirosystems/token-metadata-api/compare/v0.7.0-beta.3...v0.7.0-beta.4) (2024-05-08)
+
+
+### Bug Fixes
+
+* get access token properly ([a6b98c5](https://github.com/hirosystems/token-metadata-api/commit/a6b98c5099a9de1d88e74eed66dece1c4c157422))
+
 ## [0.7.0-beta.3](https://github.com/hirosystems/token-metadata-api/compare/v0.7.0-beta.2...v0.7.0-beta.3) (2024-05-07)
 
 
