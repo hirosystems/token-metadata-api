@@ -7,7 +7,7 @@ import {
   MetadataTimeoutError,
 } from '../src/token-processor/util/errors';
 import {
-  getFetchableUrl,
+  getFetchableDecentralizedStorageUrl,
   getMetadataFromUri,
   getTokenSpecificUri,
   fetchMetadata,
@@ -187,16 +187,16 @@ describe('Metadata Helpers', () => {
     ENV.PUBLIC_GATEWAY_IPFS = 'https://cloudflare-ipfs.com';
     ENV.PUBLIC_GATEWAY_ARWEAVE = 'https://arweave.net';
     const arweave = 'ar://II4z2ziYyqG7-kWDa98lWGfjxRdYOx9Zdld9P_I_kzE/9731.json';
-    expect(getFetchableUrl(arweave).toString()).toBe(
+    expect(getFetchableDecentralizedStorageUrl(arweave).toString()).toBe(
       'https://arweave.net/II4z2ziYyqG7-kWDa98lWGfjxRdYOx9Zdld9P_I_kzE/9731.json'
     );
     const ipfs =
       'ipfs://ipfs/bafybeifwoqwdhs5djtx6vopvuwfcdrqeuecayp5wzpzjylxycejnhtrhgu/vague_art_paintings/vague_art_paintings_6_metadata.json';
-    expect(getFetchableUrl(ipfs).toString()).toBe(
+    expect(getFetchableDecentralizedStorageUrl(ipfs).toString()).toBe(
       'https://cloudflare-ipfs.com/ipfs/bafybeifwoqwdhs5djtx6vopvuwfcdrqeuecayp5wzpzjylxycejnhtrhgu/vague_art_paintings/vague_art_paintings_6_metadata.json'
     );
     const ipfs2 = 'ipfs://QmYCnfeseno5cLpC75rmy6LQhsNYQCJabiuwqNUXMaA3Fo/1145.png';
-    expect(getFetchableUrl(ipfs2).toString()).toBe(
+    expect(getFetchableDecentralizedStorageUrl(ipfs2).toString()).toBe(
       'https://cloudflare-ipfs.com/ipfs/QmYCnfeseno5cLpC75rmy6LQhsNYQCJabiuwqNUXMaA3Fo/1145.png'
     );
   });

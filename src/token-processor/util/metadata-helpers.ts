@@ -18,7 +18,7 @@ import {
   TooManyRequestsHttpError,
 } from './errors';
 import { RetryableJobError } from '../queue/errors';
-import { getImageUrl, processImageUrl } from './image-cache';
+import { normalizeImageUri, processImageCache } from './image-cache';
 import {
   RawMetadataLocale,
   RawMetadataLocalizationCType,
@@ -134,8 +134,8 @@ async function parseMetadataForInsertion(
     let cachedImage: string | undefined;
     let cachedThumbnailImage: string | undefined;
     if (image && typeof image === 'string') {
-      const normalizedUrl = getImageUrl(image);
-      [cachedImage, cachedThumbnailImage] = await processImageUrl(
+      const normalizedUrl = normalizeImageUri(image);
+      [cachedImage, cachedThumbnailImage] = await processImageCache(
         normalizedUrl,
         contract.principal,
         token.token_number
@@ -255,7 +255,7 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
   }
 
   // Support HTTP/S URLs otherwise
-  const httpUrl = getFetchableUrl(token_uri);
+  const httpUrl = getFetchableDecentralizedStorageUrl(token_uri);
   const urlStr = httpUrl.toString();
   let fetchImmediateRetryCount = 0;
   let content: string | undefined;
@@ -270,7 +270,7 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
     } catch (error) {
       fetchImmediateRetryCount++;
       fetchError = error;
-      if (error instanceof MetadataTimeoutError && isUriFromDecentralizedGateway(token_uri)) {
+      if (error instanceof MetadataTimeoutError && isUriFromDecentralizedStorage(token_uri)) {
         // Gateways like IPFS and Arweave commonly time out when a resource can't be found quickly.
         // Try again later if this is the case.
         throw new RetryableJobError(`Gateway timeout for ${urlStr}`, error);
@@ -314,7 +314,7 @@ function parseJsonMetadata(url: string, content?: string): RawMetadata {
  * @param uri - URL to convert
  * @returns Fetchable URL
  */
-export function getFetchableUrl(uri: string): URL {
+export function getFetchableDecentralizedStorageUrl(uri: string): URL {
   try {
     const parsedUri = new URL(uri);
     if (parsedUri.protocol === 'http:' || parsedUri.protocol === 'https:') return parsedUri;
@@ -334,7 +334,7 @@ export function getFetchableUrl(uri: string): URL {
   throw new MetadataParseError(`Unsupported uri protocol: ${uri}`);
 }
 
-function isUriFromDecentralizedGateway(uri: string): boolean {
+function isUriFromDecentralizedStorage(uri: string): boolean {
   return (
     uri.startsWith('ipfs:') ||
     uri.startsWith('ipns:') ||

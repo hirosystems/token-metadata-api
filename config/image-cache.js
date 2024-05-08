@@ -23,7 +23,7 @@
  */
 
 const sharp = require('sharp');
-const { request, fetch, Agent } = require('undici');
+const { request, fetch, errors, Agent } = require('undici');
 const { Readable, PassThrough } = require('node:stream');
 
 const IMAGE_URL = process.argv[2];
@@ -86,21 +86,22 @@ fetch(
       bodyTimeout: TIMEOUT,
       maxRedirections: MAX_REDIRECTIONS,
       maxResponseSize: MAX_RESPONSE_SIZE,
+      throwOnError: true,
       connect: {
         rejectUnauthorized: false, // Ignore SSL cert errors.
       },
     }),
   },
-  ({ statusCode, body }) => {
-    if (statusCode !== 200) throw new Error(`Failed to fetch image: ${statusCode}`);
-    return body;
-  }
+  ({ body }) => body
 )
   .then(async response => {
     const imageReadStream = Readable.fromWeb(response.body);
     const passThrough = new PassThrough();
-    const fullSizeTransform = sharp().png();
+    const fullSizeTransform = sharp()
+      .on('warning', _ => {})
+      .png();
     const thumbnailTransform = sharp()
+      .on('warning', _ => {})
       .resize({ width: IMAGE_RESIZE_WIDTH, withoutEnlargement: true })
       .png();
     imageReadStream.pipe(passThrough);
@@ -129,7 +130,18 @@ fetch(
         } else throw error;
       }
     }
+    process.exit(0);
   })
   .catch(error => {
-    throw new Error(`Error fetching image: ${error}`);
+    console.error(error);
+    if (
+      error instanceof errors.HeadersTimeoutError ||
+      error instanceof errors.BodyTimeoutError ||
+      error instanceof errors.ConnectTimeoutError
+    ) {
+      process.exit(2);
+    } else if (error instanceof errors.ResponseStatusCodeError && error.statusCode === 429) {
+      process.exit(3);
+    }
+    process.exit(1);
   });
