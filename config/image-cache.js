@@ -111,6 +111,7 @@ fetch(
         for (const result of results) console.log(result);
         break;
       } catch (error) {
+        console.error(error);
         if (
           error.cause.code == 'UND_ERR_RESPONSE_STATUS_CODE' &&
           (error.cause.statusCode === 401 || error.cause.statusCode === 403) &&
