@@ -105,13 +105,13 @@ fetch(
       const authToken = await getGcsAuthToken();
       try {
         console.error(`upload 1`);
-        const url1 = upload(
+        const url1 = await upload(
           fullSizeTransform,
           `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}.png`,
           authToken
         );
         console.error(`upload 2`);
-        const url2 = upload(
+        const url2 = await upload(
           thumbnailTransform,
           `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}-thumb.png`,
           authToken
