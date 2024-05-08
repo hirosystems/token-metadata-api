@@ -47,17 +47,15 @@ async function getGcsAuthToken() {
       {
         method: 'GET',
         headers: { 'Metadata-Flavor': 'Google' },
+        throwOnError: true,
       }
     );
     const json = await response.body.json();
-    if (response.statusCode === 200 && json.access_token) {
-      // Cache the token so we can reuse it for other images.
-      process.env['IMAGE_CACHE_GCS_AUTH_TOKEN'] = json.access_token;
-      return json.access_token;
-    }
-    throw new Error(`GCS access token not found ${response.statusCode}: ${json}`);
+    // Cache the token so we can reuse it for other images.
+    process.env['IMAGE_CACHE_GCS_AUTH_TOKEN'] = json.access_token;
+    return json.access_token;
   } catch (error) {
-    throw new Error(`Error fetching GCS access token: ${error.message}`);
+    throw new Error(`GCS access token error: ${error}`);
   }
 }
 
@@ -78,31 +76,24 @@ async function fetchImage() {
 }
 
 async function uploadCachedImage(stream, name, authToken) {
-  try {
-    const response = await request(
-      `https://storage.googleapis.com/upload/storage/v1/b/${GCS_BUCKET_NAME}/o?uploadType=media&name=${GCS_OBJECT_NAME_PREFIX}${name}`,
-      {
-        method: 'POST',
-        body: stream,
-        headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${authToken}` },
-      }
-    );
-    if (response.statusCode !== 200) throw new Error(`GCS error: ${response.statusCode}`);
-    return `${CDN_BASE_PATH}${name}`;
-  } catch (error) {
-    throw new Error(`Error uploading ${name}: ${error.message}`);
-  }
+  await request(
+    `https://storage.googleapis.com/upload/storage/v1/b/${GCS_BUCKET_NAME}/o?uploadType=media&name=${GCS_OBJECT_NAME_PREFIX}${name}`,
+    {
+      method: 'POST',
+      body: stream,
+      headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${authToken}` },
+      throwOnError: true,
+    }
+  );
+  return `${CDN_BASE_PATH}${name}`;
 }
 
 fetchImage()
   .then(async response => {
     const imageReadStream = Readable.fromWeb(response.body);
     const passThrough = new PassThrough();
-    const fullSizeTransform = sharp()
-      .on('warning', _ => {})
-      .png();
+    const fullSizeTransform = sharp().png();
     const thumbnailTransform = sharp()
-      .on('warning', _ => {})
       .resize({ width: IMAGE_RESIZE_WIDTH, withoutEnlargement: true })
       .png();
     imageReadStream.pipe(passThrough);
@@ -130,7 +121,8 @@ fetchImage()
         break;
       } catch (error) {
         if (
-          (error.message.endsWith('403') || error.message.endsWith('401')) &&
+          error.code == 'UND_ERR_RESPONSE_STATUS_CODE' &&
+          (error.statusCode === 401 || error.statusCode === 403) &&
           !didRetryUnauthorized
         ) {
           // Force a dynamic token refresh and try again.
