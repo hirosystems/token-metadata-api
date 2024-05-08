@@ -70,10 +70,11 @@ async function upload(stream, name, authToken) {
         throwOnError: true,
       }
     );
-    logger.error(response);
-    logger.error(await response.body.text());
+    console.error(response);
+    console.error(await response.body.text());
   } catch (error) {
-    logger.error(`Upload !!! ${error}`);
+    console.error(`Upload !!! ${error}`);
+    throw error;
   }
   return `${CDN_BASE_PATH}${name}`;
 }
