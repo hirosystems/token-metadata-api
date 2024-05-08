@@ -112,8 +112,8 @@ fetch(
         break;
       } catch (error) {
         if (
-          error.code == 'UND_ERR_RESPONSE_STATUS_CODE' &&
-          (error.statusCode === 401 || error.statusCode === 403) &&
+          error.cause.code == 'UND_ERR_RESPONSE_STATUS_CODE' &&
+          (error.cause.statusCode === 401 || error.cause.statusCode === 403) &&
           !didRetryUnauthorized
         ) {
           // Force a dynamic token refresh and try again.
@@ -125,17 +125,19 @@ fetch(
     process.exit(0);
   })
   .catch(error => {
-    console.error(`Fetch error detected: ${error.code}`);
     console.error(error);
     let exitCode = 1;
     if (
-      error.code == 'UND_ERR_HEADERS_TIMEOUT' ||
-      error.code == 'UND_ERR_BODY_TIMEOUT' ||
-      error.code == 'UND_ERR_CONNECT_TIMEOUT'
+      error.cause.code == 'UND_ERR_HEADERS_TIMEOUT' ||
+      error.cause.code == 'UND_ERR_BODY_TIMEOUT' ||
+      error.cause.code == 'UND_ERR_CONNECT_TIMEOUT'
     ) {
       exitCode = 2;
-    } else if (error.code == 'UND_ERR_RESPONSE_STATUS_CODE' && error.statusCode === 429) {
-      exitCode = 3
+    } else if (
+      error.cause.code == 'UND_ERR_RESPONSE_STATUS_CODE' &&
+      error.cause.statusCode === 429
+    ) {
+      exitCode = 3;
     }
     process.exit(exitCode);
   });
