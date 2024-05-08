@@ -101,13 +101,16 @@ fetch(
 
     let didRetryUnauthorized = false;
     while (true) {
+      console.error(`auth token`);
       const authToken = await getGcsAuthToken();
       try {
+        console.error(`upload 1`);
         const url1 = upload(
           fullSizeTransform,
           `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}.png`,
           authToken
         );
+        console.error(`upload 2`);
         const url2 = upload(
           thumbnailTransform,
           `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}-thumb.png`,
@@ -119,6 +122,7 @@ fetch(
         // for (const result of results) console.log(result);
         console.log(url1);
         console.log(url2);
+        console.error(`uploads done`);
         break;
       } catch (error) {
         console.error(`Upload error: ${error}`);
