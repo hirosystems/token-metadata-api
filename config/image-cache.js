@@ -41,7 +41,7 @@ const MAX_RESPONSE_SIZE = parseInt(process.env['IMAGE_CACHE_MAX_BYTE_SIZE'] ?? '
 async function getGcsAuthToken() {
   const envToken = process.env['IMAGE_CACHE_GCS_AUTH_TOKEN'];
   if (envToken !== undefined) return envToken;
-  // try {
+  try {
     const response = await request(
       'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',
       {
@@ -54,9 +54,9 @@ async function getGcsAuthToken() {
     // Cache the token so we can reuse it for other images.
     process.env['IMAGE_CACHE_GCS_AUTH_TOKEN'] = json.access_token;
     return json.access_token;
-  // } catch (error) {
-  //   throw new Error(`GCS access token error: ${error}`);
-  // }
+  } catch (error) {
+    throw new Error(`GCS access token error: ${error}`);
+  }
 }
 
 async function upload(stream, name, authToken) {
@@ -66,7 +66,6 @@ async function upload(stream, name, authToken) {
       method: 'POST',
       body: stream,
       headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${authToken}` },
-      throwOnError: true,
     }
   );
   return `${CDN_BASE_PATH}${name}`;
@@ -90,31 +89,52 @@ fetch(
 )
   .then(async response => {
     const imageReadStream = Readable.fromWeb(response.body);
+    imageReadStream.on('error', error => console.log(`imageReadStream: ${error}`));
     const passThrough = new PassThrough();
+    passThrough.on('error', error => console.log(`passThrough: ${error}`));
     const fullSizeTransform = sharp().png();
+    fullSizeTransform.on('error', error => console.log(`fullSizeTransform: ${error}`));
     const thumbnailTransform = sharp()
       .resize({ width: IMAGE_RESIZE_WIDTH, withoutEnlargement: true })
       .png();
+    thumbnailTransform.on('error', error => console.log(`thumbnailTransform: ${error}`));
     imageReadStream.pipe(passThrough);
     passThrough.pipe(fullSizeTransform);
     passThrough.pipe(thumbnailTransform);
 
-    const authToken = await getGcsAuthToken();
-    console.error(`upload 1`);
-    const url1 = await upload(
-      fullSizeTransform,
-      `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}.png`,
-      authToken
-    );
-    console.error(`upload 2`);
-    const url2 = await upload(
-      thumbnailTransform,
-      `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}-thumb.png`,
-      authToken
-    );
-    console.log(url1);
-    console.log(url2);
-    console.error(`uploads done`);
+    let didRetryUnauthorized = false;
+    while (true) {
+      const authToken = await getGcsAuthToken();
+      try {
+        console.error(`upload 1`);
+        const url1 = await upload(
+          fullSizeTransform,
+          `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}.png`,
+          authToken
+        );
+        console.error(`upload 2`);
+        const url2 = await upload(
+          thumbnailTransform,
+          `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}-thumb.png`,
+          authToken
+        );
+        console.log(url1);
+        console.log(url2);
+        console.error(`uploads done`);
+        break;
+      } catch (error) {
+        console.error(`Upload error: ${error}`);
+        if (
+          error.cause.code == 'UND_ERR_RESPONSE_STATUS_CODE' &&
+          (error.cause.statusCode === 401 || error.cause.statusCode === 403) &&
+          !didRetryUnauthorized
+        ) {
+          // Force a dynamic token refresh and try again.
+          process.env['IMAGE_CACHE_GCS_AUTH_TOKEN'] = undefined;
+          didRetryUnauthorized = true;
+        } else throw new Error(`Image upload error: ${error}`);
+      }
+    }
   })
   .catch(error => {
     console.error(error);
