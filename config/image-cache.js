@@ -61,6 +61,25 @@ async function getGcsAuthToken() {
   }
 }
 
+async function fetchImage() {
+  const response = await fetch(
+    IMAGE_URL,
+    {
+      dispatcher: new Agent({
+        headersTimeout: TIMEOUT,
+        bodyTimeout: TIMEOUT,
+        maxRedirections: MAX_REDIRECTIONS,
+        maxResponseSize: MAX_RESPONSE_SIZE,
+        throwOnError: true,
+        connect: {
+          rejectUnauthorized: false, // Ignore SSL cert errors.
+        },
+      }),
+    }
+  );
+  return response.body;
+}
+
 async function upload(stream, name, authToken) {
   try {
     const response = await request(
@@ -78,22 +97,7 @@ async function upload(stream, name, authToken) {
   }
 }
 
-fetch(
-  IMAGE_URL,
-  {
-    dispatcher: new Agent({
-      headersTimeout: TIMEOUT,
-      bodyTimeout: TIMEOUT,
-      maxRedirections: MAX_REDIRECTIONS,
-      maxResponseSize: MAX_RESPONSE_SIZE,
-      throwOnError: true,
-      connect: {
-        rejectUnauthorized: false, // Ignore SSL cert errors.
-      },
-    }),
-  },
-  ({ body }) => body
-)
+fetchImage()
   .then(async response => {
     const imageReadStream = Readable.fromWeb(response.body);
     const passThrough = new PassThrough();
@@ -133,6 +137,7 @@ fetch(
     process.exit(0);
   })
   .catch(error => {
+    console.error(`Undici fetch error detected`);
     console.error(error);
     if (
       error instanceof errors.HeadersTimeoutError ||
