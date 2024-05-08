@@ -59,23 +59,7 @@ async function getGcsAuthToken() {
   }
 }
 
-async function fetchImage() {
-  const response = await fetch(IMAGE_URL, {
-    dispatcher: new Agent({
-      headersTimeout: TIMEOUT,
-      bodyTimeout: 1, //TIMEOUT,
-      maxRedirections: MAX_REDIRECTIONS,
-      maxResponseSize: MAX_RESPONSE_SIZE,
-      throwOnError: true,
-      connect: {
-        rejectUnauthorized: false, // Ignore SSL cert errors.
-      },
-    }),
-  });
-  return response.body;
-}
-
-async function uploadCachedImage(stream, name, authToken) {
+async function upload(stream, name, authToken) {
   await request(
     `https://storage.googleapis.com/upload/storage/v1/b/${GCS_BUCKET_NAME}/o?uploadType=media&name=${GCS_OBJECT_NAME_PREFIX}${name}`,
     {
@@ -88,7 +72,22 @@ async function uploadCachedImage(stream, name, authToken) {
   return `${CDN_BASE_PATH}${name}`;
 }
 
-fetchImage()
+fetch(
+  IMAGE_URL,
+  {
+    dispatcher: new Agent({
+      headersTimeout: TIMEOUT,
+      bodyTimeout: TIMEOUT,
+      maxRedirections: MAX_REDIRECTIONS,
+      maxResponseSize: MAX_RESPONSE_SIZE,
+      throwOnError: true,
+      connect: {
+        rejectUnauthorized: false, // Ignore SSL cert errors.
+      },
+    }),
+  },
+  ({ body }) => body
+)
   .then(async response => {
     const imageReadStream = Readable.fromWeb(response.body);
     const passThrough = new PassThrough();
@@ -105,16 +104,8 @@ fetchImage()
       const authToken = await getGcsAuthToken();
       try {
         const results = await Promise.all([
-          uploadCachedImage(
-            fullSizeTransform,
-            `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}.png`,
-            authToken
-          ),
-          uploadCachedImage(
-            thumbnailTransform,
-            `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}-thumb.png`,
-            authToken
-          ),
+          upload(fullSizeTransform, `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}.png`, authToken),
+          upload(thumbnailTransform, `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}-thumb.png`, authToken),
         ]);
         // The API will read these strings as CDN URLs.
         for (const result of results) console.log(result);
