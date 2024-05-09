@@ -130,7 +130,8 @@ fetch(
       error.cause &&
       (error.cause.code == 'UND_ERR_HEADERS_TIMEOUT' ||
         error.cause.code == 'UND_ERR_BODY_TIMEOUT' ||
-        error.cause.code == 'UND_ERR_CONNECT_TIMEOUT')
+        error.cause.code == 'UND_ERR_CONNECT_TIMEOUT' ||
+        error.cause.code == 'ECONNRESET')
     ) {
       exitCode = 2;
     } else if (
