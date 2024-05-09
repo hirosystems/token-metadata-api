@@ -111,9 +111,10 @@ fetch(
         break;
       } catch (error) {
         if (
+          !didRetryUnauthorized &&
+          error.cause &&
           error.cause.code == 'UND_ERR_RESPONSE_STATUS_CODE' &&
-          (error.cause.statusCode === 401 || error.cause.statusCode === 403) &&
-          !didRetryUnauthorized
+          (error.cause.statusCode === 401 || error.cause.statusCode === 403)
         ) {
           // GCS token is probably expired. Force a token refresh before trying again.
           process.env['IMAGE_CACHE_GCS_AUTH_TOKEN'] = undefined;
@@ -126,12 +127,14 @@ fetch(
     console.error(error);
     let exitCode = 1;
     if (
-      error.cause.code == 'UND_ERR_HEADERS_TIMEOUT' ||
-      error.cause.code == 'UND_ERR_BODY_TIMEOUT' ||
-      error.cause.code == 'UND_ERR_CONNECT_TIMEOUT'
+      error.cause &&
+      (error.cause.code == 'UND_ERR_HEADERS_TIMEOUT' ||
+        error.cause.code == 'UND_ERR_BODY_TIMEOUT' ||
+        error.cause.code == 'UND_ERR_CONNECT_TIMEOUT')
     ) {
       exitCode = 2;
     } else if (
+      error.cause &&
       error.cause.code == 'UND_ERR_RESPONSE_STATUS_CODE' &&
       error.cause.statusCode === 429
     ) {
