@@ -38,7 +38,6 @@ export async function processImageCache(
   switch (code) {
     case 0:
       try {
-        // Script was successful. Report results back to metadata processor.
         const urls = stdout
           .trim()
           .split('\n')
@@ -46,8 +45,11 @@ export async function processImageCache(
         logger.info(urls, `ImageCache processed token ${contractPrincipal} (${tokenNumber})`);
         return urls;
       } catch (error) {
-        throw new Error(
-          `Image processing script returned an invalid url for ${imgUrl} with stdout: ${stdout}, stderr: ${stderr}`
+        // The script returned a code `0` but the results are invalid. This could happen because of
+        // an unknown script error so we should mark it as retryable.
+        throw new RetryableJobError(
+          `ImageCache unknown error`,
+          new Error(`Invalid cached url for ${imgUrl}: ${stdout}, stderr: ${stderr}`)
         );
       }
     case 2:

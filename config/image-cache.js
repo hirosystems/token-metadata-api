@@ -66,6 +66,7 @@ async function upload(stream, name, authToken) {
       method: 'POST',
       body: stream,
       headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${authToken}` },
+      throwOnError: true,
     }
   );
   return `${CDN_BASE_PATH}${name}`;
@@ -89,15 +90,11 @@ fetch(
 )
   .then(async response => {
     const imageReadStream = Readable.fromWeb(response.body);
-    imageReadStream.on('error', error => console.log(`imageReadStream: ${error}`));
     const passThrough = new PassThrough();
-    passThrough.on('error', error => console.log(`passThrough: ${error}`));
     const fullSizeTransform = sharp().png();
-    fullSizeTransform.on('error', error => console.log(`fullSizeTransform: ${error}`));
     const thumbnailTransform = sharp()
       .resize({ width: IMAGE_RESIZE_WIDTH, withoutEnlargement: true })
       .png();
-    thumbnailTransform.on('error', error => console.log(`thumbnailTransform: ${error}`));
     imageReadStream.pipe(passThrough);
     passThrough.pipe(fullSizeTransform);
     passThrough.pipe(thumbnailTransform);
@@ -106,33 +103,22 @@ fetch(
     while (true) {
       const authToken = await getGcsAuthToken();
       try {
-        console.error(`upload 1`);
-        const url1 = await upload(
-          fullSizeTransform,
-          `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}.png`,
-          authToken
-        );
-        console.error(`upload 2`);
-        const url2 = await upload(
-          thumbnailTransform,
-          `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}-thumb.png`,
-          authToken
-        );
-        console.log(url1);
-        console.log(url2);
-        console.error(`uploads done`);
+        const results = await Promise.all([
+          upload(fullSizeTransform, `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}.png`, authToken),
+          upload(thumbnailTransform, `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}-thumb.png`, authToken),
+        ]);
+        for (const r of results) console.log(r);
         break;
       } catch (error) {
-        console.error(`Upload error: ${error}`);
         if (
           error.cause.code == 'UND_ERR_RESPONSE_STATUS_CODE' &&
           (error.cause.statusCode === 401 || error.cause.statusCode === 403) &&
           !didRetryUnauthorized
         ) {
-          // Force a dynamic token refresh and try again.
+          // GCS token is probably expired. Force a token refresh before trying again.
           process.env['IMAGE_CACHE_GCS_AUTH_TOKEN'] = undefined;
           didRetryUnauthorized = true;
-        } else throw new Error(`Image upload error: ${error}`);
+        } else throw error;
       }
     }
   })
