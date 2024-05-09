@@ -125,6 +125,8 @@ fetch(
   })
   .catch(error => {
     console.error(error);
+    // TODO: Handle `Input buffer contains unsupported image format` error from sharp when the image
+    // is actually a video or another media file.
     let exitCode = 1;
     if (
       error.cause &&
