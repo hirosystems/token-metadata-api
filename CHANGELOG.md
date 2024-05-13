@@ -1,3 +1,21 @@
+## [0.7.0](https://github.com/hirosystems/token-metadata-api/compare/v0.6.3...v0.7.0) (2024-05-13)
+
+
+### Features
+
+* add admin rpc to reprocess token image cache ([#205](https://github.com/hirosystems/token-metadata-api/issues/205)) ([2fdcb33](https://github.com/hirosystems/token-metadata-api/commit/2fdcb33908062770da4e334810fd04bb378db66a))
+* update ts client with image thumbnails ([#206](https://github.com/hirosystems/token-metadata-api/issues/206)) ([c24cb56](https://github.com/hirosystems/token-metadata-api/commit/c24cb56b854123b252eb2e2616bb8589c5b36f0f))
+* upload token images to gcs ([#204](https://github.com/hirosystems/token-metadata-api/issues/204)) ([1cec219](https://github.com/hirosystems/token-metadata-api/commit/1cec2195a2b3df9e9c85f0152732594caa8c8c51))
+
+
+### Bug Fixes
+
+* get access token properly ([a6b98c5](https://github.com/hirosystems/token-metadata-api/commit/a6b98c5099a9de1d88e74eed66dece1c4c157422))
+* get gcs auth token dynamically for image cache ([#210](https://github.com/hirosystems/token-metadata-api/issues/210)) ([8434b22](https://github.com/hirosystems/token-metadata-api/commit/8434b229f6d38e6799bf84bd6f1eb4de106996bb))
+* image cache agent arg types ([5826628](https://github.com/hirosystems/token-metadata-api/commit/5826628a329225fbf697a092dc201fc74fb96d43))
+* improve image cache error handling ([#214](https://github.com/hirosystems/token-metadata-api/issues/214)) ([115a745](https://github.com/hirosystems/token-metadata-api/commit/115a745c268e7bb8115a488ca111e8b46cefed62))
+* reuse gcs token and validate image cache script errors ([#213](https://github.com/hirosystems/token-metadata-api/issues/213)) ([5e1af5c](https://github.com/hirosystems/token-metadata-api/commit/5e1af5c28cd0b1313f78a59b015669ceb07e5738))
+
 ## [0.7.0-beta.5](https://github.com/hirosystems/token-metadata-api/compare/v0.7.0-beta.4...v0.7.0-beta.5) (2024-05-13)
 
 
