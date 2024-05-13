@@ -34,7 +34,7 @@ const IMAGE_RESIZE_WIDTH = parseInt(process.env['IMAGE_CACHE_RESIZE_WIDTH'] ?? '
 const GCS_BUCKET_NAME = process.env['IMAGE_CACHE_GCS_BUCKET_NAME'];
 const GCS_OBJECT_NAME_PREFIX = process.env['IMAGE_CACHE_GCS_OBJECT_NAME_PREFIX'];
 const CDN_BASE_PATH = process.env['IMAGE_CACHE_CDN_BASE_PATH'];
-const TIMEOUT = parseInt(process.env['METADATA_FETCH_TIMEOUT_MS'] ?? '30');
+const TIMEOUT = parseInt(process.env['METADATA_FETCH_TIMEOUT_MS'] ?? '30000');
 const MAX_REDIRECTIONS = parseInt(process.env['METADATA_FETCH_MAX_REDIRECTIONS'] ?? '0');
 const MAX_RESPONSE_SIZE = parseInt(process.env['IMAGE_CACHE_MAX_BYTE_SIZE'] ?? '-1');
 
@@ -47,35 +47,29 @@ async function getGcsAuthToken() {
       {
         method: 'GET',
         headers: { 'Metadata-Flavor': 'Google' },
+        throwOnError: true,
       }
     );
     const json = await response.body.json();
-    if (response.statusCode === 200 && json.access_token) {
-      // Cache the token so we can reuse it for other images.
-      process.env['IMAGE_CACHE_GCS_AUTH_TOKEN'] = json.access_token;
-      return json.access_token;
-    }
-    throw new Error(`GCS access token not found ${response.statusCode}: ${json}`);
+    // Cache the token so we can reuse it for other images.
+    process.env['IMAGE_CACHE_GCS_AUTH_TOKEN'] = json.access_token;
+    return json.access_token;
   } catch (error) {
-    throw new Error(`Error fetching GCS access token: ${error.message}`);
+    throw new Error(`GCS access token error: ${error}`);
   }
 }
 
 async function upload(stream, name, authToken) {
-  try {
-    const response = await request(
-      `https://storage.googleapis.com/upload/storage/v1/b/${GCS_BUCKET_NAME}/o?uploadType=media&name=${GCS_OBJECT_NAME_PREFIX}${name}`,
-      {
-        method: 'POST',
-        body: stream,
-        headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${authToken}` },
-      }
-    );
-    if (response.statusCode !== 200) throw new Error(`GCS error: ${response.statusCode}`);
-    return `${CDN_BASE_PATH}${name}`;
-  } catch (error) {
-    throw new Error(`Error uploading ${name}: ${error.message}`);
-  }
+  await request(
+    `https://storage.googleapis.com/upload/storage/v1/b/${GCS_BUCKET_NAME}/o?uploadType=media&name=${GCS_OBJECT_NAME_PREFIX}${name}`,
+    {
+      method: 'POST',
+      body: stream,
+      headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${authToken}` },
+      throwOnError: true,
+    }
+  );
+  return `${CDN_BASE_PATH}${name}`;
 }
 
 fetch(
@@ -86,15 +80,13 @@ fetch(
       bodyTimeout: TIMEOUT,
       maxRedirections: MAX_REDIRECTIONS,
       maxResponseSize: MAX_RESPONSE_SIZE,
+      throwOnError: true,
       connect: {
         rejectUnauthorized: false, // Ignore SSL cert errors.
       },
     }),
   },
-  ({ statusCode, body }) => {
-    if (statusCode !== 200) throw new Error(`Failed to fetch image: ${statusCode}`);
-    return body;
-  }
+  ({ body }) => body
 )
   .then(async response => {
     const imageReadStream = Readable.fromWeb(response.body);
@@ -115,15 +107,16 @@ fetch(
           upload(fullSizeTransform, `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}.png`, authToken),
           upload(thumbnailTransform, `${CONTRACT_PRINCIPAL}/${TOKEN_NUMBER}-thumb.png`, authToken),
         ]);
-        // The API will read these strings as CDN URLs.
-        for (const result of results) console.log(result);
+        for (const r of results) console.log(r);
         break;
       } catch (error) {
         if (
-          (error.message.endsWith('403') || error.message.endsWith('401')) &&
-          !didRetryUnauthorized
+          !didRetryUnauthorized &&
+          error.cause &&
+          error.cause.code == 'UND_ERR_RESPONSE_STATUS_CODE' &&
+          (error.cause.statusCode === 401 || error.cause.statusCode === 403)
         ) {
-          // Force a dynamic token refresh and try again.
+          // GCS token is probably expired. Force a token refresh before trying again.
           process.env['IMAGE_CACHE_GCS_AUTH_TOKEN'] = undefined;
           didRetryUnauthorized = true;
         } else throw error;
@@ -131,5 +124,24 @@ fetch(
     }
   })
   .catch(error => {
-    throw new Error(`Error fetching image: ${error}`);
+    console.error(error);
+    // TODO: Handle `Input buffer contains unsupported image format` error from sharp when the image
+    // is actually a video or another media file.
+    let exitCode = 1;
+    if (
+      error.cause &&
+      (error.cause.code == 'UND_ERR_HEADERS_TIMEOUT' ||
+        error.cause.code == 'UND_ERR_BODY_TIMEOUT' ||
+        error.cause.code == 'UND_ERR_CONNECT_TIMEOUT' ||
+        error.cause.code == 'ECONNRESET')
+    ) {
+      exitCode = 2;
+    } else if (
+      error.cause &&
+      error.cause.code == 'UND_ERR_RESPONSE_STATUS_CODE' &&
+      error.cause.statusCode === 429
+    ) {
+      exitCode = 3;
+    }
+    process.exit(exitCode);
   });
