@@ -127,6 +127,7 @@ export type DbMetadataInsert = {
   description: string | null;
   image: string | null;
   cached_image: string | null;
+  cached_thumbnail_image: string | null;
 };
 
 export type DbMetadata = {
@@ -140,6 +141,7 @@ export type DbMetadata = {
   description?: string;
   image?: string;
   cached_image?: string;
+  cached_thumbnail_image?: string;
 };
 
 export type DbMetadataAttributeInsert = {
@@ -225,6 +227,7 @@ export type DbFungibleTokenMetadataItem = {
   principal: string;
   image?: string;
   cached_image?: string;
+  cached_thumbnail_image?: string;
 };
 
 export const SMART_CONTRACTS_COLUMNS = [
@@ -275,6 +278,7 @@ export const METADATA_COLUMNS = [
   'description',
   'image',
   'cached_image',
+  'cached_thumbnail_image',
 ];
 
 export const METADATA_ATTRIBUTES_COLUMNS = [
