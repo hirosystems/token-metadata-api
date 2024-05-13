@@ -1,3 +1,10 @@
+## [0.7.0-beta.5](https://github.com/hirosystems/token-metadata-api/compare/v0.7.0-beta.4...v0.7.0-beta.5) (2024-05-13)
+
+
+### Bug Fixes
+
+* improve image cache error handling ([#214](https://github.com/hirosystems/token-metadata-api/issues/214)) ([115a745](https://github.com/hirosystems/token-metadata-api/commit/115a745c268e7bb8115a488ca111e8b46cefed62))
+
 ## [0.7.0-beta.4](https://github.com/hirosystems/token-metadata-api/compare/v0.7.0-beta.3...v0.7.0-beta.4) (2024-05-08)
 
 
