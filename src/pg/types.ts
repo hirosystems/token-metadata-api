@@ -33,7 +33,6 @@ export enum DbTokenUpdateMode {
 export type DbSmartContractInsert = {
   principal: string;
   sip: DbSipNumber;
-  abi: PgJsonb;
   tx_id: string;
   block_height: number;
 };

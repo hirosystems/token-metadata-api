@@ -19,7 +19,6 @@ describe('Chainhook observer', () => {
     const values: DbSmartContractInsert = {
       principal,
       sip: DbSipNumber.sip009,
-      abi: '"some"',
       tx_id: '0x123456',
       block_height: 1,
     };
@@ -118,7 +117,6 @@ describe('Chainhook observer', () => {
       const values: DbSmartContractInsert = {
         principal,
         sip: DbSipNumber.sip009,
-        abi: '"some"',
         tx_id: '0x123456',
         block_height: 1,
       };
@@ -148,7 +146,6 @@ describe('Chainhook observer', () => {
       const values: DbSmartContractInsert = {
         principal,
         sip: DbSipNumber.sip009,
-        abi: '"some"',
         tx_id: '0x123456',
         block_height: 1,
       };
@@ -316,7 +313,6 @@ describe('Chainhook observer', () => {
                       'token-class': bufferCV(Buffer.from('nft')),
                       'contract-id': bufferCV(Buffer.from(contractId)),
                       'token-ids': listCV([uintCV(1)]),
-                      'update-mode': bufferCV(Buffer.from('frozen')),
                     }),
                   })
                 ),
@@ -358,8 +354,8 @@ describe('Chainhook observer', () => {
 
         await db.chainhook.processPayload(
           new TestChainhookPayloadBuilder()
-            .apply()
-            .block({ height: 100 })
+            .rollback()
+            .block({ height: 101 })
             .transaction({ hash: '0x01', sender: address })
             .event({
               type: 'SmartContractEvent',
@@ -373,7 +369,8 @@ describe('Chainhook observer', () => {
                     payload: tupleCV({
                       'token-class': bufferCV(Buffer.from('nft')),
                       'contract-id': bufferCV(Buffer.from(contractId)),
-                      'token-ids': listCV([uintCV(1), uintCV(2)]),
+                      'token-ids': listCV([uintCV(1)]),
+                      'update-mode': bufferCV(Buffer.from('frozen')),
                     }),
                   })
                 ),
@@ -381,12 +378,7 @@ describe('Chainhook observer', () => {
             })
             .build()
         );
-
-        const jobs2 = await db.getPendingJobBatch({ limit: 10 });
-        expect(jobs2.length).toBe(2); // Only two tokens
-        expect(jobs2[0].token_id).toBe(1);
-        expect(jobs2[1].token_id).toBe(2);
-        const notif = await db.getTokenMetadataNotification({ tokenId: 3 });
+        const notif = await db.getTokenMetadataNotification({ tokenId: 1 });
         expect(notif).toBeUndefined();
       });
 
@@ -570,7 +562,6 @@ describe('Chainhook observer', () => {
         const values: DbSmartContractInsert = {
           principal: `${address}.${contractId}`,
           sip: DbSipNumber.sip013,
-          abi: '"some"',
           tx_id: '0x123456',
           block_height: 1,
         };
@@ -612,7 +603,6 @@ describe('Chainhook observer', () => {
         const values: DbSmartContractInsert = {
           principal,
           sip: DbSipNumber.sip013,
-          abi: '"some"',
           tx_id: '0x123456',
           block_height: 1,
         };
@@ -730,7 +720,6 @@ describe('Chainhook observer', () => {
       const values: DbSmartContractInsert = {
         principal: contractId,
         sip: DbSipNumber.sip010,
-        abi: '"some"',
         tx_id: '0x123456',
         block_height: 1,
       };
@@ -775,7 +764,6 @@ describe('Chainhook observer', () => {
       const values: DbSmartContractInsert = {
         principal: contractId,
         sip: DbSipNumber.sip010,
-        abi: '"some"',
         tx_id: '0x123456',
         block_height: 1,
       };
@@ -956,7 +944,6 @@ describe('Chainhook observer', () => {
       const values: DbSmartContractInsert = {
         principal: contractId,
         sip: DbSipNumber.sip009,
-        abi: '"some"',
         tx_id: '0x123456',
         block_height: 1,
       };

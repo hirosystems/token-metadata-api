@@ -363,6 +363,11 @@ export function getContractLogMetadataUpdateNotification(
   }
 }
 
+export type NftMintEvent = {
+  contractId: string;
+  tokenId: bigint;
+};
+
 export type SftMintEvent = {
   contractId: string;
   tokenId: bigint;

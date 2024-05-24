@@ -1,6 +1,7 @@
-import { BasePgStoreModule, logger } from '@hirosystems/api-toolkit';
+import { BasePgStoreModule, PgSqlClient, logger, stopwatch } from '@hirosystems/api-toolkit';
 import {
   BlockIdentifier,
+  StacksEvent,
   StacksPayload,
   StacksTransaction,
   StacksTransactionContractDeploymentKind,
@@ -29,74 +30,70 @@ import {
   JOBS_COLUMNS,
 } from '../types';
 import { ClarityTypeID, decodeClarityValue } from 'stacks-encoding-native-js';
+import { BlockCache } from './block-cache';
 
 export class ChainhookPgStore extends BasePgStoreModule {
   async processPayload(payload: StacksPayload): Promise<void> {
     await this.sqlWriteTransaction(async sql => {
-      // ROLLBACK
       for (const block of payload.rollback) {
-        for (const tx of block.transactions) {
-          if (tx.metadata.kind.type === 'ContractDeployment') {
-            await this.rollBackContractDeployment(tx);
-          }
-          for (const event of tx.metadata.receipt.events) {
-            switch (event.type) {
-              case 'SmartContractEvent':
-                await this.rollBackPrintEvent(block.block_identifier, tx, event);
-                break;
-              case 'NFTMintEvent':
-                await this.rollBackNftMintEvent(event);
-                break;
-            }
-          }
-        }
+        logger.info(`ChainhookPgStore rollback block ${block.block_identifier.index}`);
+        const time = stopwatch();
+        await this.updateStacksBlock(sql, block, 'rollback');
+        logger.info(
+          `ChainhookPgStore rollback block ${
+            block.block_identifier.index
+          } finished in ${time.getElapsedSeconds()}s`
+        );
       }
-
-      // APPLY
       for (const block of payload.apply) {
-        for (const tx of block.transactions) {
-          if (tx.metadata.kind.type === 'ContractDeployment') {
-            await this.applyContractDeployment(tx, block.block_identifier.index);
-          }
-          for (const event of tx.metadata.receipt.events) {
-            switch (event.type) {
-              case 'SmartContractEvent':
-                await this.applyPrintEvent(block.block_identifier, tx, event);
-                break;
-              case 'FTMintEvent':
-              case 'FTBurnEvent':
-                await this.applyFtMintOrBurnEvent(event);
-                break;
-              case 'NFTMintEvent':
-                await this.applyNftMintEvent(event);
-                break;
-            }
-          }
-        }
-
+        logger.info(`ChainhookPgStore apply block ${block.block_identifier.index}`);
+        const time = stopwatch();
+        await this.updateStacksBlock(sql, block, 'apply');
         await this.enqueueDynamicTokensDueForRefresh();
         await this.updateChainTipBlockHeight(block.block_identifier.index);
-        logger.info(`ChainhookPgStore ingested block ${block.block_identifier.index}`);
+        logger.info(
+          `ChainhookPgStore apply block ${
+            block.block_identifier.index
+          } finished in ${time.getElapsedSeconds()}s`
+        );
       }
     });
   }
 
-  private async applyContractDeployment(tx: StacksTransaction, blockHeight: number): Promise<void> {
-    if (tx.metadata.contract_abi === undefined) return;
-    const abi = tx.metadata.contract_abi as ClarityAbi;
-    const sip = getSmartContractSip(abi);
-    if (!sip) return;
-    const kind = tx.metadata.kind as StacksTransactionContractDeploymentKind;
-    await this.insertAndEnqueueSmartContract({
-      values: {
-        sip,
-        abi,
-        principal: kind.data.contract_identifier,
-        tx_id: tx.transaction_identifier.hash,
-        block_height: blockHeight,
-      },
-    });
-    logger.info(`ChainhookPgStore deploy contract ${kind.data.contract_identifier} (${sip})`);
+  private async updateStacksBlock(
+    sql: PgSqlClient,
+    block: StacksEvent,
+    direction: 'apply' | 'rollback'
+  ) {
+    const cache = new BlockCache(block.block_identifier.index);
+    for (const tx of block.transactions) {
+      cache.transaction(tx);
+    }
+    switch (direction) {
+      case 'apply':
+        await this.applyInscriptions(sql, cache);
+        break;
+      case 'rollback':
+        await this.rollBackInscriptions(sql, cache);
+        break;
+    }
+  }
+
+  private async applyInscriptions(sql: PgSqlClient, cache: BlockCache) {
+    for (const values of cache.contracts) {
+      await this.insertAndEnqueueSmartContract({ values });
+      logger.info(
+        `ChainhookPgStore apply contract deploy ${values.principal} (${values.sip}) at block ${cache.blockHeight}`
+      );
+    }
+    for (const notification of cache.notifications) {
+      await this.enqueueTokenMetadataUpdateNotification({ block, event, tx, notification });
+      logger.info(
+        `ChainhookPgStore SIP-019 notification ${notification.contract_id} (${
+          notification.token_ids ?? 'all'
+        })`
+      );
+    }
   }
 
   private async rollBackContractDeployment(tx: StacksTransaction): Promise<void> {
@@ -152,6 +149,7 @@ export class ChainhookPgStore extends BasePgStoreModule {
   }
 
   private async rollBackPrintEvent(
+    sql: PgSqlClient,
     block: BlockIdentifier,
     tx: StacksTransaction,
     event: StacksTransactionSmartContractEvent
@@ -159,7 +157,7 @@ export class ChainhookPgStore extends BasePgStoreModule {
     // SIP-019 notification?
     const notification = getContractLogMetadataUpdateNotification(tx.metadata.sender, event);
     if (notification) {
-      const contractResult = await this.sql<{ id: number }[]>`
+      const contractResult = await sql<{ id: number }[]>`
         SELECT id FROM smart_contracts WHERE principal = ${notification.contract_id}
       `;
       if (contractResult.count === 0) {
@@ -169,7 +167,10 @@ export class ChainhookPgStore extends BasePgStoreModule {
         return;
       }
       const contractId = contractResult[0].id;
-      await this.sql`
+      await sql`
+        UPDATE tokens SET 
+      `;
+      await sql`
         DELETE FROM token_metadata_notifications
         WHERE smart_contract_id = ${contractId}
           AND block_height = ${block.index}
@@ -178,7 +179,6 @@ export class ChainhookPgStore extends BasePgStoreModule {
           AND tx_index = ${tx.metadata.position.index}
           AND event_index = ${event.position.index}
       `;
-      // TODO: Return to old mode
       return;
     }
     // SIP-013 SFT mint?

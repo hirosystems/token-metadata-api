@@ -4,12 +4,12 @@ import { MigrationBuilder, ColumnDefinitions } from 'node-pg-migrate';
 export const shorthands: ColumnDefinitions | undefined = undefined;
 
 export function up(pgm: MigrationBuilder): void {
-  pgm.createTable('token_metadata_notifications', {
+  pgm.createTable('notifications', {
     id: {
       type: 'serial',
       primaryKey: true,
     },
-    smart_contract_id: {
+    smart_contract_principal: {
       type: 'int',
       notNull: true,
     },
@@ -43,25 +43,36 @@ export function up(pgm: MigrationBuilder): void {
     },
   });
   pgm.createConstraint(
-    'token_metadata_notifications',
-    'token_metadata_notifications_smart_contract_id_fk',
-    'FOREIGN KEY(smart_contract_id) REFERENCES smart_contracts(id) ON DELETE CASCADE'
+    'notifications',
+    'notifications_smart_contract_principal_fk',
+    'FOREIGN KEY(smart_contract_principal) REFERENCES smart_contracts(principal) ON DELETE CASCADE'
   );
   pgm.createConstraint(
-    'token_metadata_notifications',
-    'token_metadata_notifications_unique',
-    'UNIQUE(smart_contract_id, block_height, index_block_hash, tx_id, tx_index, event_index)'
+    'notifications',
+    'notifications_unique',
+    'UNIQUE(block_height, tx_index, event_index)'
   );
 
-  pgm.addColumn('tokens', {
-    token_metadata_notification_id: {
+  pgm.createTable('notifications_tokens', {
+    notification_id: {
+      type: 'int',
+      notNull: true,
+    },
+    token_id: {
       type: 'int',
     },
   });
+  pgm.createConstraint('notifications_tokens', 'notifications_tokens_pkey', {
+    primaryKey: ['notification_id', 'token_id'],
+  });
   pgm.createConstraint(
-    'tokens',
-    'tokens_token_metadata_notification_id_fk',
-    'FOREIGN KEY(token_metadata_notification_id) REFERENCES token_metadata_notifications(id) ON UPDATE CASCADE'
+    'notifications_tokens',
+    'notifications_tokens_notification_id_fk',
+    'FOREIGN KEY(notification_id) REFERENCES notifications(id) ON DELETE CASCADE'
   );
-  pgm.createIndex('tokens', ['token_metadata_notification_id']);
+  pgm.createConstraint(
+    'notifications_tokens',
+    'notifications_tokens_token_id_fk',
+    'FOREIGN KEY(token_id) REFERENCES tokens(id) ON DELETE CASCADE'
+  );
 }

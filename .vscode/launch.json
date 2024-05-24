@@ -116,7 +116,9 @@
         "--testTimeout=3600000",
         "--runInBand",
         "--no-cache",
-        "${workspaceFolder}/tests/chainhook/"
+        "${workspaceFolder}/tests/chainhook/",
+        "-t",
+        "rolls back notification"
       ],
       "outputCapture": "std",
       "console": "integratedTerminal",

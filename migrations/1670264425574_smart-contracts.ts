@@ -18,10 +18,6 @@ export function up(pgm: MigrationBuilder): void {
       type: 'sip_number',
       notNull: true,
     },
-    abi: {
-      type: 'jsonb',
-      notNull: true,
-    },
     tx_id: {
       type: 'text',
       notNull: true,
