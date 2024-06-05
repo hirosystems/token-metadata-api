@@ -14,6 +14,8 @@ export function up(pgm: MigrationBuilder): void {
     smart_contract_id: {
       type: 'int',
       notNull: true,
+      references: 'smart_contracts',
+      onDelete: 'CASCADE',
     },
     type: {
       type: 'token_type',
@@ -38,6 +40,22 @@ export function up(pgm: MigrationBuilder): void {
     total_supply: {
       type: 'numeric',
     },
+    block_height: {
+      type: 'int',
+      notNull: true,
+    },
+    index_block_hash: {
+      type: 'text',
+      notNull: true,
+    },
+    tx_id: {
+      type: 'text',
+      notNull: true,
+    },
+    tx_index: {
+      type: 'int',
+      notNull: true,
+    },
     created_at: {
       type: 'timestamptz',
       default: pgm.func('(NOW())'),
@@ -47,16 +65,11 @@ export function up(pgm: MigrationBuilder): void {
       type: 'timestamptz',
     },
   });
-  pgm.createConstraint(
-    'tokens',
-    'tokens_smart_contract_id_fk',
-    'FOREIGN KEY(smart_contract_id) REFERENCES smart_contracts(id)'
-  );
-  pgm.createConstraint(
-    'tokens',
-    'tokens_smart_contract_id_token_number_unique',
-    'UNIQUE(smart_contract_id, token_number)'
-  );
+  pgm.createConstraint('tokens', 'tokens_smart_contract_id_token_number_unique', {
+    unique: ['smart_contract_id', 'token_number'],
+  });
   pgm.createIndex('tokens', ['smart_contract_id']);
   pgm.createIndex('tokens', 'COALESCE(updated_at, created_at)');
+  pgm.createIndex('tokens', ['name']);
+  pgm.createIndex('tokens', ['symbol']);
 }

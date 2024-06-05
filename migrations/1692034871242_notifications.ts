@@ -4,47 +4,47 @@ import { MigrationBuilder, ColumnDefinitions } from 'node-pg-migrate';
 export const shorthands: ColumnDefinitions | undefined = undefined;
 
 export function up(pgm: MigrationBuilder): void {
-  pgm.createTable('metadata', {
+  pgm.createTable('notifications', {
     id: {
       type: 'serial',
       primaryKey: true,
     },
-    token_id: {
+    smart_contract_id: {
       type: 'int',
       notNull: true,
-      references: 'tokens',
+      references: 'smart_contracts',
       onDelete: 'CASCADE',
     },
-    sip: {
+    block_height: {
       type: 'int',
       notNull: true,
     },
-    name: {
+    index_block_hash: {
       type: 'text',
       notNull: true,
     },
-    l10n_locale: {
+    tx_id: {
       type: 'text',
+      notNull: true,
     },
-    l10n_uri: {
-      type: 'text',
+    tx_index: {
+      type: 'int',
+      notNull: true,
     },
-    l10n_default: {
-      type: 'boolean',
+    event_index: {
+      type: 'int',
+      notNull: true,
     },
-    description: {
-      type: 'text',
+    update_mode: {
+      type: 'token_update_mode',
+      default: 'standard',
+      notNull: true,
     },
-    image: {
-      type: 'text',
-    },
-    cached_image: {
-      type: 'text',
+    ttl: {
+      type: 'numeric',
     },
   });
-  pgm.createConstraint('metadata', 'metadata_token_id_l10n_locale_unique', {
-    unique: ['token_id', 'l10n_locale'],
+  pgm.createConstraint('notifications', 'notifications_unique', {
+    unique: ['block_height', 'tx_index', 'event_index'],
   });
-  pgm.createIndex('metadata', ['token_id']);
-  pgm.createIndex('metadata', ['l10n_locale']);
 }
