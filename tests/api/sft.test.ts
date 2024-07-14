@@ -26,7 +26,6 @@ describe('SFT routes', () => {
     const values: DbSmartContractInsert = {
       principal: `${address}.${contractId}`,
       sip: DbSipNumber.sip013,
-      abi: '"some"',
       tx_id: '0x123456',
       block_height: 1,
     };

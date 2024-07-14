@@ -4,11 +4,6 @@ import { PgStore } from '../pg/pg-store';
 import { Server } from 'http';
 import { Type } from '@sinclair/typebox';
 import { SmartContractRegEx } from '../api/schemas';
-import {
-  tokenClassFromSipNumber,
-  TokenMetadataUpdateNotification,
-} from '../token-processor/util/sip-validation';
-import { DbTokenUpdateMode } from '../pg/types';
 import { logger, PINO_LOGGER_CONFIG } from '@hirosystems/api-toolkit';
 
 export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTypeProvider> = (

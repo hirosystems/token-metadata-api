@@ -56,6 +56,9 @@ export function up(pgm: MigrationBuilder): void {
       type: 'int',
       notNull: true,
     },
+    event_index: {
+      type: 'int',
+    },
     created_at: {
       type: 'timestamptz',
       default: pgm.func('(NOW())'),

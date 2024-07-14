@@ -44,7 +44,6 @@ describe('Job', () => {
     const values: DbSmartContractInsert = {
       principal: 'ABCD.test-ft',
       sip: DbSipNumber.sip010,
-      abi: '"some"',
       tx_id: '0x123456',
       block_height: 1,
     };

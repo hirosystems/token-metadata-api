@@ -37,7 +37,6 @@ describe('ProcessTokenJob', () => {
       const values: DbSmartContractInsert = {
         principal: 'ABCD.test-ft',
         sip: DbSipNumber.sip010,
-        abi: '"some"',
         tx_id: '0x123456',
         block_height: 1,
       };
@@ -353,7 +352,6 @@ describe('ProcessTokenJob', () => {
       const values: DbSmartContractInsert = {
         principal: 'ABCD.test-nft',
         sip: DbSipNumber.sip009,
-        abi: '"some"',
         tx_id: '0x123456',
         block_height: 1,
       };
@@ -746,7 +744,6 @@ describe('ProcessTokenJob', () => {
       const values: DbSmartContractInsert = {
         principal: `${address}.${contractId}`,
         sip: DbSipNumber.sip013,
-        abi: '"some"',
         tx_id: '0x123456',
         block_height: 1,
       };
@@ -814,7 +811,6 @@ describe('ProcessTokenJob', () => {
       const values: DbSmartContractInsert = {
         principal: 'ABCD.test-nft',
         sip: DbSipNumber.sip009,
-        abi: '"some"',
         tx_id: '0x123456',
         block_height: 1,
       };

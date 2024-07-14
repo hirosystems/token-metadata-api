@@ -39,7 +39,6 @@ describe('JobQueue', () => {
     const values1: DbSmartContractInsert = {
       principal: 'ABCD.test-ft',
       sip: DbSipNumber.sip010,
-      abi: '"some"',
       tx_id: '0x123456',
       block_height: 1,
     };
@@ -54,7 +53,6 @@ describe('JobQueue', () => {
     const values2: DbSmartContractInsert = {
       principal: 'ABCD.test-ft2',
       sip: DbSipNumber.sip010,
-      abi: '"some"',
       tx_id: '0x123456',
       block_height: 1,
     };
@@ -73,7 +71,6 @@ describe('JobQueue', () => {
     const values1: DbSmartContractInsert = {
       principal: 'ABCD.test-ft',
       sip: DbSipNumber.sip010,
-      abi: '"some"',
       tx_id: '0x123456',
       block_height: 1,
     };
@@ -84,7 +81,6 @@ describe('JobQueue', () => {
     const values2: DbSmartContractInsert = {
       principal: 'ABCD.test-ft2',
       sip: DbSipNumber.sip010,
-      abi: '"some"',
       tx_id: '0x123456',
       block_height: 1,
     };
@@ -93,7 +89,6 @@ describe('JobQueue', () => {
     const values3: DbSmartContractInsert = {
       principal: 'ABCD.test-ft3',
       sip: DbSipNumber.sip010,
-      abi: '"some"',
       tx_id: '0x123456',
       block_height: 1,
     };
@@ -119,7 +114,6 @@ describe('JobQueue', () => {
     const values1: DbSmartContractInsert = {
       principal: 'ABCD.test-ft',
       sip: DbSipNumber.sip010,
-      abi: '"some"',
       tx_id: '0x123456',
       block_height: 1,
     };

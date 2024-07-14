@@ -37,13 +37,6 @@ describe('Status routes', () => {
       values: {
         principal: 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
         sip: DbSipNumber.sip009,
-        abi: {
-          maps: [],
-          functions: [],
-          variables: [],
-          fungible_tokens: [],
-          non_fungible_tokens: [],
-        },
         tx_id: '0x1234',
         block_height: 1,
       },

@@ -33,17 +33,21 @@ export enum DbTokenUpdateMode {
 export type DbSmartContractInsert = {
   principal: string;
   sip: DbSipNumber;
-  tx_id: string;
   block_height: number;
+  index_block_hash: string;
+  tx_id: string;
+  tx_index: number;
 };
 
 export type DbSmartContract = {
   id: number;
   principal: string;
   sip: DbSipNumber;
-  tx_id: string;
-  block_height: number;
   token_count?: bigint;
+  block_height: number;
+  index_block_hash: string;
+  tx_id: string;
+  tx_index: number;
   created_at: string;
   updated_at?: string;
 };
@@ -52,6 +56,10 @@ export type DbTokenInsert = {
   smart_contract_id: number;
   type: DbTokenType;
   token_number: PgNumeric;
+  block_height: number;
+  index_block_hash: string;
+  tx_id: string;
+  tx_index: number;
 };
 
 export type DbToken = {
@@ -84,7 +92,7 @@ export type DbJob = {
   updated_at?: string;
 };
 
-export type DbTokenMetadataNotificationInsert = {
+export type DbNotificationInsert = {
   smart_contract_id: number;
   block_height: number;
   index_block_hash: string;

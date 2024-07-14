@@ -1,30 +1,48 @@
 import {
+  BlockIdentifier,
   StacksTransaction,
   StacksTransactionContractDeploymentKind,
 } from '@hirosystems/chainhook-client';
 import {
   NftMintEvent,
   SftMintEvent,
+  SmartContractDeployment,
   TokenMetadataUpdateNotification,
   getContractLogMetadataUpdateNotification,
   getContractLogSftMintEvent,
   getSmartContractSip,
 } from '../../token-processor/util/sip-validation';
-import { DbSmartContractInsert } from '../types';
 import { ClarityAbi } from '@stacks/transactions';
 import { ClarityTypeID, decodeClarityValue } from 'stacks-encoding-native-js';
 
+export type CachedEvent<T> = {
+  event: T;
+  tx_id: string;
+  tx_index: number;
+  event_index?: number;
+};
+
+export type CachedFtSupplyDeltaMap = Map<string, bigint>;
+
+function contractPrincipalFromAssetIdentifier(asset_identifier: string): string {
+  return asset_identifier.split('::')[0];
+}
+
+/**
+ * Reads transactions and events from a block received via Chainhook and identifies events we should
+ * write to the DB.
+ */
 export class BlockCache {
-  blockHeight: number;
+  block: BlockIdentifier;
 
-  contracts: DbSmartContractInsert[] = [];
-  notifications: TokenMetadataUpdateNotification[] = [];
-  sftMints: SftMintEvent[] = [];
-  ftSupplyChanges: Set<string> = new Set();
-  nftMints: NftMintEvent[] = [];
+  contracts: CachedEvent<SmartContractDeployment>[] = [];
+  notifications: CachedEvent<TokenMetadataUpdateNotification>[] = [];
+  sftMints: CachedEvent<SftMintEvent>[] = [];
+  nftMints: CachedEvent<NftMintEvent>[] = [];
+  ftSupplyDelta: CachedFtSupplyDeltaMap = new Map<string, bigint>();
 
-  constructor(blockHeight: number) {
-    this.blockHeight = blockHeight;
+  constructor(block: BlockIdentifier) {
+    this.block = block;
   }
 
   transaction(tx: StacksTransaction) {
@@ -33,10 +51,9 @@ export class BlockCache {
       if (sip) {
         const kind = tx.metadata.kind as StacksTransactionContractDeploymentKind;
         this.contracts.push({
-          sip,
-          principal: kind.data.contract_identifier,
+          event: { principal: kind.data.contract_identifier, sip },
           tx_id: tx.transaction_identifier.hash,
-          block_height: this.blockHeight,
+          tx_index: tx.metadata.position.index,
         });
       }
     }
@@ -44,22 +61,46 @@ export class BlockCache {
       switch (event.type) {
         case 'SmartContractEvent':
           const notification = getContractLogMetadataUpdateNotification(tx.metadata.sender, event);
-          if (notification) this.notifications.push(notification);
+          if (notification) {
+            this.notifications.push({
+              event: notification,
+              tx_id: tx.transaction_identifier.hash,
+              tx_index: tx.metadata.position.index,
+              event_index: event.position.index,
+            });
+            continue;
+          }
           const mint = getContractLogSftMintEvent(event);
-          if (mint) this.sftMints.push(mint);
+          if (mint) {
+            this.sftMints.push({
+              event: mint,
+              tx_id: tx.transaction_identifier.hash,
+              tx_index: tx.metadata.position.index,
+              event_index: event.position.index,
+            });
+            continue;
+          }
           break;
         case 'FTMintEvent':
         case 'FTBurnEvent':
-          this.ftSupplyChanges.add(event.data.asset_identifier.split('::')[0]);
+          const principal = contractPrincipalFromAssetIdentifier(event.data.asset_identifier);
+          const previous = this.ftSupplyDelta.get(principal) ?? 0n;
+          let amount = BigInt(event.data.amount);
+          if (event.type === 'FTBurnEvent') amount *= -1n;
+          this.ftSupplyDelta.set(principal, previous + amount);
           break;
         case 'NFTMintEvent':
           const value = decodeClarityValue(event.data.raw_value);
-          if (value.type_id == ClarityTypeID.UInt) {
+          if (value.type_id == ClarityTypeID.UInt)
             this.nftMints.push({
-              contractId: event.data.asset_identifier.split('::')[0],
-              tokenId: BigInt(value.value),
+              event: {
+                contractId: event.data.asset_identifier.split('::')[0],
+                tokenId: BigInt(value.value),
+              },
+              tx_id: tx.transaction_identifier.hash,
+              tx_index: tx.metadata.position.index,
+              event_index: event.position.index,
             });
-          }
           break;
       }
     }

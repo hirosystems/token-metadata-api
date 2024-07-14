@@ -1,9 +1,8 @@
 import { ENV } from '../../../env';
-import { DbJob, DbSipNumber, DbSmartContract, DbTokenInsert, DbTokenType } from '../../../pg/types';
+import { DbSipNumber, DbSmartContract } from '../../../pg/types';
 import { Job } from './job';
 import { StacksNodeRpcClient } from '../../stacks-node/stacks-node-rpc-client';
 import { dbSipNumberToDbTokenType } from '../../util/helpers';
-import { PgStore } from '../../../pg/pg-store';
 import { logger } from '@hirosystems/api-toolkit';
 
 /**
@@ -76,9 +75,8 @@ export class ProcessSmartContractJob extends Job {
       );
       await this.db.updateSmartContractTokenCount({ id: contract.id, count: tokenCount });
       await this.db.chainhook.insertAndEnqueueSequentialTokens({
-        smart_contract_id: contract.id,
+        smart_contract: contract,
         token_count: tokenCount,
-        type: dbSipNumberToDbTokenType(contract.sip),
       });
     });
   }

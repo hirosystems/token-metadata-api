@@ -286,6 +286,11 @@ export function tokenClassFromSipNumber(sip: DbSipNumber): TokenClass {
 
 type MetadataUpdateMode = 'standard' | 'frozen' | 'dynamic';
 
+export type SmartContractDeployment = {
+  principal: string;
+  sip: DbSipNumber;
+};
+
 export type TokenMetadataUpdateNotification = {
   token_class: TokenClass;
   contract_id: string;

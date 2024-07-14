@@ -29,7 +29,6 @@ describe('FT routes', () => {
     const values: DbSmartContractInsert = {
       principal: 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
       sip: DbSipNumber.sip010,
-      abi: '"some"',
       tx_id: '0x123456',
       block_height: 1,
     };
@@ -267,7 +266,6 @@ describe('FT routes', () => {
       const values: DbSmartContractInsert = {
         principal: item.principal,
         sip: DbSipNumber.sip010,
-        abi: '"some"',
         tx_id: item.tx_id,
         block_height: 1,
       };
