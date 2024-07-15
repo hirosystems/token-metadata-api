@@ -48,7 +48,9 @@ describe('NFT events', () => {
         .build()
     );
 
-    await expect(db.getPendingJobBatch({ limit: 10 })).resolves.toHaveLength(1);
+    const jobs = await db.getPendingJobBatch({ limit: 1 });
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0].token_id).toBe(4);
     await expect(db.getToken({ id: 4 })).resolves.not.toBeUndefined();
   });
 
