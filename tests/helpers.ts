@@ -9,6 +9,9 @@ import {
   StacksTransaction,
   StacksTransactionEvent,
 } from '@hirosystems/chainhook-client';
+import { BlockCache, CachedEvent } from '../src/pg/chainhook/block-cache';
+import { SmartContractDeployment } from '../src/token-processor/util/sip-validation';
+import { DbJob, DbSipNumber, DbSmartContract } from '../src/pg/types';
 
 export type TestFastifyServer = FastifyInstance<
   Server,
@@ -1355,4 +1358,64 @@ export class TestChainhookPayloadBuilder {
   build(): StacksPayload {
     return this.payload;
   }
+}
+
+export async function insertAndEnqueueTestContract(
+  db: PgStore,
+  principal: string,
+  sip: DbSipNumber
+): Promise<DbJob> {
+  return await db.sqlWriteTransaction(async sql => {
+    const cache = new BlockCache({ hash: '0x000001', index: 1 });
+    const deploy: CachedEvent<SmartContractDeployment> = {
+      event: {
+        principal,
+        sip,
+      },
+      tx_id: '0x123456',
+      tx_index: 0,
+    };
+    await db.chainhook.applyContractDeployment(sql, deploy, cache);
+    const smart_contract = (await db.getSmartContract({ principal })) as DbSmartContract;
+
+    const jobs = await sql<DbJob[]>`
+      SELECT * FROM jobs WHERE smart_contract_id = ${smart_contract.id}
+    `;
+    return jobs[0];
+  });
+}
+
+export async function insertAndEnqueueTestContractWithTokens(
+  db: PgStore,
+  principal: string,
+  sip: DbSipNumber,
+  token_count: bigint
+): Promise<DbJob[]> {
+  return await db.sqlWriteTransaction(async sql => {
+    await insertAndEnqueueTestContract(db, principal, sip);
+    const smart_contract = (await db.getSmartContract({ principal })) as DbSmartContract;
+    await db.chainhook.insertAndEnqueueSequentialTokens({
+      smart_contract,
+      token_count,
+    });
+    return await sql<DbJob[]>`
+      SELECT * FROM jobs WHERE token_id IN (
+        SELECT id FROM tokens WHERE smart_contract_id = ${smart_contract.id}
+      )
+    `;
+  });
+}
+
+export async function markAllJobsAsDone(db: PgStore): Promise<void> {
+  await db.sql`UPDATE jobs SET status = 'done' WHERE TRUE`;
+}
+
+export async function getTokenCount(db: PgStore): Promise<string> {
+  const result = await db.sql<{ count: string }[]>`SELECT COUNT(*) FROM tokens`;
+  return result[0].count;
+}
+
+export async function getJobCount(db: PgStore): Promise<string> {
+  const result = await db.sql<{ count: string }[]>`SELECT COUNT(*) FROM jobs`;
+  return result[0].count;
 }

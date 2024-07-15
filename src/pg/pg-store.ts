@@ -10,7 +10,6 @@ import {
   DbMetadataAttribute,
   DbMetadataProperty,
   DbMetadataLocaleBundle,
-  SMART_CONTRACTS_COLUMNS,
   TOKENS_COLUMNS,
   JOBS_COLUMNS,
   METADATA_COLUMNS,
@@ -25,7 +24,6 @@ import {
   DbPaginatedResult,
   DbFungibleTokenOrder,
   DbTokenMetadataNotification,
-  TOKEN_METADATA_NOTIFICATIONS_COLUMNS,
 } from './types';
 import {
   ContractNotFoundError,
@@ -80,7 +78,7 @@ export class PgStore extends BasePgStore {
     args: { id: number } | { principal: string }
   ): Promise<DbSmartContract | undefined> {
     const result = await this.sql<DbSmartContract[]>`
-      SELECT ${this.sql(SMART_CONTRACTS_COLUMNS)}
+      SELECT *
       FROM smart_contracts
       WHERE ${'id' in args ? this.sql`id = ${args.id}` : this.sql`principal = ${args.principal}`}
     `;
@@ -267,9 +265,9 @@ export class PgStore extends BasePgStore {
     tokenId: number;
   }): Promise<DbTokenMetadataNotification | undefined> {
     const result = await this.sql<DbTokenMetadataNotification[]>`
-      SELECT ${this.sql(TOKEN_METADATA_NOTIFICATIONS_COLUMNS.map(c => `n.${c}`))}
-      FROM token_metadata_notifications AS n
-      INNER JOIN tokens AS t ON t.token_metadata_notification_id = n.id
+      SELECT n.*
+      FROM notifications_tokens AS n
+      INNER JOIN tokens AS t ON t.id = n.token_id
       WHERE t.id = ${args.tokenId}
     `;
     if (result.count) {

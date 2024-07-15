@@ -48,5 +48,4 @@ export function up(pgm: MigrationBuilder): void {
     },
   });
   pgm.createIndex('smart_contracts', [{ name: 'block_height', sort: 'DESC' }]);
-  pgm.createIndex('smart_contracts', ['principal']);
 }

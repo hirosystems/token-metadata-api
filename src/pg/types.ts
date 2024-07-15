@@ -256,17 +256,6 @@ export type DbFungibleTokenMetadataItem = {
   cached_image?: string;
 };
 
-export const SMART_CONTRACTS_COLUMNS = [
-  'id',
-  'principal',
-  'sip',
-  'tx_id',
-  'block_height',
-  'token_count',
-  'created_at',
-  'updated_at',
-];
-
 export const TOKENS_COLUMNS = [
   'id',
   'smart_contract_id',
@@ -315,15 +304,3 @@ export const METADATA_ATTRIBUTES_COLUMNS = [
 export const METADATA_PROPERTIES_COLUMNS = ['id', 'metadata_id', 'name', 'value'];
 
 export const RATE_LIMITED_HOSTS_COLUMNS = ['id', 'hostname', 'created_at', 'retry_after'];
-
-export const TOKEN_METADATA_NOTIFICATIONS_COLUMNS = [
-  'id',
-  'smart_contract_id',
-  'block_height',
-  'index_block_hash',
-  'tx_id',
-  'tx_index',
-  'event_index',
-  'update_mode',
-  'ttl',
-];

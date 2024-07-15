@@ -77,6 +77,35 @@ export class ChainhookPgStore extends BasePgStoreModule {
     return this.insertAndEnqueueTokens(tokenValues);
   }
 
+  async applyContractDeployment(
+    sql: PgSqlClient,
+    contract: CachedEvent<SmartContractDeployment>,
+    cache: BlockCache
+  ) {
+    const values: DbSmartContractInsert = {
+      principal: contract.event.principal,
+      sip: contract.event.sip,
+      block_height: cache.block.index,
+      index_block_hash: cache.block.hash,
+      tx_id: contract.tx_id,
+      tx_index: contract.tx_index,
+    };
+    await sql`
+      WITH smart_contract_inserts AS (
+        INSERT INTO smart_contracts ${sql(values)}
+        ON CONFLICT ON CONSTRAINT smart_contracts_principal_key DO UPDATE SET updated_at = NOW()
+        RETURNING id
+      )
+      INSERT INTO jobs (smart_contract_id)
+        (SELECT id AS smart_contract_id FROM smart_contract_inserts)
+      ON CONFLICT (smart_contract_id) WHERE token_id IS NULL DO
+        UPDATE SET updated_at = NOW(), status = 'pending'
+    `;
+    logger.info(
+      `ChainhookPgStore apply contract deploy ${contract.event.principal} (${contract.event.sip}) at block ${cache.block.index}`
+    );
+  }
+
   private async updateStacksBlock(
     sql: PgSqlClient,
     block: StacksEvent,
@@ -116,35 +145,6 @@ export class ChainhookPgStore extends BasePgStoreModule {
     for (const mint of cache.sftMints) await this.rollBackSftMint(sql, mint, cache);
     for (const [contract, delta] of cache.ftSupplyDelta)
       await this.applyFtSupplyChange(sql, contract, delta * -1n, cache);
-  }
-
-  private async applyContractDeployment(
-    sql: PgSqlClient,
-    contract: CachedEvent<SmartContractDeployment>,
-    cache: BlockCache
-  ) {
-    const values: DbSmartContractInsert = {
-      principal: contract.event.principal,
-      sip: contract.event.sip,
-      block_height: cache.block.index,
-      index_block_hash: cache.block.hash,
-      tx_id: contract.tx_id,
-      tx_index: contract.tx_index,
-    };
-    await sql`
-      WITH smart_contract_inserts AS (
-        INSERT INTO smart_contracts ${sql(values)}
-        ON CONFLICT ON CONSTRAINT smart_contracts_principal_unique DO UPDATE SET updated_at = NOW()
-        RETURNING id
-      )
-      INSERT INTO jobs (smart_contract_id)
-        (SELECT id AS smart_contract_id FROM smart_contract_inserts)
-      ON CONFLICT (smart_contract_id) WHERE token_id IS NULL DO
-        UPDATE SET updated_at = NOW(), status = 'pending'
-    `;
-    logger.info(
-      `ChainhookPgStore apply contract deploy ${contract.event.principal} (${contract.event.sip}) at block ${cache.block.index}`
-    );
   }
 
   private async applyNotification(
@@ -196,7 +196,7 @@ export class ChainhookPgStore extends BasePgStoreModule {
             : sql`
               SELECT
                 (SELECT id FROM notification_insert) AS notification_id,
-                ${contractId} AS smart_contract_id
+                ${contractId} AS smart_contract_id,
                 NULL AS token_id
               `
         })
@@ -443,21 +443,28 @@ export class ChainhookPgStore extends BasePgStoreModule {
   private async enqueueDynamicTokensDueForRefresh(): Promise<void> {
     const interval = ENV.METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL.toString();
     await this.sql`
+      WITH dynamic_tokens AS (
+        SELECT nt.token_id, n.ttl
+        FROM notifications_tokens AS nt
+        INNER JOIN notifications AS n ON n.id = nt.notification_id
+        WHERE n.update_mode = 'dynamic'
+      ),
+      due_for_refresh AS (
+        SELECT d.token_id
+        FROM dynamic_tokens AS d
+        INNER JOIN tokens AS t ON t.id = d.token_id
+        WHERE CASE
+          WHEN d.ttl IS NOT NULL THEN
+            COALESCE(t.updated_at, t.created_at) < (NOW() - INTERVAL '1 seconds' * ttl)
+          ELSE
+            COALESCE(t.updated_at, t.created_at) <
+              (NOW() - INTERVAL '${this.sql(interval)} seconds')
+          END
+      )
       UPDATE jobs
       SET status = 'pending', updated_at = NOW()
       WHERE status IN ('done', 'failed') AND token_id = (
-        SELECT t.id
-        FROM tokens AS t
-        LEFT JOIN token_metadata_notifications AS n ON t.token_metadata_notification_id = n.id
-        WHERE n.update_mode = 'dynamic'
-        AND CASE
-          WHEN ttl IS NOT NULL THEN
-            COALESCE(t.updated_at, t.created_at) < (NOW() - INTERVAL '1 seconds' * ttl)
-          ELSE
-            COALESCE(t.updated_at, t.created_at) < (NOW() - INTERVAL '${this.sql(
-              interval
-            )} seconds')
-        END
+        SELECT token_id FROM due_for_refresh
       )
     `;
   }

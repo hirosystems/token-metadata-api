@@ -117,8 +117,8 @@
         "--runInBand",
         "--no-cache",
         "${workspaceFolder}/tests/chainhook/",
-        "-t",
-        "rolls back notification"
+        // "-t",
+        // "enqueues notification for all tokens"
       ],
       "outputCapture": "std",
       "console": "integratedTerminal",

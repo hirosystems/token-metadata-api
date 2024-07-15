@@ -23,7 +23,7 @@ export function up(pgm: MigrationBuilder): void {
       onDelete: 'CASCADE',
     },
   });
-  pgm.createConstraint('notifications_tokens', 'notifications_tokens_pk', {
-    primaryKey: ['notification_id', 'smart_contract_id', 'token_id'],
+  pgm.createIndex('notifications_tokens', ['notification_id', 'smart_contract_id', 'token_id'], {
+    unique: true,
   });
 }
