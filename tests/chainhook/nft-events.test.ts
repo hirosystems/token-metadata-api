@@ -48,16 +48,15 @@ describe('NFT events', () => {
         .build()
     );
 
-    const jobs2 = await db.getPendingJobBatch({ limit: 10 });
-    expect(jobs2.length).toBe(1);
-    const token = await db.getToken({ id: 4 });
-    expect(token).not.toBeUndefined();
+    await expect(db.getPendingJobBatch({ limit: 10 })).resolves.toHaveLength(1);
+    await expect(db.getToken({ id: 4 })).resolves.not.toBeUndefined();
   });
 
   test('NFT mint roll back removes token', async () => {
     const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
     const contractId = `${address}.friedger-pool-nft`;
     await insertAndEnqueueTestContractWithTokens(db, contractId, DbSipNumber.sip009, 3n);
+    await markAllJobsAsDone(db);
 
     // Roll back token 3
     await db.chainhook.processPayload(
@@ -77,7 +76,7 @@ describe('NFT events', () => {
         .build()
     );
 
-    await expect(getTokenCount(db)).resolves.toBe('0');
+    await expect(getTokenCount(db)).resolves.toBe('2');
     await expect(getJobCount(db)).resolves.toBe('3'); // Only the contract + other token jobs
   });
 });
