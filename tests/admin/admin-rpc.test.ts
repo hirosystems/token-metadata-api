@@ -2,8 +2,12 @@ import { cycleMigrations } from '@hirosystems/api-toolkit';
 import { buildAdminRpcServer } from '../../src/admin-rpc/init';
 import { ENV } from '../../src/env';
 import { MIGRATIONS_DIR, PgStore } from '../../src/pg/pg-store';
-import { DbJobStatus, DbSipNumber, DbSmartContractInsert, DbTokenType } from '../../src/pg/types';
-import { TestFastifyServer } from '../helpers';
+import { DbJobStatus, DbSipNumber } from '../../src/pg/types';
+import {
+  insertAndEnqueueTestContractWithTokens,
+  markAllJobsAsDone,
+  TestFastifyServer,
+} from '../helpers';
 
 describe('Admin RPC', () => {
   let db: PgStore;
@@ -23,20 +27,13 @@ describe('Admin RPC', () => {
 
   describe('/refresh-token', () => {
     test('refreshes single token', async () => {
-      const values: DbSmartContractInsert = {
-        principal: 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
-        sip: DbSipNumber.sip009,
-        tx_id: '0x123456',
-        block_height: 1,
-      };
-      await db.chainhook.insertAndEnqueueSmartContract({ values });
-      const inputJobs = await db.chainhook.insertAndEnqueueSequentialTokens({
-        smart_contract_id: 1,
-        token_count: 1n,
-        type: DbTokenType.nft,
-      });
-      // Simulate done jobs
-      await db.sql`UPDATE jobs SET status = ${DbJobStatus.done}`;
+      const inputJobs = await insertAndEnqueueTestContractWithTokens(
+        db,
+        'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+        DbSipNumber.sip009,
+        1n
+      );
+      await markAllJobsAsDone(db);
 
       const response = await fastify.inject({
         url: '/metadata/admin/refresh-token',
@@ -55,20 +52,13 @@ describe('Admin RPC', () => {
     });
 
     test('refreshes all tokens', async () => {
-      const values: DbSmartContractInsert = {
-        principal: 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
-        sip: DbSipNumber.sip009,
-        tx_id: '0x123456',
-        block_height: 1,
-      };
-      await db.chainhook.insertAndEnqueueSmartContract({ values });
-      const inputJobs = await db.chainhook.insertAndEnqueueSequentialTokens({
-        smart_contract_id: 1,
-        token_count: 2n,
-        type: DbTokenType.nft,
-      });
-      // Simulate done jobs
-      await db.sql`UPDATE jobs SET status = ${DbJobStatus.done}`;
+      const inputJobs = await insertAndEnqueueTestContractWithTokens(
+        db,
+        'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+        DbSipNumber.sip009,
+        2n
+      );
+      await markAllJobsAsDone(db);
 
       const response = await fastify.inject({
         url: '/metadata/admin/refresh-token',
@@ -102,18 +92,12 @@ describe('Admin RPC', () => {
 
   describe('/retry-failed', () => {
     test('retries failed and invalid jobs', async () => {
-      const values: DbSmartContractInsert = {
-        principal: 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
-        sip: DbSipNumber.sip009,
-        tx_id: '0x123456',
-        block_height: 1,
-      };
-      await db.chainhook.insertAndEnqueueSmartContract({ values });
-      await db.chainhook.insertAndEnqueueSequentialTokens({
-        smart_contract_id: 1,
-        token_count: 1n,
-        type: DbTokenType.nft,
-      });
+      await insertAndEnqueueTestContractWithTokens(
+        db,
+        'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+        DbSipNumber.sip009,
+        1n
+      );
       // Simulate failed jobs
       await db.sql`UPDATE jobs SET status = ${DbJobStatus.failed} WHERE id = 1`;
       await db.sql`UPDATE jobs SET status = ${DbJobStatus.invalid} WHERE id = 2`;
