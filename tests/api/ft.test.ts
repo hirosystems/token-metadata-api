@@ -1,13 +1,13 @@
 import { cycleMigrations } from '@hirosystems/api-toolkit';
 import { ENV } from '../../src/env';
 import { MIGRATIONS_DIR, PgStore } from '../../src/pg/pg-store';
+import { DbFungibleTokenMetadataItem, DbSipNumber } from '../../src/pg/types';
 import {
-  DbFungibleTokenMetadataItem,
-  DbSipNumber,
-  DbSmartContractInsert,
-  DbTokenType,
-} from '../../src/pg/types';
-import { startTestApiServer, TestFastifyServer } from '../helpers';
+  insertAndEnqueueTestContract,
+  insertAndEnqueueTestContractWithTokens,
+  startTestApiServer,
+  TestFastifyServer,
+} from '../helpers';
 
 describe('FT routes', () => {
   let db: PgStore;
@@ -25,25 +25,6 @@ describe('FT routes', () => {
     await db.close();
   });
 
-  const enqueueContract = async () => {
-    const values: DbSmartContractInsert = {
-      principal: 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
-      sip: DbSipNumber.sip010,
-      tx_id: '0x123456',
-      block_height: 1,
-    };
-    await db.chainhook.insertAndEnqueueSmartContract({ values });
-  };
-
-  const enqueueToken = async () => {
-    await enqueueContract();
-    await db.chainhook.insertAndEnqueueSequentialTokens({
-      smart_contract_id: 1,
-      token_count: 1n,
-      type: DbTokenType.ft,
-    });
-  };
-
   test('contract not found', async () => {
     const response = await fastify.inject({
       method: 'GET',
@@ -54,7 +35,11 @@ describe('FT routes', () => {
   });
 
   test('token not found', async () => {
-    await enqueueContract();
+    await insertAndEnqueueTestContract(
+      db,
+      'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      DbSipNumber.sip010
+    );
     const response = await fastify.inject({
       method: 'GET',
       url: '/metadata/v1/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
@@ -64,7 +49,12 @@ describe('FT routes', () => {
   });
 
   test('token not processed', async () => {
-    await enqueueToken();
+    await insertAndEnqueueTestContractWithTokens(
+      db,
+      'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      DbSipNumber.sip010,
+      1n
+    );
     const response = await fastify.inject({
       method: 'GET',
       url: '/metadata/v1/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
@@ -74,7 +64,12 @@ describe('FT routes', () => {
   });
 
   test('invalid contract', async () => {
-    await enqueueToken();
+    await insertAndEnqueueTestContractWithTokens(
+      db,
+      'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      DbSipNumber.sip010,
+      1n
+    );
     await db.sql`UPDATE jobs SET status = 'invalid' WHERE id = 1`;
     const response = await fastify.inject({
       method: 'GET',
@@ -85,7 +80,12 @@ describe('FT routes', () => {
   });
 
   test('invalid token metadata', async () => {
-    await enqueueToken();
+    await insertAndEnqueueTestContractWithTokens(
+      db,
+      'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      DbSipNumber.sip010,
+      1n
+    );
     await db.sql`UPDATE jobs SET status = 'invalid' WHERE id = 2`;
     const response = await fastify.inject({
       method: 'GET',
@@ -96,7 +96,12 @@ describe('FT routes', () => {
   });
 
   test('locale not found', async () => {
-    await enqueueToken();
+    await insertAndEnqueueTestContractWithTokens(
+      db,
+      'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      DbSipNumber.sip010,
+      1n
+    );
     await db.updateProcessedTokenWithMetadata({
       id: 1,
       values: {
@@ -133,7 +138,12 @@ describe('FT routes', () => {
   });
 
   test('empty metadata locales', async () => {
-    await enqueueToken();
+    await insertAndEnqueueTestContractWithTokens(
+      db,
+      'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      DbSipNumber.sip010,
+      1n
+    );
     await db.updateProcessedTokenWithMetadata({
       id: 1,
       values: {
@@ -163,7 +173,12 @@ describe('FT routes', () => {
   });
 
   test('valid FT metadata', async () => {
-    await enqueueToken();
+    await insertAndEnqueueTestContractWithTokens(
+      db,
+      'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      DbSipNumber.sip010,
+      1n
+    );
     await db.updateProcessedTokenWithMetadata({
       id: 1,
       values: {
@@ -263,18 +278,13 @@ describe('FT routes', () => {
 
   describe('index', () => {
     const insertFt = async (item: DbFungibleTokenMetadataItem) => {
-      const values: DbSmartContractInsert = {
-        principal: item.principal,
-        sip: DbSipNumber.sip010,
-        tx_id: item.tx_id,
-        block_height: 1,
-      };
-      const job = await db.chainhook.insertAndEnqueueSmartContract({ values });
-      const [tokenJob] = await db.chainhook.insertAndEnqueueSequentialTokens({
-        smart_contract_id: job.smart_contract_id ?? 0,
-        token_count: 1n,
-        type: DbTokenType.ft,
-      });
+      const [tokenJob] = await insertAndEnqueueTestContractWithTokens(
+        db,
+        item.principal,
+        DbSipNumber.sip010,
+        1n,
+        item.tx_id
+      );
       await db.updateProcessedTokenWithMetadata({
         id: tokenJob.token_id ?? 0,
         values: {

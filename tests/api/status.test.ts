@@ -1,8 +1,12 @@
 import { cycleMigrations } from '@hirosystems/api-toolkit';
 import { ENV } from '../../src/env';
 import { MIGRATIONS_DIR, PgStore } from '../../src/pg/pg-store';
-import { DbSipNumber, DbTokenType } from '../../src/pg/types';
-import { startTestApiServer, TestFastifyServer } from '../helpers';
+import { DbSipNumber } from '../../src/pg/types';
+import {
+  insertAndEnqueueTestContractWithTokens,
+  startTestApiServer,
+  TestFastifyServer,
+} from '../helpers';
 
 describe('Status routes', () => {
   let db: PgStore;
@@ -33,19 +37,12 @@ describe('Status routes', () => {
   });
 
   test('returns status counts', async () => {
-    await db.chainhook.insertAndEnqueueSmartContract({
-      values: {
-        principal: 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
-        sip: DbSipNumber.sip009,
-        tx_id: '0x1234',
-        block_height: 1,
-      },
-    });
-    await db.chainhook.insertAndEnqueueSequentialTokens({
-      smart_contract_id: 1,
-      token_count: 1n,
-      type: DbTokenType.nft,
-    });
+    await insertAndEnqueueTestContractWithTokens(
+      db,
+      'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      DbSipNumber.sip009,
+      1n
+    );
 
     const response = await fastify.inject({ method: 'GET', url: '/metadata/v1/' });
     const json = response.json();

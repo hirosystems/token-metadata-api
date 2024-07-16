@@ -1,8 +1,13 @@
 import { cycleMigrations } from '@hirosystems/api-toolkit';
 import { ENV } from '../../src/env';
 import { MIGRATIONS_DIR, PgStore } from '../../src/pg/pg-store';
-import { DbSipNumber, DbSmartContractInsert, DbTokenType } from '../../src/pg/types';
-import { startTestApiServer, TestFastifyServer } from '../helpers';
+import {
+  insertAndEnqueueTestContract,
+  insertAndEnqueueTestContractWithTokens,
+  startTestApiServer,
+  TestFastifyServer,
+} from '../helpers';
+import { DbSipNumber } from '../../src/pg/types';
 
 describe('NFT routes', () => {
   let db: PgStore;
@@ -20,25 +25,6 @@ describe('NFT routes', () => {
     await db.close();
   });
 
-  const enqueueContract = async () => {
-    const values: DbSmartContractInsert = {
-      principal: 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
-      sip: DbSipNumber.sip009,
-      tx_id: '0x123456',
-      block_height: 1,
-    };
-    await db.chainhook.insertAndEnqueueSmartContract({ values });
-  };
-
-  const enqueueToken = async () => {
-    await enqueueContract();
-    await db.chainhook.insertAndEnqueueSequentialTokens({
-      smart_contract_id: 1,
-      token_count: 1n,
-      type: DbTokenType.nft,
-    });
-  };
-
   test('contract not found', async () => {
     const response = await fastify.inject({
       method: 'GET',
@@ -49,7 +35,11 @@ describe('NFT routes', () => {
   });
 
   test('token not found', async () => {
-    await enqueueContract();
+    await insertAndEnqueueTestContract(
+      db,
+      'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      DbSipNumber.sip009
+    );
     const response = await fastify.inject({
       method: 'GET',
       url: '/metadata/v1/nft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1',
@@ -59,7 +49,12 @@ describe('NFT routes', () => {
   });
 
   test('token not processed', async () => {
-    await enqueueToken();
+    await insertAndEnqueueTestContractWithTokens(
+      db,
+      'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      DbSipNumber.sip009,
+      1n
+    );
     const response = await fastify.inject({
       method: 'GET',
       url: '/metadata/v1/nft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world/1',
@@ -69,7 +64,12 @@ describe('NFT routes', () => {
   });
 
   test('invalid contract', async () => {
-    await enqueueToken();
+    await insertAndEnqueueTestContractWithTokens(
+      db,
+      'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      DbSipNumber.sip009,
+      1n
+    );
     await db.sql`UPDATE jobs SET status = 'invalid' WHERE id = 1`;
     const response = await fastify.inject({
       method: 'GET',
@@ -80,7 +80,12 @@ describe('NFT routes', () => {
   });
 
   test('invalid token metadata', async () => {
-    await enqueueToken();
+    await insertAndEnqueueTestContractWithTokens(
+      db,
+      'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      DbSipNumber.sip009,
+      1n
+    );
     await db.sql`UPDATE jobs SET status = 'invalid' WHERE id = 2`;
     const response = await fastify.inject({
       method: 'GET',
@@ -91,7 +96,12 @@ describe('NFT routes', () => {
   });
 
   test('locale not found', async () => {
-    await enqueueToken();
+    await insertAndEnqueueTestContractWithTokens(
+      db,
+      'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      DbSipNumber.sip009,
+      1n
+    );
     await db.updateProcessedTokenWithMetadata({
       id: 1,
       values: {
@@ -128,7 +138,12 @@ describe('NFT routes', () => {
   });
 
   test('empty metadata locales', async () => {
-    await enqueueToken();
+    await insertAndEnqueueTestContractWithTokens(
+      db,
+      'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      DbSipNumber.sip009,
+      1n
+    );
     await db.updateProcessedTokenWithMetadata({
       id: 1,
       values: {
@@ -150,7 +165,12 @@ describe('NFT routes', () => {
   });
 
   test('valid NFT metadata', async () => {
-    await enqueueToken();
+    await insertAndEnqueueTestContractWithTokens(
+      db,
+      'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      DbSipNumber.sip009,
+      1n
+    );
     await db.updateProcessedTokenWithMetadata({
       id: 1,
       values: {

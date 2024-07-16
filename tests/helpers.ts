@@ -1363,7 +1363,8 @@ export class TestChainhookPayloadBuilder {
 export async function insertAndEnqueueTestContract(
   db: PgStore,
   principal: string,
-  sip: DbSipNumber
+  sip: DbSipNumber,
+  tx_id?: string
 ): Promise<DbJob> {
   return await db.sqlWriteTransaction(async sql => {
     const cache = new BlockCache({ hash: '0x000001', index: 1 });
@@ -1372,7 +1373,7 @@ export async function insertAndEnqueueTestContract(
         principal,
         sip,
       },
-      tx_id: '0x123456',
+      tx_id: tx_id ?? '0x123456',
       tx_index: 0,
     };
     await db.chainhook.applyContractDeployment(sql, deploy, cache);
@@ -1389,10 +1390,11 @@ export async function insertAndEnqueueTestContractWithTokens(
   db: PgStore,
   principal: string,
   sip: DbSipNumber,
-  token_count: bigint
+  token_count: bigint,
+  tx_id?: string
 ): Promise<DbJob[]> {
   return await db.sqlWriteTransaction(async sql => {
-    await insertAndEnqueueTestContract(db, principal, sip);
+    await insertAndEnqueueTestContract(db, principal, sip, tx_id);
     const smart_contract = (await db.getSmartContract({ principal })) as DbSmartContract;
     await db.chainhook.insertAndEnqueueSequentialTokens({
       smart_contract,

@@ -1,8 +1,13 @@
 import { cycleMigrations } from '@hirosystems/api-toolkit';
 import { ENV } from '../../src/env';
 import { MIGRATIONS_DIR, PgStore } from '../../src/pg/pg-store';
-import { DbSipNumber, DbSmartContractInsert, DbTokenType } from '../../src/pg/types';
-import { startTestApiServer, TestFastifyServer } from '../helpers';
+import { DbSipNumber } from '../../src/pg/types';
+import {
+  insertAndEnqueueTestContract,
+  insertAndEnqueueTestContractWithTokens,
+  startTestApiServer,
+  TestFastifyServer,
+} from '../helpers';
 
 describe('SFT routes', () => {
   let db: PgStore;
@@ -20,29 +25,6 @@ describe('SFT routes', () => {
     await db.close();
   });
 
-  const enqueueContract = async () => {
-    const address = 'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9';
-    const contractId = 'key-alex-autoalex-v1';
-    const values: DbSmartContractInsert = {
-      principal: `${address}.${contractId}`,
-      sip: DbSipNumber.sip013,
-      tx_id: '0x123456',
-      block_height: 1,
-    };
-    await db.chainhook.insertAndEnqueueSmartContract({ values });
-  };
-
-  const enqueueToken = async () => {
-    await enqueueContract();
-    await db.chainhook.insertAndEnqueueTokens([
-      {
-        smart_contract_id: 1,
-        type: DbTokenType.sft,
-        token_number: '1',
-      },
-    ]);
-  };
-
   test('contract not found', async () => {
     const response = await fastify.inject({
       method: 'GET',
@@ -53,7 +35,11 @@ describe('SFT routes', () => {
   });
 
   test('token not found', async () => {
-    await enqueueContract();
+    await insertAndEnqueueTestContract(
+      db,
+      'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1',
+      DbSipNumber.sip013
+    );
     const response = await fastify.inject({
       method: 'GET',
       url: '/metadata/v1/nft/SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1/1',
@@ -63,7 +49,12 @@ describe('SFT routes', () => {
   });
 
   test('token not processed', async () => {
-    await enqueueToken();
+    await insertAndEnqueueTestContractWithTokens(
+      db,
+      'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1',
+      DbSipNumber.sip013,
+      1n
+    );
     const response = await fastify.inject({
       method: 'GET',
       url: '/metadata/v1/sft/SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1/1',
@@ -73,7 +64,12 @@ describe('SFT routes', () => {
   });
 
   test('invalid contract', async () => {
-    await enqueueToken();
+    await insertAndEnqueueTestContractWithTokens(
+      db,
+      'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1',
+      DbSipNumber.sip013,
+      1n
+    );
     await db.sql`UPDATE jobs SET status = 'invalid' WHERE id = 1`;
     const response = await fastify.inject({
       method: 'GET',
@@ -84,7 +80,12 @@ describe('SFT routes', () => {
   });
 
   test('invalid token metadata', async () => {
-    await enqueueToken();
+    await insertAndEnqueueTestContractWithTokens(
+      db,
+      'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1',
+      DbSipNumber.sip013,
+      1n
+    );
     await db.sql`UPDATE jobs SET status = 'invalid' WHERE id = 2`;
     const response = await fastify.inject({
       method: 'GET',
@@ -95,7 +96,12 @@ describe('SFT routes', () => {
   });
 
   test('locale not found', async () => {
-    await enqueueToken();
+    await insertAndEnqueueTestContractWithTokens(
+      db,
+      'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1',
+      DbSipNumber.sip013,
+      1n
+    );
     await db.updateProcessedTokenWithMetadata({
       id: 1,
       values: {
@@ -132,7 +138,12 @@ describe('SFT routes', () => {
   });
 
   test('empty metadata locales', async () => {
-    await enqueueToken();
+    await insertAndEnqueueTestContractWithTokens(
+      db,
+      'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1',
+      DbSipNumber.sip013,
+      1n
+    );
     await db.updateProcessedTokenWithMetadata({
       id: 1,
       values: {
@@ -158,7 +169,12 @@ describe('SFT routes', () => {
   });
 
   test('valid SFT metadata', async () => {
-    await enqueueToken();
+    await insertAndEnqueueTestContractWithTokens(
+      db,
+      'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.key-alex-autoalex-v1',
+      DbSipNumber.sip013,
+      1n
+    );
     await db.updateProcessedTokenWithMetadata({
       id: 1,
       values: {
