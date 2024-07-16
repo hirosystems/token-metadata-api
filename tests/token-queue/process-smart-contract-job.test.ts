@@ -11,6 +11,7 @@ import {
 import { ProcessSmartContractJob } from '../../src/token-processor/queue/job/process-smart-contract-job';
 import { ENV } from '../../src/env';
 import { cycleMigrations } from '@hirosystems/api-toolkit';
+import { insertAndEnqueueTestContract } from '../helpers';
 
 describe('ProcessSmartContractJob', () => {
   let db: PgStore;
@@ -26,13 +27,7 @@ describe('ProcessSmartContractJob', () => {
   });
 
   test('enqueues 1 token per FT contract', async () => {
-    const values: DbSmartContractInsert = {
-      principal: 'ABCD.test-ft',
-      sip: DbSipNumber.sip010,
-      tx_id: '0x123456',
-      block_height: 1,
-    };
-    const job = await db.chainhook.insertAndEnqueueSmartContract({ values });
+    const job = await insertAndEnqueueTestContract(db, 'ABCD.test-ft', DbSipNumber.sip010);
     const processor = new ProcessSmartContractJob({
       db,
       job,
@@ -60,13 +55,7 @@ describe('ProcessSmartContractJob', () => {
       });
     setGlobalDispatcher(agent);
 
-    const values: DbSmartContractInsert = {
-      principal: 'ABCD.test-nft',
-      sip: DbSipNumber.sip009,
-      tx_id: '0x123456',
-      block_height: 1,
-    };
-    const job = await db.chainhook.insertAndEnqueueSmartContract({ values });
+    const job = await insertAndEnqueueTestContract(db, 'ABCD.test-nft', DbSipNumber.sip009);
     const processor = new ProcessSmartContractJob({
       db,
       job,
@@ -94,13 +83,7 @@ describe('ProcessSmartContractJob', () => {
       });
     setGlobalDispatcher(agent);
 
-    const values: DbSmartContractInsert = {
-      principal: 'ABCD.test-nft',
-      sip: DbSipNumber.sip009,
-      tx_id: '0x123456',
-      block_height: 1,
-    };
-    const job = await db.chainhook.insertAndEnqueueSmartContract({ values });
+    const job = await insertAndEnqueueTestContract(db, 'ABCD.test-nft', DbSipNumber.sip009);
     const processor = new ProcessSmartContractJob({
       db,
       job,

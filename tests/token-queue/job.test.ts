@@ -5,6 +5,7 @@ import { DbJob, DbSipNumber, DbSmartContractInsert } from '../../src/pg/types';
 import { RetryableJobError } from '../../src/token-processor/queue/errors';
 import { Job } from '../../src/token-processor/queue/job/job';
 import { UserError } from '../../src/token-processor/util/errors';
+import { insertAndEnqueueTestContract } from '../helpers';
 
 class TestRetryableJob extends Job {
   description(): string {
@@ -41,13 +42,7 @@ describe('Job', () => {
     ENV.PGDATABASE = 'postgres';
     db = await PgStore.connect({ skipMigrations: true });
     await cycleMigrations(MIGRATIONS_DIR);
-    const values: DbSmartContractInsert = {
-      principal: 'ABCD.test-ft',
-      sip: DbSipNumber.sip010,
-      tx_id: '0x123456',
-      block_height: 1,
-    };
-    dbJob = await db.chainhook.insertAndEnqueueSmartContract({ values });
+    dbJob = await insertAndEnqueueTestContract(db, 'ABCD.test-ft', DbSipNumber.sip010);
   });
 
   afterEach(async () => {

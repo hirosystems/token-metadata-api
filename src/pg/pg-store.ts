@@ -313,7 +313,7 @@ export class PgStore extends BasePgStore {
     const results = await this.sql<DbRateLimitedHost[]>`
       INSERT INTO rate_limited_hosts (hostname, created_at, retry_after)
       VALUES (${args.values.hostname}, DEFAULT, NOW() + INTERVAL '${this.sql(retryAfter)} seconds')
-      ON CONFLICT ON CONSTRAINT rate_limited_hosts_hostname_unique DO
+      ON CONFLICT ON CONSTRAINT rate_limited_hosts_hostname_key DO
         UPDATE SET retry_after = EXCLUDED.retry_after
       RETURNING ${this.sql(RATE_LIMITED_HOSTS_COLUMNS)}
     `;

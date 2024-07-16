@@ -2,7 +2,7 @@ import { ENV } from '../../src/env';
 import { MIGRATIONS_DIR, PgStore } from '../../src/pg/pg-store';
 import { DbJob, DbJobStatus, DbSipNumber, DbSmartContractInsert } from '../../src/pg/types';
 import { JobQueue } from '../../src/token-processor/queue/job-queue';
-import { sleep } from '../helpers';
+import { insertAndEnqueueTestContract, sleep } from '../helpers';
 import { cycleMigrations } from '@hirosystems/api-toolkit';
 
 class TestJobQueue extends JobQueue {
@@ -36,13 +36,7 @@ describe('JobQueue', () => {
   test('skips adding job if queue is at limit', async () => {
     ENV.JOB_QUEUE_SIZE_LIMIT = 1;
 
-    const values1: DbSmartContractInsert = {
-      principal: 'ABCD.test-ft',
-      sip: DbSipNumber.sip010,
-      tx_id: '0x123456',
-      block_height: 1,
-    };
-    const job1 = await db.chainhook.insertAndEnqueueSmartContract({ values: values1 });
+    const job1 = await insertAndEnqueueTestContract(db, 'ABCD.test-ft', DbSipNumber.sip010);
     await queue.testAdd(job1);
 
     const count1 = await db.sql<
@@ -50,13 +44,7 @@ describe('JobQueue', () => {
     >`SELECT COUNT(*) FROM jobs WHERE status = 'queued'`;
     expect(count1.count).toBe(1);
 
-    const values2: DbSmartContractInsert = {
-      principal: 'ABCD.test-ft2',
-      sip: DbSipNumber.sip010,
-      tx_id: '0x123456',
-      block_height: 1,
-    };
-    const job2 = await db.chainhook.insertAndEnqueueSmartContract({ values: values2 });
+    const job2 = await insertAndEnqueueTestContract(db, 'ABCD.test-ft2', DbSipNumber.sip010);
     await queue.testAdd(job2);
 
     const count2 = await db.sql<
@@ -68,31 +56,12 @@ describe('JobQueue', () => {
   test('adds job batches for processing', async () => {
     ENV.JOB_QUEUE_SIZE_LIMIT = 10;
 
-    const values1: DbSmartContractInsert = {
-      principal: 'ABCD.test-ft',
-      sip: DbSipNumber.sip010,
-      tx_id: '0x123456',
-      block_height: 1,
-    };
-    const job1 = await db.chainhook.insertAndEnqueueSmartContract({ values: values1 });
+    const job1 = await insertAndEnqueueTestContract(db, 'ABCD.test-ft', DbSipNumber.sip010);
     // Set it as queued already as if something had gone wrong.
     await db.sql`UPDATE jobs SET status='queued' WHERE id=${job1.id}`;
 
-    const values2: DbSmartContractInsert = {
-      principal: 'ABCD.test-ft2',
-      sip: DbSipNumber.sip010,
-      tx_id: '0x123456',
-      block_height: 1,
-    };
-    const job2 = await db.chainhook.insertAndEnqueueSmartContract({ values: values2 });
-
-    const values3: DbSmartContractInsert = {
-      principal: 'ABCD.test-ft3',
-      sip: DbSipNumber.sip010,
-      tx_id: '0x123456',
-      block_height: 1,
-    };
-    const job3 = await db.chainhook.insertAndEnqueueSmartContract({ values: values3 });
+    const job2 = await insertAndEnqueueTestContract(db, 'ABCD.test-ft2', DbSipNumber.sip010);
+    const job3 = await insertAndEnqueueTestContract(db, 'ABCD.test-ft3', DbSipNumber.sip010);
 
     // Queued is taken first.
     const added1 = await queue.testAddJobBatch();
@@ -111,16 +80,8 @@ describe('JobQueue', () => {
   });
 
   test('pg connection errors are not re-thrown', async () => {
-    const values1: DbSmartContractInsert = {
-      principal: 'ABCD.test-ft',
-      sip: DbSipNumber.sip010,
-      tx_id: '0x123456',
-      block_height: 1,
-    };
-    await db.chainhook.insertAndEnqueueSmartContract({ values: values1 });
-
+    await insertAndEnqueueTestContract(db, 'ABCD.test-ft', DbSipNumber.sip010);
     const queue = new JobQueue({ db });
-
     // Close DB and start the queue. If the error is not handled correctly, the test will fail.
     await db.close();
     queue.start();

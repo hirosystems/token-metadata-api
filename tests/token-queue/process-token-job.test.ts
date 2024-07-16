@@ -16,6 +16,7 @@ import { parseRetryAfterResponseHeader } from '../../src/token-processor/util/he
 import { RetryableJobError } from '../../src/token-processor/queue/errors';
 import { TooManyRequestsHttpError } from '../../src/token-processor/util/errors';
 import { cycleMigrations } from '@hirosystems/api-toolkit';
+import { insertAndEnqueueTestContractWithTokens } from '../helpers';
 
 describe('ProcessTokenJob', () => {
   let db: PgStore;
@@ -34,18 +35,12 @@ describe('ProcessTokenJob', () => {
     let tokenJob: DbJob;
 
     beforeEach(async () => {
-      const values: DbSmartContractInsert = {
-        principal: 'ABCD.test-ft',
-        sip: DbSipNumber.sip010,
-        tx_id: '0x123456',
-        block_height: 1,
-      };
-      await db.chainhook.insertAndEnqueueSmartContract({ values });
-      [tokenJob] = await db.chainhook.insertAndEnqueueSequentialTokens({
-        smart_contract_id: 1,
-        token_count: 1n,
-        type: DbTokenType.ft,
-      });
+      [tokenJob] = await insertAndEnqueueTestContractWithTokens(
+        db,
+        'ABCD.test-ft',
+        DbSipNumber.sip010,
+        1n
+      );
     });
 
     test('parses FT info', async () => {
@@ -349,18 +344,12 @@ describe('ProcessTokenJob', () => {
     let tokenJob: DbJob;
 
     beforeEach(async () => {
-      const values: DbSmartContractInsert = {
-        principal: 'ABCD.test-nft',
-        sip: DbSipNumber.sip009,
-        tx_id: '0x123456',
-        block_height: 1,
-      };
-      await db.chainhook.insertAndEnqueueSmartContract({ values });
-      [tokenJob] = await db.chainhook.insertAndEnqueueSequentialTokens({
-        smart_contract_id: 1,
-        token_count: 1n,
-        type: DbTokenType.nft,
-      });
+      [tokenJob] = await insertAndEnqueueTestContractWithTokens(
+        db,
+        'ABCD.test-nft',
+        DbSipNumber.sip009,
+        1n
+      );
     });
 
     test('parses metadata with arbitrary types', async () => {
@@ -741,20 +730,12 @@ describe('ProcessTokenJob', () => {
     let tokenJob: DbJob;
 
     beforeEach(async () => {
-      const values: DbSmartContractInsert = {
-        principal: `${address}.${contractId}`,
-        sip: DbSipNumber.sip013,
-        tx_id: '0x123456',
-        block_height: 1,
-      };
-      await db.chainhook.insertAndEnqueueSmartContract({ values });
-      [tokenJob] = await db.chainhook.insertAndEnqueueTokens([
-        {
-          smart_contract_id: 1,
-          type: DbTokenType.sft,
-          token_number: '1',
-        },
-      ]);
+      [tokenJob] = await insertAndEnqueueTestContractWithTokens(
+        db,
+        `${address}.${contractId}`,
+        DbSipNumber.sip013,
+        1n
+      );
     });
 
     test('parses SFT info', async () => {
@@ -808,18 +789,12 @@ describe('ProcessTokenJob', () => {
     let agent: MockAgent;
 
     beforeEach(async () => {
-      const values: DbSmartContractInsert = {
-        principal: 'ABCD.test-nft',
-        sip: DbSipNumber.sip009,
-        tx_id: '0x123456',
-        block_height: 1,
-      };
-      await db.chainhook.insertAndEnqueueSmartContract({ values });
-      [tokenJob] = await db.chainhook.insertAndEnqueueSequentialTokens({
-        smart_contract_id: 1,
-        token_count: 1n,
-        type: DbTokenType.nft,
-      });
+      [tokenJob] = await insertAndEnqueueTestContractWithTokens(
+        db,
+        'ABCD.test-nft',
+        DbSipNumber.sip009,
+        1n
+      );
 
       agent = new MockAgent();
       agent.disableNetConnect();
