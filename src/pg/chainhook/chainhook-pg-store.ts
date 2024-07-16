@@ -373,32 +373,31 @@ export class ChainhookPgStore extends BasePgStoreModule {
 
   private async enqueueDynamicTokensDueForRefresh(): Promise<void> {
     const interval = ENV.METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL.toString();
-    await this.sql`SELECT NULL`;
-    // await this.sql`
-    //   WITH dynamic_tokens AS (
-    //     SELECT nt.token_id, n.ttl
-    //     FROM notifications_tokens AS nt
-    //     INNER JOIN notifications AS n ON n.id = nt.notification_id
-    //     WHERE n.update_mode = 'dynamic'
-    //   ),
-    //   due_for_refresh AS (
-    //     SELECT d.token_id
-    //     FROM dynamic_tokens AS d
-    //     INNER JOIN tokens AS t ON t.id = d.token_id
-    //     WHERE CASE
-    //       WHEN d.ttl IS NOT NULL THEN
-    //         COALESCE(t.updated_at, t.created_at) < (NOW() - INTERVAL '1 seconds' * ttl)
-    //       ELSE
-    //         COALESCE(t.updated_at, t.created_at) <
-    //           (NOW() - INTERVAL '${this.sql(interval)} seconds')
-    //       END
-    //   )
-    //   UPDATE jobs
-    //   SET status = 'pending', updated_at = NOW()
-    //   WHERE status IN ('done', 'failed') AND token_id = (
-    //     SELECT token_id FROM due_for_refresh
-    //   )
-    // `;
+    await this.sql`
+      WITH dynamic_tokens AS (
+        SELECT DISTINCT ON (token_id) token_id, ttl
+        FROM update_notifications
+        WHERE update_mode = 'dynamic'
+        ORDER BY token_id, block_height DESC, tx_index DESC, event_index DESC
+      ),
+      due_for_refresh AS (
+        SELECT d.token_id
+        FROM dynamic_tokens AS d
+        INNER JOIN tokens AS t ON t.id = d.token_id
+        WHERE CASE
+          WHEN d.ttl IS NOT NULL THEN
+            COALESCE(t.updated_at, t.created_at) < (NOW() - INTERVAL '1 seconds' * ttl)
+          ELSE
+            COALESCE(t.updated_at, t.created_at) <
+              (NOW() - INTERVAL '${this.sql(interval)} seconds')
+          END
+      )
+      UPDATE jobs
+      SET status = 'pending', updated_at = NOW()
+      WHERE status IN ('done', 'failed') AND token_id = (
+        SELECT token_id FROM due_for_refresh
+      )
+    `;
   }
 
   private async insertAndEnqueueTokens(tokenValues: DbTokenInsert[]): Promise<void> {

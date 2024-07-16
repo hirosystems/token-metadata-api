@@ -117,8 +117,6 @@
         "--runInBand",
         "--no-cache",
         "${workspaceFolder}/tests/chainhook/",
-        // "-t",
-        // "enqueues notification for all tokens"
       ],
       "outputCapture": "std",
       "console": "integratedTerminal",
