@@ -23,7 +23,6 @@ import {
   DbFungibleTokenMetadataItem,
   DbPaginatedResult,
   DbFungibleTokenOrder,
-  DbTokenMetadataNotification,
 } from './types';
 import {
   ContractNotFoundError,
@@ -255,20 +254,6 @@ export class PgStore extends BasePgStore {
   async getJob(args: { id: number }): Promise<DbJob | undefined> {
     const result = await this.sql<DbJob[]>`
       SELECT ${this.sql(JOBS_COLUMNS)} FROM jobs WHERE id = ${args.id}
-    `;
-    if (result.count) {
-      return result[0];
-    }
-  }
-
-  async getTokenMetadataNotification(args: {
-    tokenId: number;
-  }): Promise<DbTokenMetadataNotification | undefined> {
-    const result = await this.sql<DbTokenMetadataNotification[]>`
-      SELECT n.*
-      FROM notifications_tokens AS n
-      INNER JOIN tokens AS t ON t.id = n.token_id
-      WHERE t.id = ${args.tokenId}
     `;
     if (result.count) {
       return result[0];

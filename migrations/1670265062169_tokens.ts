@@ -5,7 +5,6 @@ export const shorthands: ColumnDefinitions | undefined = undefined;
 
 export function up(pgm: MigrationBuilder): void {
   pgm.createType('token_type', ['ft', 'nft', 'sft']);
-  pgm.createType('token_update_mode', ['standard', 'frozen', 'dynamic']);
   pgm.createTable('tokens', {
     id: {
       type: 'serial',

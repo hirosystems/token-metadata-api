@@ -19,10 +19,8 @@ import {
   DbSipNumber,
   DbSmartContractInsert,
   DbTokenInsert,
-  DbNotificationInsert,
   DbTokenType,
   DbSmartContract,
-  DbTokenUpdateMode,
 } from '../types';
 import { BlockCache, CachedEvent } from './block-cache';
 import { dbSipNumberToDbTokenType } from '../../token-processor/util/helpers';
@@ -139,8 +137,8 @@ export class ChainhookPgStore extends BasePgStoreModule {
   private async rollBackTransactions(sql: PgSqlClient, cache: BlockCache) {
     for (const contract of cache.contracts)
       await this.rollBackContractDeployment(sql, contract, cache);
-    // for (const notification of cache.notifications)
-    //   await this.applyNotification(sql, notification, cache);
+    for (const notification of cache.notifications)
+      await this.rollBackNotification(sql, notification, cache);
     for (const mint of cache.nftMints) await this.rollBackNftMint(sql, mint, cache);
     for (const mint of cache.sftMints) await this.rollBackSftMint(sql, mint, cache);
     for (const [contract, delta] of cache.ftSupplyDelta)
@@ -149,94 +147,56 @@ export class ChainhookPgStore extends BasePgStoreModule {
 
   private async applyNotification(
     sql: PgSqlClient,
-    notification: CachedEvent<TokenMetadataUpdateNotification>,
+    event: CachedEvent<TokenMetadataUpdateNotification>,
     cache: BlockCache
   ) {
     const contractResult = await sql<{ id: number }[]>`
-      SELECT id FROM smart_contracts WHERE principal = ${notification.event.contract_id} LIMIT 1
+      SELECT id FROM smart_contracts WHERE principal = ${event.event.contract_id} LIMIT 1
     `;
     if (contractResult.count == 0) {
       logger.warn(
-        `ChainhookPgStore found SIP-019 notification for non-existing token contract ${notification.event.contract_id} at block ${cache.block.index}`
+        `ChainhookPgStore found SIP-019 notification for non-existing token contract ${event.event.contract_id} at block ${cache.block.index}`
       );
       return;
     }
-    const contractId = contractResult[0].id;
-    const values: DbNotificationInsert = {
-      smart_contract_id: contractId,
-      block_height: cache.block.index,
-      index_block_hash: cache.block.hash,
-      tx_id: notification.tx_id,
-      tx_index: notification.tx_index,
-      event_index: notification.event_index ?? 0,
-      update_mode: notification.event.update_mode as DbTokenUpdateMode,
-      ttl: notification.event.ttl?.toString() ?? null,
-    };
+    const notification = event.event;
     await sql`
-      WITH notification_insert AS (
-        INSERT INTO notifications ${sql(values)}
-        ON CONFLICT ON CONSTRAINT notifications_unique DO UPDATE SET
-          update_mode = EXCLUDED.update_mode,
-          ttl = EXCLUDED.ttl
-        RETURNING id
-      ),
-      relationship_inserts AS (
-        INSERT INTO notifications_tokens (notification_id, smart_contract_id, token_id)
-        (${
-          notification.event.token_ids?.length
-            ? sql`
-              SELECT
-                (SELECT id FROM notification_insert) AS notification_id,
-                smart_contract_id,
-                id AS token_id
-              FROM tokens
-              WHERE smart_contract_id = ${contractId}
-                AND token_number IN ${sql(notification.event.token_ids)}
-              `
-            : sql`
-              SELECT
-                (SELECT id FROM notification_insert) AS notification_id,
-                ${contractId} AS smart_contract_id,
-                NULL AS token_id
-              `
-        })
-      ),
-      frozen_token_inserts AS (
+      WITH affected_token_ids AS (
+        SELECT t.id
+        FROM tokens AS t
+        INNER JOIN smart_contracts AS s ON s.id = t.smart_contract_id
+        WHERE s.principal = ${notification.contract_id}
         ${
-          notification.event.update_mode === 'frozen'
-            ? sql`
-              INSERT INTO frozen_tokens (token_id, notification_id)
-              (
-                SELECT id AS token_id, (SELECT id FROM notification_insert) AS notification_id
-                FROM tokens
-                WHERE smart_contract_id = ${contractId}
-                ${
-                  notification.event.token_ids?.length
-                    ? sql`AND token_number IN ${sql(notification.event.token_ids)}`
-                    : sql``
-                }
-              )
-              `
-            : sql`SELECT 1`
+          notification.token_ids?.length
+            ? sql`AND t.token_number IN ${sql(notification.token_ids)}`
+            : sql``
         }
+      ),
+      previous_modes AS (
+        SELECT DISTINCT ON (a.id) a.id, COALESCE(m.update_mode, 'standard') AS update_mode
+        FROM affected_token_ids AS a
+        LEFT JOIN update_notifications AS m ON a.id = m.token_id
+        ORDER BY a.id, m.block_height DESC, m.tx_index DESC, m.event_index DESC
+      ),
+      new_mode_inserts AS (
+        INSERT INTO update_notifications
+        (token_id, update_mode, ttl, block_height, index_block_hash, tx_id, tx_index, event_index)
+        (
+          SELECT id, ${notification.update_mode}, ${notification.ttl ?? null}, ${cache.block.index},
+            ${cache.block.hash}, ${event.tx_id}, ${event.tx_index},
+            ${event.event_index}
+          FROM previous_modes
+          WHERE update_mode <> 'frozen'
+        )
+        RETURNING token_id
       )
       UPDATE jobs
       SET status = 'pending', updated_at = NOW()
-      WHERE token_id IN (
-        SELECT t.id
-        FROM tokens AS t
-        WHERE t.smart_contract_id = ${contractId}
-          AND NOT EXISTS (SELECT 1 FROM frozen_tokens WHERE token_id = t.id)
-          ${
-            notification.event.token_ids?.length
-              ? sql`AND token_number IN ${sql(notification.event.token_ids)}`
-              : sql``
-          }
-      )
+      WHERE token_id IN (SELECT token_id FROM new_mode_inserts)
     `;
     logger.info(
-      `ChainhookPgStore apply SIP-019 notification ${notification.event.contract_id} (${
-        notification.event.token_ids ?? 'all'
+      `ChainhookPgStore apply SIP-019 notification ${notification.contract_id} (${
+        notification.token_ids ?? 'all'
       }) at block ${cache.block.index}`
     );
   }
@@ -331,52 +291,23 @@ export class ChainhookPgStore extends BasePgStoreModule {
     );
   }
 
-  // private async rollBackPrintEvent(
-  //   sql: PgSqlClient,
-  //   block: BlockIdentifier,
-  //   tx: StacksTransaction,
-  //   event: StacksTransactionSmartContractEvent
-  // ): Promise<void> {
-  //   // SIP-019 notification?
-  //   const notification = getContractLogMetadataUpdateNotification(tx.metadata.sender, event);
-  //   if (notification) {
-  //     const contractResult = await sql<{ id: number }[]>`
-  //       SELECT id FROM smart_contracts WHERE principal = ${notification.contract_id}
-  //     `;
-  //     if (contractResult.count === 0) {
-  //       logger.warn(
-  //         `ChainhookPgStore rollback SIP-019 notification for non-existing contract ${notification.contract_id}`
-  //       );
-  //       return;
-  //     }
-  //     const contractId = contractResult[0].id;
-  //     await sql`
-  //       UPDATE tokens SET
-  //     `;
-  //     await sql`
-  //       DELETE FROM token_metadata_notifications
-  //       WHERE smart_contract_id = ${contractId}
-  //         AND block_height = ${block.index}
-  //         AND index_block_hash = ${block.hash}
-  //         AND tx_id = ${tx.transaction_identifier.hash}
-  //         AND tx_index = ${tx.metadata.position.index}
-  //         AND event_index = ${event.position.index}
-  //     `;
-  //     return;
-  //   }
-  //   // SIP-013 SFT mint?
-  //   const mint = getContractLogSftMintEvent(event);
-  //   if (mint) {
-  //     const smart_contract_id = await this.findSmartContractId(mint.contractId, DbSipNumber.sip013);
-  //     if (smart_contract_id) {
-  //       await this.sql`
-  //         DELETE FROM tokens
-  //         WHERE smart_contract_id = ${smart_contract_id} AND token_number = ${mint.tokenId}
-  //       `;
-  //       logger.info(`ChainhookPgStore rollback SFT mint ${mint.contractId} (${mint.tokenId})`);
-  //     }
-  //   }
-  // }
+  private async rollBackNotification(
+    sql: PgSqlClient,
+    notification: CachedEvent<TokenMetadataUpdateNotification>,
+    cache: BlockCache
+  ): Promise<void> {
+    await sql`
+      DELETE FROM update_notifications
+      WHERE block_height = ${cache.block.index}
+        AND tx_index = ${notification.tx_index}
+        AND event_index = ${notification.event_index}
+    `;
+    logger.info(
+      `ChainhookPgStore rollback SIP-019 notification ${notification.event.contract_id} (${
+        notification.event.token_ids ?? 'all'
+      }) at block ${cache.block.index}`
+    );
+  }
 
   private async rollBackNftMint(
     sql: PgSqlClient,
@@ -442,31 +373,32 @@ export class ChainhookPgStore extends BasePgStoreModule {
 
   private async enqueueDynamicTokensDueForRefresh(): Promise<void> {
     const interval = ENV.METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL.toString();
-    await this.sql`
-      WITH dynamic_tokens AS (
-        SELECT nt.token_id, n.ttl
-        FROM notifications_tokens AS nt
-        INNER JOIN notifications AS n ON n.id = nt.notification_id
-        WHERE n.update_mode = 'dynamic'
-      ),
-      due_for_refresh AS (
-        SELECT d.token_id
-        FROM dynamic_tokens AS d
-        INNER JOIN tokens AS t ON t.id = d.token_id
-        WHERE CASE
-          WHEN d.ttl IS NOT NULL THEN
-            COALESCE(t.updated_at, t.created_at) < (NOW() - INTERVAL '1 seconds' * ttl)
-          ELSE
-            COALESCE(t.updated_at, t.created_at) <
-              (NOW() - INTERVAL '${this.sql(interval)} seconds')
-          END
-      )
-      UPDATE jobs
-      SET status = 'pending', updated_at = NOW()
-      WHERE status IN ('done', 'failed') AND token_id = (
-        SELECT token_id FROM due_for_refresh
-      )
-    `;
+    await this.sql`SELECT NULL`;
+    // await this.sql`
+    //   WITH dynamic_tokens AS (
+    //     SELECT nt.token_id, n.ttl
+    //     FROM notifications_tokens AS nt
+    //     INNER JOIN notifications AS n ON n.id = nt.notification_id
+    //     WHERE n.update_mode = 'dynamic'
+    //   ),
+    //   due_for_refresh AS (
+    //     SELECT d.token_id
+    //     FROM dynamic_tokens AS d
+    //     INNER JOIN tokens AS t ON t.id = d.token_id
+    //     WHERE CASE
+    //       WHEN d.ttl IS NOT NULL THEN
+    //         COALESCE(t.updated_at, t.created_at) < (NOW() - INTERVAL '1 seconds' * ttl)
+    //       ELSE
+    //         COALESCE(t.updated_at, t.created_at) <
+    //           (NOW() - INTERVAL '${this.sql(interval)} seconds')
+    //       END
+    //   )
+    //   UPDATE jobs
+    //   SET status = 'pending', updated_at = NOW()
+    //   WHERE status IN ('done', 'failed') AND token_id = (
+    //     SELECT token_id FROM due_for_refresh
+    //   )
+    // `;
   }
 
   private async insertAndEnqueueTokens(tokenValues: DbTokenInsert[]): Promise<void> {

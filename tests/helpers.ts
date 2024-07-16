@@ -11,7 +11,7 @@ import {
 } from '@hirosystems/chainhook-client';
 import { BlockCache, CachedEvent } from '../src/pg/chainhook/block-cache';
 import { SmartContractDeployment } from '../src/token-processor/util/sip-validation';
-import { DbJob, DbSipNumber, DbSmartContract } from '../src/pg/types';
+import { DbJob, DbSipNumber, DbSmartContract, DbUpdateNotification } from '../src/pg/types';
 
 export type TestFastifyServer = FastifyInstance<
   Server,
@@ -1418,4 +1418,38 @@ export async function getTokenCount(db: PgStore): Promise<string> {
 export async function getJobCount(db: PgStore): Promise<string> {
   const result = await db.sql<{ count: string }[]>`SELECT COUNT(*) FROM jobs`;
   return result[0].count;
+}
+
+export async function getLatestTokenNotification(
+  db: PgStore,
+  tokenId: number
+): Promise<DbUpdateNotification | undefined> {
+  const result = await db.sql<DbUpdateNotification[]>`
+    SELECT *
+    FROM update_notifications
+    WHERE token_id = ${tokenId}
+    ORDER BY block_height DESC, tx_index DESC, event_index DESC
+    LIMIT 1
+  `;
+  if (result.count) {
+    return result[0];
+  }
+}
+
+export async function getLatestContractTokenNotifications(
+  db: PgStore,
+  contractId: string
+): Promise<DbUpdateNotification[]> {
+  return await db.sql<DbUpdateNotification[]>`
+    WITH token_ids AS (
+      SELECT t.id
+      FROM tokens AS t
+      INNER JOIN smart_contracts AS s ON s.id = t.smart_contract_id
+      WHERE s.principal = ${contractId}
+    )
+    SELECT DISTINCT ON (token_id) *
+    FROM update_notifications
+    WHERE token_id IN (SELECT id FROM token_ids)
+    ORDER BY token_id, block_height DESC, tx_index DESC, event_index DESC
+  `;
 }

@@ -92,20 +92,8 @@ export type DbJob = {
   updated_at?: string;
 };
 
-export type DbNotificationInsert = {
-  smart_contract_id: number;
-  block_height: number;
-  index_block_hash: string;
-  tx_id: string;
-  tx_index: number;
-  event_index: number;
-  update_mode: DbTokenUpdateMode;
-  ttl: PgNumeric | null;
-};
-
-export type DbTokenMetadataNotification = {
-  id: number;
-  smart_contract_id: number;
+export type DbUpdateNotification = {
+  token_id: number;
   block_height: number;
   index_block_hash: string;
   tx_id: string;
