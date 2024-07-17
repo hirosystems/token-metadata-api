@@ -41,6 +41,9 @@ export function up(pgm: MigrationBuilder): void {
     cached_image: {
       type: 'text',
     },
+    cached_thumbnail_image: {
+      type: 'text',
+    },
   });
   pgm.createConstraint('metadata', 'metadata_token_id_l10n_locale_unique', {
     unique: ['token_id', 'l10n_locale'],

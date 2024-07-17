@@ -390,6 +390,38 @@ export class PgStore extends BasePgStore {
     });
   }
 
+  async getTokenImageUris(
+    contractPrincipal: string,
+    tokenNumbers?: number[]
+  ): Promise<{ token_id: number; token_number: string; image: string }[]> {
+    return await this.sqlTransaction(async sql => {
+      return await sql<{ token_id: number; token_number: string; image: string }[]>`
+        SELECT m.token_id, t.token_number, m.image
+        FROM metadata AS m
+        INNER JOIN tokens AS t ON m.token_id = t.id
+        INNER JOIN smart_contracts AS c ON t.smart_contract_id = c.id
+        WHERE m.image IS NOT NULL
+          AND c.principal = ${contractPrincipal}
+          ${tokenNumbers ? sql`AND t.token_number IN ${sql(tokenNumbers)}` : sql``}
+      `;
+    });
+  }
+
+  async updateTokenCachedImages(
+    tokenId: number,
+    cachedImage: string,
+    cachedThumbnailImage: string
+  ): Promise<void> {
+    await this.sql`
+      WITH token_date AS (
+        UPDATE tokens SET updated_at = NOW() WHERE id = ${tokenId}
+      )
+      UPDATE metadata
+      SET cached_image = ${cachedImage}, cached_thumbnail_image = ${cachedThumbnailImage}
+      WHERE token_id = ${tokenId}
+    `;
+  }
+
   private async isTokenLocaleAvailable(tokenId: number, locale: string): Promise<boolean> {
     const tokenLocale = await this.sql<{ id: number }[]>`
       SELECT id FROM metadata

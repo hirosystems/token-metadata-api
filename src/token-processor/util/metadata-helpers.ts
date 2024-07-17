@@ -6,6 +6,7 @@ import {
   DbMetadataInsert,
   DbMetadataLocaleInsertBundle,
   DbMetadataPropertyInsert,
+  DbSmartContract,
   DbToken,
 } from '../../pg/types';
 import { ENV } from '../../env';
@@ -17,7 +18,7 @@ import {
   TooManyRequestsHttpError,
 } from './errors';
 import { RetryableJobError } from '../queue/errors';
-import { getImageUrl, processImageUrl } from './image-cache';
+import { normalizeImageUri, processImageCache } from './image-cache';
 import {
   RawMetadataLocale,
   RawMetadataLocalizationCType,
@@ -42,11 +43,13 @@ const METADATA_FETCH_HTTP_AGENT = new Agent({
  * JSON and parses it looking for other localizations. If those are found, each of them is then
  * downloaded, parsed, and returned for DB insertion.
  * @param uri - token metadata URI
+ * @param contract - contract DB entry
  * @param token - token DB entry
  * @returns parsed metadata ready for insertion
  */
 export async function fetchAllMetadataLocalesFromBaseUri(
   uri: string,
+  contract: DbSmartContract,
   token: DbToken
 ): Promise<DbMetadataLocaleInsertBundle[]> {
   const tokenUri = getTokenSpecificUri(uri, token.token_number);
@@ -80,7 +83,7 @@ export async function fetchAllMetadataLocalesFromBaseUri(
     }
   }
 
-  return parseMetadataForInsertion(rawMetadataLocales, token);
+  return parseMetadataForInsertion(rawMetadataLocales, contract, token);
 }
 
 /**
@@ -106,6 +109,7 @@ export function getTokenSpecificUri(uri: string, tokenNumber: bigint, locale?: s
 
 async function parseMetadataForInsertion(
   rawMetadataLocales: RawMetadataLocale[],
+  contract: DbSmartContract,
   token: DbToken
 ): Promise<DbMetadataLocaleInsertBundle[]> {
   // Keep the default because we may need to fall back into its data.
@@ -127,10 +131,15 @@ async function parseMetadataForInsertion(
       metadata.image_canonical_uri ??
       defaultInsert?.metadata.image ??
       null;
-    let cachedImage: string | null = null;
+    let cachedImage: string | undefined;
+    let cachedThumbnailImage: string | undefined;
     if (image && typeof image === 'string') {
-      const normalizedUrl = getImageUrl(image);
-      cachedImage = await processImageUrl(normalizedUrl);
+      const normalizedUrl = normalizeImageUri(image);
+      [cachedImage, cachedThumbnailImage] = await processImageCache(
+        normalizedUrl,
+        contract.principal,
+        token.token_number
+      );
     }
     // Localized values override defaults.
     const metadataInsert: DbMetadataInsert = {
@@ -140,7 +149,8 @@ async function parseMetadataForInsertion(
       description:
         metadata.description?.toString() ?? defaultInsert?.metadata.description?.toString() ?? null,
       image: image ? image.toString() : null,
-      cached_image: cachedImage,
+      cached_image: cachedImage ?? null,
+      cached_thumbnail_image: cachedThumbnailImage ?? null,
       l10n_default: raw.default,
       l10n_locale: raw.locale ?? null,
       l10n_uri: raw.uri,
@@ -245,7 +255,7 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
   }
 
   // Support HTTP/S URLs otherwise
-  const httpUrl = getFetchableUrl(token_uri);
+  const httpUrl = getFetchableDecentralizedStorageUrl(token_uri);
   const urlStr = httpUrl.toString();
   let fetchImmediateRetryCount = 0;
   let content: string | undefined;
@@ -260,7 +270,7 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
     } catch (error) {
       fetchImmediateRetryCount++;
       fetchError = error;
-      if (error instanceof MetadataTimeoutError && isUriFromDecentralizedGateway(token_uri)) {
+      if (error instanceof MetadataTimeoutError && isUriFromDecentralizedStorage(token_uri)) {
         // Gateways like IPFS and Arweave commonly time out when a resource can't be found quickly.
         // Try again later if this is the case.
         throw new RetryableJobError(`Gateway timeout for ${urlStr}`, error);
@@ -304,7 +314,7 @@ function parseJsonMetadata(url: string, content?: string): RawMetadata {
  * @param uri - URL to convert
  * @returns Fetchable URL
  */
-export function getFetchableUrl(uri: string): URL {
+export function getFetchableDecentralizedStorageUrl(uri: string): URL {
   try {
     const parsedUri = new URL(uri);
     if (parsedUri.protocol === 'http:' || parsedUri.protocol === 'https:') return parsedUri;
@@ -324,7 +334,7 @@ export function getFetchableUrl(uri: string): URL {
   throw new MetadataParseError(`Unsupported uri protocol: ${uri}`);
 }
 
-function isUriFromDecentralizedGateway(uri: string): boolean {
+function isUriFromDecentralizedStorage(uri: string): boolean {
   return (
     uri.startsWith('ipfs:') ||
     uri.startsWith('ipns:') ||

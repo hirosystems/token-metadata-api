@@ -12,7 +12,7 @@ import { StacksNodeRpcClient } from '../../stacks-node/stacks-node-rpc-client';
 import { StacksNodeClarityError, TooManyRequestsHttpError } from '../../util/errors';
 import {
   fetchAllMetadataLocalesFromBaseUri,
-  getFetchableUrl,
+  getFetchableDecentralizedStorageUrl,
   getTokenSpecificUri,
 } from '../../util/metadata-helpers';
 import { RetryableJobError } from '../errors';
@@ -57,13 +57,13 @@ export class ProcessTokenJob extends Job {
     try {
       switch (token.type) {
         case DbTokenType.ft:
-          await this.handleFt(client, token);
+          await this.handleFt(client, token, contract);
           break;
         case DbTokenType.nft:
-          await this.handleNft(client, token);
+          await this.handleNft(client, token, contract);
           break;
         case DbTokenType.sft:
-          await this.handleSft(client, token);
+          await this.handleSft(client, token, contract);
           break;
       }
     } catch (error) {
@@ -90,7 +90,7 @@ export class ProcessTokenJob extends Job {
     }
   }
 
-  private async handleFt(client: StacksNodeRpcClient, token: DbToken) {
+  private async handleFt(client: StacksNodeRpcClient, token: DbToken, contract: DbSmartContract) {
     const uri = await this.getTokenUri(client);
     const name = await client.readStringFromContract('get-name');
     const symbol = await client.readStringFromContract('get-symbol');
@@ -116,7 +116,7 @@ export class ProcessTokenJob extends Job {
     let metadataLocales: DbMetadataLocaleInsertBundle[] | undefined;
     if (uri) {
       try {
-        metadataLocales = await fetchAllMetadataLocalesFromBaseUri(uri, token);
+        metadataLocales = await fetchAllMetadataLocalesFromBaseUri(uri, contract, token);
       } catch (error) {
         // If the fetch error is retryable, rethrow for job retry. If it's not but we don't have any
         // data to display otherwise, rethrow so we can mark the job as failed/invalid.
@@ -143,11 +143,11 @@ export class ProcessTokenJob extends Job {
     await this.db.updateProcessedTokenWithMetadata({ id: token.id, values: tokenValues });
   }
 
-  private async handleNft(client: StacksNodeRpcClient, token: DbToken) {
+  private async handleNft(client: StacksNodeRpcClient, token: DbToken, contract: DbSmartContract) {
     const uri = await this.getTokenUri(client, token.token_number);
     let metadataLocales: DbMetadataLocaleInsertBundle[] | undefined;
     if (uri) {
-      metadataLocales = await fetchAllMetadataLocalesFromBaseUri(uri, token);
+      metadataLocales = await fetchAllMetadataLocalesFromBaseUri(uri, contract, token);
     }
 
     const tokenValues: DbProcessedTokenUpdateBundle = {
@@ -159,7 +159,7 @@ export class ProcessTokenJob extends Job {
     await this.db.updateProcessedTokenWithMetadata({ id: token.id, values: tokenValues });
   }
 
-  private async handleSft(client: StacksNodeRpcClient, token: DbToken) {
+  private async handleSft(client: StacksNodeRpcClient, token: DbToken, contract: DbSmartContract) {
     const uri = await this.getTokenUri(client, token.token_number);
     const arg = [this.uIntCv(token.token_number)];
 
@@ -177,7 +177,7 @@ export class ProcessTokenJob extends Job {
 
     let metadataLocales: DbMetadataLocaleInsertBundle[] | undefined;
     if (uri) {
-      metadataLocales = await fetchAllMetadataLocalesFromBaseUri(uri, token);
+      metadataLocales = await fetchAllMetadataLocalesFromBaseUri(uri, contract, token);
     }
 
     const tokenValues: DbProcessedTokenUpdateBundle = {
@@ -210,7 +210,7 @@ export class ProcessTokenJob extends Job {
       return;
     }
     // Before we return the uri, check if its fetchable hostname is not already rate limited.
-    const fetchable = getFetchableUrl(uri);
+    const fetchable = getFetchableDecentralizedStorageUrl(uri);
     const rateLimitedHost = await this.db.getRateLimitedHost({ hostname: fetchable.hostname });
     if (rateLimitedHost) {
       const retryAfter = Date.parse(rateLimitedHost.retry_after);

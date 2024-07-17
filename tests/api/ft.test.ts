@@ -124,6 +124,7 @@ describe('FT routes', () => {
               description: 'test',
               image: null,
               cached_image: null,
+              cached_thumbnail_image: null,
             },
           },
         ],
@@ -201,6 +202,7 @@ describe('FT routes', () => {
               description: 'test',
               image: 'http://test.com/image.png',
               cached_image: 'http://test.com/image.png?processed=true',
+              cached_thumbnail_image: 'http://test.com/image.png?thumb=true',
             },
             attributes: [
               {
@@ -243,6 +245,7 @@ describe('FT routes', () => {
       tx_id: '0x123456',
       description: 'test',
       image_canonical_uri: 'http://test.com/image.png',
+      image_thumbnail_uri: 'http://test.com/image.png?thumb=true',
       image_uri: 'http://test.com/image.png?processed=true',
       metadata: {
         sip: 16,
@@ -250,6 +253,7 @@ describe('FT routes', () => {
         name: 'hello-world',
         image: 'http://test.com/image.png',
         cached_image: 'http://test.com/image.png?processed=true',
+        cached_thumbnail_image: 'http://test.com/image.png?thumb=true',
         attributes: [
           {
             display_type: 'number',
@@ -307,6 +311,7 @@ describe('FT routes', () => {
                 description: item.description ?? '',
                 image: item.image ?? '',
                 cached_image: item.cached_image ?? '',
+                cached_thumbnail_image: item.cached_thumbnail_image ?? '',
               },
             },
           ],

@@ -124,6 +124,7 @@ describe('NFT routes', () => {
               description: 'test',
               image: null,
               cached_image: null,
+              cached_thumbnail_image: null,
             },
           },
         ],
@@ -193,6 +194,7 @@ describe('NFT routes', () => {
               description: 'test',
               image: 'http://test.com/image.png',
               cached_image: 'http://test.com/image.png?processed=true',
+              cached_thumbnail_image: 'http://test.com/image.png?thumb=true',
             },
             attributes: [
               {
@@ -233,6 +235,7 @@ describe('NFT routes', () => {
         name: 'hello-world',
         image: 'http://test.com/image.png',
         cached_image: 'http://test.com/image.png?processed=true',
+        cached_thumbnail_image: 'http://test.com/image.png?thumb=true',
         attributes: [
           {
             display_type: 'number',

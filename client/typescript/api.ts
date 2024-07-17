@@ -2,7 +2,7 @@
 // tslint:disable
 /**
  * Token Metadata API
- * Service that indexes metadata for every SIP-009, SIP-010, and SIP-013 Token in the Stacks blockchain and exposes it via REST API endpoints.
+ * Welcome to the API reference overview for the [Token Metadata API](https://docs.hiro.so/token-metadata-api). Service that indexes metadata for every SIP-009, SIP-010, and SIP-013 Token in the Stacks blockchain and exposes it via REST API endpoints.
  *
  * OpenAPI spec version: v0.4.0
  * 
@@ -71,7 +71,7 @@ export class BaseAPI {
  * @extends {Error}
  */
 export class RequiredError extends Error {
-    name: "RequiredError"
+    name = "RequiredError"
     constructor(public field: string, msg?: string) {
         super(msg);
     }
@@ -255,6 +255,12 @@ export interface FtBasicMetadataResponse {
      * @type {string}
      * @memberof FtBasicMetadataResponse
      */
+    image_thumbnail_uri?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof FtBasicMetadataResponse
+     */
     image_canonical_uri?: string;
     /**
      * 
@@ -328,6 +334,12 @@ export interface FtMetadataResponse {
      * @type {string}
      * @memberof FtMetadataResponse
      */
+    image_thumbnail_uri?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof FtMetadataResponse
+     */
     image_canonical_uri?: string;
     /**
      * 
@@ -384,6 +396,12 @@ export interface Metadata {
      * @memberof Metadata
      */
     cached_image?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof Metadata
+     */
+    cached_thumbnail_image?: string;
     /**
      * 
      * @type {Array<MetadataAttribute>}

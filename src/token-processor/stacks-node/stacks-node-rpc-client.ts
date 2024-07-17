@@ -134,10 +134,13 @@ export class StacksNodeRpcClient {
       throw new RetryableJobError(`Error making read-only contract call: ${error}`, error);
     }
     if (!result.okay) {
-      // Only runtime errors reported by the Stacks node should be retryable.
       if (result.cause.startsWith('Runtime')) {
         throw new RetryableJobError(
           `Runtime error while calling read-only function ${functionName}`
+        );
+      } else if (result.cause.includes('NoSuchContract')) {
+        throw new RetryableJobError(
+          `Contract not available yet when calling read-only function ${functionName}`
         );
       }
       throw new StacksNodeClarityError(`Read-only error ${functionName}: ${result.cause}`);

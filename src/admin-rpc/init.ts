@@ -5,6 +5,7 @@ import { Server } from 'http';
 import { Type } from '@sinclair/typebox';
 import { SmartContractRegEx } from '../api/schemas';
 import { logger, PINO_LOGGER_CONFIG } from '@hirosystems/api-toolkit';
+import { reprocessTokenImageCache } from '../token-processor/util/image-cache';
 
 export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTypeProvider> = (
   fastify,
@@ -63,6 +64,29 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
     async (request, reply) => {
       await fastify.db.retryAllFailedJobs();
       logger.info(`AdminRPC retrying all failed and invalid jobs`);
+      await reply.code(200).send();
+    }
+  );
+
+  fastify.post(
+    '/cache-images',
+    {
+      schema: {
+        description:
+          'Recalcualtes caches for token images and uploads results to the configured CDN. This operation is idempotent.',
+        body: Type.Object({
+          contractId: Type.RegEx(SmartContractRegEx),
+          tokenIds: Type.Optional(Type.Array(Type.Integer())),
+        }),
+      },
+    },
+    async (request, reply) => {
+      logger.info(
+        `AdminRPC reprocessing image cache for ${request.body.contractId}: (${
+          request.body.tokenIds ?? 'all'
+        })`
+      );
+      void reprocessTokenImageCache(fastify.db, request.body.contractId, request.body.tokenIds);
       await reply.code(200).send();
     }
   );
