@@ -6,6 +6,8 @@ import { Type } from '@sinclair/typebox';
 import { SmartContractRegEx } from '../api/schemas';
 import { logger, PINO_LOGGER_CONFIG } from '@hirosystems/api-toolkit';
 import { reprocessTokenImageCache } from '../token-processor/util/image-cache';
+import { StacksNodeRpcClient } from '../token-processor/stacks-node/stacks-node-rpc-client';
+import { getSmartContractSip } from '../token-processor/util/sip-validation';
 
 export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTypeProvider> = (
   fastify,
