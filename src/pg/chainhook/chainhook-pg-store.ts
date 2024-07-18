@@ -226,7 +226,9 @@ export class ChainhookPgStore extends BasePgStoreModule {
       );
     } catch (error) {
       if (error instanceof ContractNotFoundError)
-        logger.warn(error, `ChainhookPgStore found NFT mint for nonexisting contract`);
+        logger.warn(
+          `ChainhookPgStore found NFT mint for nonexisting contract ${mint.event.contractId}`
+        );
       else throw error;
     }
   }
