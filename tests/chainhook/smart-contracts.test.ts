@@ -146,6 +146,7 @@ describe('contract deployments', () => {
                 description: 'test',
                 image: 'http://test.com',
                 cached_image: 'http://test.com',
+                cached_thumbnail_image: 'http://test.com',
               },
             },
           ],

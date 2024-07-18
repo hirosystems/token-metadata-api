@@ -118,7 +118,7 @@ describe('Admin RPC', () => {
 
   describe('/cache-images', () => {
     test('reprocesses token images', async () => {
-      ENV.METADATA_IMAGE_CACHE_PROCESSOR = './tests/test-image-cache.js';
+      ENV.METADATA_IMAGE_CACHE_PROCESSOR = './tests/token-queue/test-image-cache.js';
       const principal = 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world';
       await insertAndEnqueueTestContractWithTokens(db, principal, DbSipNumber.sip009, 1n);
       await db.updateProcessedTokenWithMetadata({
