@@ -39,6 +39,12 @@ export class ChainhookPgStore extends BasePgStoreModule {
         );
       }
       for (const block of payload.apply) {
+        if (block.block_identifier.index <= (await this.getLastIngestedBlockHeight())) {
+          logger.info(
+            `ChainhookPgStore skipping previously ingested block ${block.block_identifier.index}`
+          );
+          continue;
+        }
         logger.info(`ChainhookPgStore apply block ${block.block_identifier.index}`);
         const time = stopwatch();
         await this.updateStacksBlock(sql, block, 'apply');
@@ -102,6 +108,11 @@ export class ChainhookPgStore extends BasePgStoreModule {
     logger.info(
       `ChainhookPgStore apply contract deploy ${contract.event.principal} (${contract.event.sip}) at block ${cache.block.index}`
     );
+  }
+
+  private async getLastIngestedBlockHeight(): Promise<number> {
+    const result = await this.sql<{ block_height: number }[]>`SELECT block_height FROM chain_tip`;
+    return result[0].block_height;
   }
 
   private async updateStacksBlock(

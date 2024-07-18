@@ -137,7 +137,7 @@ describe('Chainhook observer', () => {
       await db.chainhook.processPayload(
         new TestChainhookPayloadBuilder()
           .apply()
-          .block({ height: 65 })
+          .block({ height: 95 })
           .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
           .event({
             type: 'SmartContractEvent',
@@ -198,7 +198,7 @@ describe('Chainhook observer', () => {
       await db.chainhook.processPayload(
         new TestChainhookPayloadBuilder()
           .apply()
-          .block({ height: 65 })
+          .block({ height: 95 })
           .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
           .event({
             type: 'SmartContractEvent',
