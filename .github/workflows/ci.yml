@@ -103,7 +103,7 @@ jobs:
           npm run testenv:logs -- --no-color &> docker-compose-logs.txt &
 
       - name: Run tests
-        run: npm run test -- --coverage
+        run: npm run test:${{ matrix.suite }} -- --coverage
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
