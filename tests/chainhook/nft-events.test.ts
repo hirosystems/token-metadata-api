@@ -9,6 +9,7 @@ import {
   getTokenCount,
   markAllJobsAsDone,
   TestChainhookPayloadBuilder,
+  SIP_009_ABI,
 } from '../helpers';
 
 describe('NFT events', () => {
@@ -52,6 +53,43 @@ describe('NFT events', () => {
     expect(jobs).toHaveLength(1);
     expect(jobs[0].token_id).toBe(4);
     await expect(db.getToken({ id: 4 })).resolves.not.toBeUndefined();
+  });
+
+  test('NFT contract can start with zero tokens', async () => {
+    const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
+    const contractId = `${address}.friedger-pool-nft`;
+    await db.chainhook.processPayload(
+      new TestChainhookPayloadBuilder()
+        .apply()
+        .block({ height: 90 })
+        .transaction({ hash: '0x01', sender: address })
+        .contractDeploy(contractId, SIP_009_ABI)
+        .build()
+    );
+    await db.updateSmartContractTokenCount({ id: 1, count: 0n });
+    await markAllJobsAsDone(db);
+
+    await db.chainhook.processPayload(
+      new TestChainhookPayloadBuilder()
+        .apply()
+        .block({ height: 100 })
+        .transaction({ hash: '0x01', sender: address })
+        .event({
+          type: 'NFTMintEvent',
+          position: { index: 0 },
+          data: {
+            asset_identifier: `${contractId}::crashpunks-v2`,
+            recipient: address,
+            raw_value: cvToHex(uintCV(1)),
+          },
+        })
+        .build()
+    );
+
+    const jobs = await db.getPendingJobBatch({ limit: 1 });
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0].token_id).toBe(1);
+    await expect(db.getToken({ id: 1 })).resolves.not.toBeUndefined();
   });
 
   test('NFT mint roll back removes token', async () => {
