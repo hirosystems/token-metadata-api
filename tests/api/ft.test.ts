@@ -169,6 +169,7 @@ describe('FT routes', () => {
       token_uri: 'http://test.com/uri.json',
       total_supply: '1',
       sender_address: 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS',
+      asset_identifier: 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world::ft-token',
       tx_id: '0x123456',
     });
   });
@@ -242,6 +243,7 @@ describe('FT routes', () => {
       total_supply: '1',
       decimals: 6,
       sender_address: 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS',
+      asset_identifier: 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world::ft-token',
       tx_id: '0x123456',
       description: 'test',
       image_canonical_uri: 'http://test.com/image.png',

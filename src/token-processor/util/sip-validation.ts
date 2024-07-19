@@ -289,6 +289,8 @@ type MetadataUpdateMode = 'standard' | 'frozen' | 'dynamic';
 export type SmartContractDeployment = {
   principal: string;
   sip: DbSipNumber;
+  fungible_token_name?: string;
+  non_fungible_token_name?: string;
 };
 
 export type TokenMetadataUpdateNotification = {
