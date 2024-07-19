@@ -47,11 +47,17 @@ export class BlockCache {
 
   transaction(tx: StacksTransaction) {
     if (tx.metadata.kind.type === 'ContractDeployment' && tx.metadata.contract_abi) {
-      const sip = getSmartContractSip(tx.metadata.contract_abi as ClarityAbi);
+      const abi = tx.metadata.contract_abi as ClarityAbi;
+      const sip = getSmartContractSip(abi);
       if (sip) {
         const kind = tx.metadata.kind as StacksTransactionContractDeploymentKind;
         this.contracts.push({
-          event: { principal: kind.data.contract_identifier, sip },
+          event: {
+            principal: kind.data.contract_identifier,
+            sip,
+            fungible_token_name: abi.fungible_tokens[0]?.name,
+            non_fungible_token_name: abi.non_fungible_tokens[0]?.name,
+          },
           tx_id: tx.transaction_identifier.hash,
           tx_index: tx.metadata.position.index,
         });

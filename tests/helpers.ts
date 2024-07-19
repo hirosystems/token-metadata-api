@@ -1372,6 +1372,7 @@ export async function insertAndEnqueueTestContract(
       event: {
         principal,
         sip,
+        fungible_token_name: sip == DbSipNumber.sip010 ? 'ft-token' : undefined,
       },
       tx_id: tx_id ?? '0x123456',
       tx_index: 0,

@@ -22,6 +22,12 @@ export function up(pgm: MigrationBuilder): void {
     token_count: {
       type: 'numeric',
     },
+    fungible_token_name: {
+      type: 'text',
+    },
+    non_fungible_token_name: {
+      type: 'text',
+    },
     block_height: {
       type: 'int',
       notNull: true,

@@ -93,6 +93,8 @@ export class ChainhookPgStore extends BasePgStoreModule {
       index_block_hash: cache.block.hash,
       tx_id: contract.tx_id,
       tx_index: contract.tx_index,
+      fungible_token_name: contract.event.fungible_token_name ?? null,
+      non_fungible_token_name: contract.event.non_fungible_token_name ?? null,
     };
     await sql`
       WITH smart_contract_inserts AS (

@@ -37,6 +37,8 @@ export type DbSmartContractInsert = {
   index_block_hash: string;
   tx_id: string;
   tx_index: number;
+  fungible_token_name: string | null;
+  non_fungible_token_name: string | null;
 };
 
 export type DbSmartContract = {
@@ -50,6 +52,8 @@ export type DbSmartContract = {
   tx_index: number;
   created_at: string;
   updated_at?: string;
+  fungible_token_name?: string;
+  non_fungible_token_name?: string;
 };
 
 export type DbTokenInsert = {

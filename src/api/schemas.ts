@@ -268,9 +268,12 @@ export const FtMetadataResponse = Type.Object(
     image_thumbnail_uri: Type.Optional(TokenCachedImage),
     image_canonical_uri: Type.Optional(TokenImage),
     tx_id: Type.String({
-      examples: ['0xef2ac1126e16f46843228b1dk4830e19eb7599129e4jf392cab9e65ae83a45c0'],
+      examples: ['0x5642ca7d68976b6b2a2055689d9a57de26d67f0dd8b016d1b0d94cb634454cdd'],
     }),
-    sender_address: Type.String({ examples: ['ST399W7Z9WS0GMSNQGJGME5JAENKN56D65VGMGKGA'] }),
+    sender_address: Type.String({ examples: ['SPZA22A4D15RKH5G8XDGQ7BPC20Q5JNMH0VQKSR6'] }),
+    asset_identifier: Type.String({
+      examples: ['SPZA22A4D15RKH5G8XDGQ7BPC20Q5JNMH0VQKSR6.token-ststx-earn-v1::stSTXearn'],
+    }),
     metadata: Type.Optional(Metadata),
   },
   { title: 'Ft Metadata Response' }
