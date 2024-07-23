@@ -21,6 +21,8 @@ const schema = Type.Object({
   ADMIN_RPC_HOST: Type.String({ default: '0.0.0.0' }),
   /** Port in which to serve the Admin RPC interface */
   ADMIN_RPC_PORT: Type.Number({ default: 3001, minimum: 0, maximum: 65535 }),
+  /** Port in which to serve prometheus metrics */
+  PROMETHEUS_PORT: Type.Number({ default: 9154 }),
 
   PGHOST: Type.String(),
   PGPORT: Type.Number({ default: 5432, minimum: 0, maximum: 65535 }),
