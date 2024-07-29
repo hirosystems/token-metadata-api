@@ -105,7 +105,7 @@ async function initApiService(db: PgStore) {
     });
 
     TokenProcessorMetrics.configure(db);
-    await promServer.listen({ host: ENV.API_HOST, port: 9153 });
+    await promServer.listen({ host: ENV.API_HOST, port: ENV.PROMETHEUS_PORT });
   }
 }
 
