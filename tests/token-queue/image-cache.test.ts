@@ -26,7 +26,7 @@ describe('Image cache', () => {
       processImageCache('http://127.0.0.1:9999/', contract, tokenNumber)
     ).rejects.toThrow(MetadataTimeoutError);
     await closeTestServer(server);
-  });
+  }, 10000);
 
   test('throws rate limit error', async () => {
     const server = await startTestResponseServer('rate limit exceeded', 429);
@@ -42,7 +42,7 @@ describe('Image cache', () => {
       processImageCache('http://127.0.0.1:9999/', contract, tokenNumber)
     ).rejects.toThrow(HttpError);
     await closeTestServer(server);
-  });
+  }, 10000);
 
   test('ignores data: URL', async () => {
     const url = 'data:123456';

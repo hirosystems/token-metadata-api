@@ -91,7 +91,6 @@ export async function processImageCache(
     throw new HttpError(`ImageCache fetch error: ${imgUrl} ${error}`, error);
   }
   if (fetchResponse.status == 429) {
-    console.log(`rate limit exceed`);
     throw new TooManyRequestsHttpError(new URL(imgUrl), new errors.ResponseStatusCodeError());
   }
   const imageBody = fetchResponse.body;
