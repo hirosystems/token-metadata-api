@@ -1,6 +1,6 @@
 import { ENV } from '../../src/env';
 import { processImageCache } from '../../src/token-processor/images/image-cache';
-import { startTestResponseServer, startTimeoutServer } from '../helpers';
+import { sleep, startTestResponseServer, startTimeoutServer } from '../helpers';
 import {
   HttpError,
   MetadataTimeoutError,
@@ -27,6 +27,7 @@ describe('Image cache', () => {
         processImageCache('http://127.0.0.1:9999/', contract, tokenNumber)
       ).rejects.toThrow(MetadataTimeoutError);
     } finally {
+      await sleep(200);
       const serverDone = waiter();
       server.close(() => serverDone.finish());
       await serverDone;
