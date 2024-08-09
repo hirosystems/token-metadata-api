@@ -25,13 +25,15 @@ describe('Image cache', () => {
     server.listen(9999, 'localhost', () => serverReady.finish());
     await serverReady;
 
-    await expect(
-      processImageCache('http://localhost:9999/', contract, tokenNumber)
-    ).rejects.toThrow(MetadataTimeoutError);
-
-    const serverDone = waiter();
-    server.close(() => serverDone.finish());
-    await serverDone;
+    try {
+      await expect(
+        processImageCache('http://localhost:9999/', contract, tokenNumber)
+      ).rejects.toThrow(MetadataTimeoutError);
+    } finally {
+      const serverDone = waiter();
+      server.close(() => serverDone.finish());
+      await serverDone;
+    }
   });
 
   test('throws rate limit error', async () => {
@@ -40,13 +42,15 @@ describe('Image cache', () => {
     server.listen(9999, 'localhost', () => serverReady.finish());
     await serverReady;
 
-    await expect(
-      processImageCache('http://localhost:9999/', contract, tokenNumber)
-    ).rejects.toThrow(TooManyRequestsHttpError);
-
-    const serverDone = waiter();
-    server.close(() => serverDone.finish());
-    await serverDone;
+    try {
+      await expect(
+        processImageCache('http://localhost:9999/', contract, tokenNumber)
+      ).rejects.toThrow(TooManyRequestsHttpError);
+    } finally {
+      const serverDone = waiter();
+      server.close(() => serverDone.finish());
+      await serverDone;
+    }
   });
 
   test('throws other server errors', async () => {
@@ -55,13 +59,15 @@ describe('Image cache', () => {
     server.listen(9999, 'localhost', () => serverReady.finish());
     await serverReady;
 
-    await expect(
-      processImageCache('http://localhost:9999/', contract, tokenNumber)
-    ).rejects.toThrow(HttpError);
-
-    const serverDone = waiter();
-    server.close(() => serverDone.finish());
-    await serverDone;
+    try {
+      await expect(
+        processImageCache('http://localhost:9999/', contract, tokenNumber)
+      ).rejects.toThrow(HttpError);
+    } finally {
+      const serverDone = waiter();
+      server.close(() => serverDone.finish());
+      await serverDone;
+    }
   });
 
   test('ignores data: URL', async () => {
