@@ -60,22 +60,22 @@ describe('Image cache', () => {
   //   }
   // });
 
-  // test('throws other server errors', async () => {
-  //   const server = createTestResponseServer('not found', 404);
-  //   const serverReady = waiter();
-  //   server.listen(9999, 'localhost', () => serverReady.finish());
-  //   await serverReady;
+  test('throws other server errors', async () => {
+    const server = createTestResponseServer('not found', 404);
+    const serverReady = waiter();
+    server.listen(9999, 'localhost', () => serverReady.finish());
+    await serverReady;
 
-  //   try {
-  //     await expect(
-  //       processImageCache('http://localhost:9999/', contract, tokenNumber)
-  //     ).rejects.toThrow(HttpError);
-  //   } finally {
-  //     const serverDone = waiter();
-  //     server.close(() => serverDone.finish());
-  //     await serverDone;
-  //   }
-  // });
+    try {
+      await expect(
+        processImageCache('http://localhost:9999/', contract, tokenNumber)
+      ).rejects.toThrow(HttpError);
+    } finally {
+      const serverDone = waiter();
+      server.close(() => serverDone.finish());
+      await serverDone;
+    }
+  });
 
   // test('ignores data: URL', async () => {
   //   const url = 'data:123456';
