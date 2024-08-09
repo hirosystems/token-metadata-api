@@ -48,11 +48,9 @@ export async function startTimeoutServer(delay: number, port: number = 9999) {
     }
   });
   const serverReady = waiter();
-  server.listen(port, '0.0.0.0', () => {
-    console.log(`Test timeout server started at port ${port}`);
-    serverReady.finish();
-  });
+  server.listen(port, '0.0.0.0', () => serverReady.finish());
   await serverReady;
+  console.log(`Test timeout server started at port ${port}`);
   return server;
 }
 
@@ -75,11 +73,9 @@ export async function startTestResponseServer(
     }
   });
   const serverReady = waiter();
-  server.listen(port, '0.0.0.0', () => {
-    console.log(`Test response server (${statusCode}) started: ${server.address()}`);
-    serverReady.finish();
-  });
+  server.listen(port, '0.0.0.0', () => serverReady.finish());
   await serverReady;
+  console.log(`Test response server (${statusCode}) started at port ${port}`);
   return server;
 }
 
@@ -88,12 +84,11 @@ export async function closeTestServer(server: http.Server) {
   server.close(err => {
     if (err) {
       console.log(`Error closing test server: ${err}`);
-    } else {
-      console.log(`Closed test server ${server.address()}`);
     }
     serverDone.finish();
   });
   await serverDone;
+  console.log(`Closed test server`);
 }
 
 export const SIP_009_ABI = {
