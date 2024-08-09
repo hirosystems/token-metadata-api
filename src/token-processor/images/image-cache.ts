@@ -78,6 +78,7 @@ export async function processImageCache(
       }),
     });
   } catch (error) {
+    console.log(error);
     if (error instanceof TypeError) {
       const typeError = error as UndiciCauseTypeError;
       if (

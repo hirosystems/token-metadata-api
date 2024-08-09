@@ -76,7 +76,7 @@ export async function startTestResponseServer(
   });
   const serverReady = waiter();
   server.listen(port, '0.0.0.0', () => {
-    console.log(`Test response server started at port ${port}`);
+    console.log(`Test response server (${statusCode}) started: ${server.address()}`);
     serverReady.finish();
   });
   await serverReady;
@@ -89,7 +89,7 @@ export async function closeTestServer(server: http.Server) {
     if (err) {
       console.log(`Error closing test server: ${err}`);
     } else {
-      console.log(`Closed test server`);
+      console.log(`Closed test server ${server.address()}`);
     }
     serverDone.finish();
   });
