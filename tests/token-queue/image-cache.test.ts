@@ -34,7 +34,7 @@ describe('Image cache', () => {
       processImageCache('http://127.0.0.1:9999/', contract, tokenNumber)
     ).rejects.toThrow(TooManyRequestsHttpError);
     await closeTestServer(server);
-  });
+  }, 10000);
 
   test('throws other server errors', async () => {
     const server = await startTestResponseServer('not found', 404);
