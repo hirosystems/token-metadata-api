@@ -22,35 +22,26 @@ describe('Image cache', () => {
   test('throws image fetch timeout error', async () => {
     ENV.METADATA_FETCH_TIMEOUT_MS = 50;
     const server = await startTimeoutServer(100);
-    try {
-      await expect(
-        processImageCache('http://127.0.0.1:9999/', contract, tokenNumber)
-      ).rejects.toThrow(MetadataTimeoutError);
-    } finally {
-      await closeTestServer(server);
-    }
+    await expect(
+      processImageCache('http://127.0.0.1:9999/', contract, tokenNumber)
+    ).rejects.toThrow(MetadataTimeoutError);
+    await closeTestServer(server);
   });
 
   test('throws rate limit error', async () => {
     const server = await startTestResponseServer('rate limit exceeded', 429);
-    try {
-      await expect(
-        processImageCache('http://127.0.0.1:9999/', contract, tokenNumber)
-      ).rejects.toThrow(TooManyRequestsHttpError);
-    } finally {
-      await closeTestServer(server);
-    }
+    await expect(
+      processImageCache('http://127.0.0.1:9999/', contract, tokenNumber)
+    ).rejects.toThrow(TooManyRequestsHttpError);
+    await closeTestServer(server);
   });
 
   test('throws other server errors', async () => {
     const server = await startTestResponseServer('not found', 404);
-    try {
-      await expect(
-        processImageCache('http://127.0.0.1:9999/', contract, tokenNumber)
-      ).rejects.toThrow(HttpError);
-    } finally {
-      await closeTestServer(server);
-    }
+    await expect(
+      processImageCache('http://127.0.0.1:9999/', contract, tokenNumber)
+    ).rejects.toThrow(HttpError);
+    await closeTestServer(server);
   });
 
   test('ignores data: URL', async () => {
