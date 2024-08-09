@@ -39,6 +39,13 @@ export function createTimeoutServer(delay: number) {
   });
 }
 
+export function createTestResponseServer(response: string, statusCode: number = 200) {
+  return http.createServer((req, res) => {
+    res.statusCode = statusCode;
+    res.end(response);
+  });
+}
+
 export const SIP_009_ABI = {
   maps: [
     {

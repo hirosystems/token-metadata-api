@@ -121,11 +121,6 @@ export async function processImageCache(
         typeError.cause instanceof errors.ConnectTimeoutError
       ) {
         throw new MetadataTimeoutError(imgUrl);
-      } else if (
-        typeError.cause instanceof errors.ResponseStatusCodeError &&
-        typeError.cause.statusCode === 429
-      ) {
-        throw new TooManyRequestsHttpError(new URL(imgUrl), typeError.cause);
       }
     }
     throw new HttpError(`ImageCache fetch error: ${imgUrl}`);
@@ -133,15 +128,12 @@ export async function processImageCache(
   if (fetchResponse.status == 429) {
     throw new TooManyRequestsHttpError(new URL(imgUrl), new errors.ResponseStatusCodeError());
   }
-  if (!fetchResponse.ok) {
+  const imageBody = fetchResponse.body;
+  if (!fetchResponse.ok || !imageBody) {
     throw new HttpError(
-      `ImageCache status error`,
+      `ImageCache fetch error`,
       new errors.ResponseStatusCodeError(fetchResponse.statusText, fetchResponse.status)
     );
-  }
-  const imageBody = fetchResponse.body;
-  if (!imageBody) {
-    throw new HttpError(`ImageCache empty body error`);
   }
 
   // Transform image.

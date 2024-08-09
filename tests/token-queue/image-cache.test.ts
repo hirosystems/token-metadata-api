@@ -1,49 +1,82 @@
-import * as http from 'http';
 import { ENV } from '../../src/env';
 import { processImageCache } from '../../src/token-processor/images/image-cache';
-import { createTimeoutServer } from '../helpers';
-import { MetadataTimeoutError } from '../../src/token-processor/util/errors';
+import { createTestResponseServer, createTimeoutServer } from '../helpers';
+import {
+  HttpError,
+  MetadataTimeoutError,
+  TooManyRequestsHttpError,
+} from '../../src/token-processor/util/errors';
+import { waiter } from '@hirosystems/api-toolkit';
 
 describe('Image cache', () => {
   const contract = 'SP3QSAJQ4EA8WXEDSRRKMZZ29NH91VZ6C5X88FGZQ.crashpunks-v2';
   const tokenNumber = 100n;
 
-  describe('fetch timeout', () => {
-    let server: http.Server;
+  test('throws image fetch timeout error', async () => {
+    ENV.METADATA_FETCH_TIMEOUT_MS = 50;
+    const server = createTimeoutServer(100);
+    const serverReady = waiter();
+    server.listen(9999, 'localhost', () => serverReady.finish());
+    await serverReady;
 
-    beforeAll(done => {
-      ENV.METADATA_FETCH_TIMEOUT_MS = 50;
-      server = createTimeoutServer(100);
-      server.listen(9999, 'localhost', done);
-    });
+    await expect(
+      processImageCache('http://localhost:9999/', contract, tokenNumber)
+    ).rejects.toThrow(MetadataTimeoutError);
 
-    test('throws image fetch timeout error', async () => {
-      await expect(
-        processImageCache('http://localhost:9999/', contract, tokenNumber)
-      ).rejects.toThrow(MetadataTimeoutError);
-    });
-
-    afterAll(done => {
-      server.close(done);
-    });
+    const serverDone = waiter();
+    server.close(() => serverDone.finish());
+    await serverDone;
   });
 
-  // test('ignores data: URL', async () => {
-  //   const url = 'data:123456';
-  //   const transformed = await processImageCache(url, contract, tokenNumber);
-  //   expect(transformed).toStrictEqual(['data:123456']);
-  // });
+  test('throws rate limit error', async () => {
+    const server = createTestResponseServer('rate limit exceeded', 429);
+    const serverReady = waiter();
+    server.listen(9999, 'localhost', () => serverReady.finish());
+    await serverReady;
 
-  // test('ignores empty script paths', async () => {
-  //   ENV.METADATA_IMAGE_CACHE_PROCESSOR = '';
-  //   const transformed = await processImageCache(url, contract, tokenNumber);
-  //   expect(transformed).toStrictEqual([url]);
-  // });
+    await expect(
+      processImageCache('http://localhost:9999/', contract, tokenNumber)
+    ).rejects.toThrow(TooManyRequestsHttpError);
 
-  // test('handles script errors', async () => {
-  //   ENV.METADATA_IMAGE_CACHE_PROCESSOR = './tests/test-image-cache-error.js';
-  //   await expect(processImageCache(url, contract, tokenNumber)).rejects.toThrow(
-  //     /ImageCache script error/
-  //   );
-  // });
+    const serverDone = waiter();
+    server.close(() => serverDone.finish());
+    await serverDone;
+  });
+
+  test('throws other server errors', async () => {
+    const server = createTestResponseServer('not found', 404);
+    const serverReady = waiter();
+    server.listen(9999, 'localhost', () => serverReady.finish());
+    await serverReady;
+
+    await expect(
+      processImageCache('http://localhost:9999/', contract, tokenNumber)
+    ).rejects.toThrow(HttpError);
+
+    const serverDone = waiter();
+    server.close(() => serverDone.finish());
+    await serverDone;
+  });
+
+  test('ignores data: URL', async () => {
+    const url = 'data:123456';
+    await expect(processImageCache(url, contract, tokenNumber)).resolves.toStrictEqual([
+      'data:123456',
+    ]);
+  });
+
+  test('ima', async () => {
+    const server = createTestResponseServer('success');
+    const serverReady = waiter();
+    server.listen(9999, 'localhost', () => serverReady.finish());
+    await serverReady;
+
+    await expect(
+      processImageCache('http://localhost:9999/', contract, tokenNumber)
+    ).rejects.toThrow(HttpError);
+
+    const serverDone = waiter();
+    server.close(() => serverDone.finish());
+    await serverDone;
+  });
 });
