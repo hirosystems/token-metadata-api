@@ -353,7 +353,7 @@ describe('ProcessTokenJob', () => {
     });
 
     test('parses metadata with arbitrary types', async () => {
-      ENV.METADATA_IMAGE_CACHE_PROCESSOR = './tests/token-queue/test-image-cache.js';
+      // ENV.METADATA_IMAGE_CACHE_PROCESSOR = './tests/token-queue/test-image-cache.js';
       const metadata = {
         name: 'Mutant Monkeys #1',
         image:

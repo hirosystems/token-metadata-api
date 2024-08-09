@@ -18,7 +18,7 @@ import {
   TooManyRequestsHttpError,
 } from './errors';
 import { RetryableJobError } from '../queue/errors';
-import { normalizeImageUri, processImageCache } from './image-cache';
+import { normalizeImageUri, processImageCache } from '../images/image-cache';
 import {
   RawMetadataLocale,
   RawMetadataLocalizationCType,

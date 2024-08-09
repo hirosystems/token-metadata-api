@@ -1,3 +1,4 @@
+import * as http from 'http';
 import { PgStore } from '../src/pg/pg-store';
 import { buildApiServer } from '../src/api/init';
 import { FastifyBaseLogger, FastifyInstance } from 'fastify';
@@ -28,6 +29,15 @@ export async function startTestApiServer(db: PgStore): Promise<TestFastifyServer
 export const sleep = (time: number) => {
   return new Promise(resolve => setTimeout(resolve, time));
 };
+
+export function createTimeoutServer(delay: number) {
+  return http.createServer((req, res) => {
+    setTimeout(() => {
+      res.statusCode = 200;
+      res.end('Delayed response');
+    }, delay);
+  });
+}
 
 export const SIP_009_ABI = {
   maps: [
