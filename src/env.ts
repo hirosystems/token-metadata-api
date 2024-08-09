@@ -121,11 +121,7 @@ const schema = Type.Object({
    */
   PUBLIC_GATEWAY_ARWEAVE: Type.String({ default: 'https://arweave.net' }),
 
-  /**
-   * Configure a script to handle image URLs during token metadata processing. Must be an executable
-   * script that accepts the URL as the first program argument and outputs a result URL to stdout.
-   * Example: ./config/image-cache.js
-   */
+  /** Enables token image uploads to a Google Cloud Storage bucket. */
   IMAGE_CACHE_PROCESSOR_ENABLED: Type.Boolean({ default: false }),
   /** Width to resize images into while preserving aspect ratio. */
   IMAGE_CACHE_RESIZE_WIDTH: Type.Integer({ default: 300 }),
