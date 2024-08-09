@@ -1,6 +1,6 @@
 import { ENV } from '../../src/env';
 import { processImageCache } from '../../src/token-processor/images/image-cache';
-import { createTestResponseServer, createTimeoutServer } from '../helpers';
+import { startTestResponseServer, startTimeoutServer } from '../helpers';
 import {
   HttpError,
   MetadataTimeoutError,
@@ -21,14 +21,10 @@ describe('Image cache', () => {
 
   test('throws image fetch timeout error', async () => {
     ENV.METADATA_FETCH_TIMEOUT_MS = 50;
-    const server = createTimeoutServer(100);
-    const serverReady = waiter();
-    server.listen(8000, 'localhost', () => serverReady.finish());
-    await serverReady;
-
+    const server = await startTimeoutServer(100);
     try {
       await expect(
-        processImageCache('http://localhost:8000/', contract, tokenNumber)
+        processImageCache('http://localhost:9999/', contract, tokenNumber)
       ).rejects.toThrow(MetadataTimeoutError);
     } finally {
       const serverDone = waiter();
@@ -38,14 +34,10 @@ describe('Image cache', () => {
   });
 
   test('throws rate limit error', async () => {
-    const server = createTestResponseServer('rate limit exceeded', 429);
-    const serverReady = waiter();
-    server.listen(8001, 'localhost', () => serverReady.finish());
-    await serverReady;
-
+    const server = await startTestResponseServer('rate limit exceeded', 429);
     try {
       await expect(
-        processImageCache('http://localhost:8001/', contract, tokenNumber)
+        processImageCache('http://localhost:9999/', contract, tokenNumber)
       ).rejects.toThrow(TooManyRequestsHttpError);
     } finally {
       const serverDone = waiter();
@@ -55,14 +47,10 @@ describe('Image cache', () => {
   });
 
   test('throws other server errors', async () => {
-    const server = createTestResponseServer('not found', 404);
-    const serverReady = waiter();
-    server.listen(8002, 'localhost', () => serverReady.finish());
-    await serverReady;
-
+    const server = await startTestResponseServer('not found', 404);
     try {
       await expect(
-        processImageCache('http://localhost:8002/', contract, tokenNumber)
+        processImageCache('http://localhost:9999/', contract, tokenNumber)
       ).rejects.toThrow(HttpError);
     } finally {
       const serverDone = waiter();

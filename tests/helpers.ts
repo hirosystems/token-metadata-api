@@ -13,6 +13,7 @@ import {
 import { BlockCache, CachedEvent } from '../src/pg/chainhook/block-cache';
 import { SmartContractDeployment } from '../src/token-processor/util/sip-validation';
 import { DbJob, DbSipNumber, DbSmartContract, DbUpdateNotification } from '../src/pg/types';
+import { waiter } from '@hirosystems/api-toolkit';
 
 export type TestFastifyServer = FastifyInstance<
   Server,
@@ -30,20 +31,50 @@ export const sleep = (time: number) => {
   return new Promise(resolve => setTimeout(resolve, time));
 };
 
-export function createTimeoutServer(delay: number) {
-  return http.createServer((req, res) => {
+export async function startTimeoutServer(delay: number, port: number = 9999) {
+  const server = http.createServer((req, res) => {
     setTimeout(() => {
       res.statusCode = 200;
       res.end('Delayed response');
     }, delay);
   });
+  server.on('error', e => {
+    console.log(e);
+    if ((e as any).code === 'EADDRINUSE') {
+      setTimeout(() => {
+        server.close();
+        server.listen(port, '0.0.0.0');
+      }, 1000);
+    }
+  });
+  const serverReady = waiter();
+  server.listen(port, '0.0.0.0', () => serverReady.finish());
+  await serverReady;
+  return server;
 }
 
-export function createTestResponseServer(response: string, statusCode: number = 200) {
-  return http.createServer((req, res) => {
+export async function startTestResponseServer(
+  response: string,
+  statusCode: number = 200,
+  port: number = 9999
+) {
+  const server = http.createServer((req, res) => {
     res.statusCode = statusCode;
     res.end(response);
   });
+  server.on('error', e => {
+    console.log(e);
+    if ((e as any).code === 'EADDRINUSE') {
+      setTimeout(() => {
+        server.close();
+        server.listen(port, '0.0.0.0');
+      }, 1000);
+    }
+  });
+  const serverReady = waiter();
+  server.listen(port, '0.0.0.0', () => serverReady.finish());
+  await serverReady;
+  return server;
 }
 
 export const SIP_009_ABI = {
