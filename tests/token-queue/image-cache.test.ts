@@ -24,7 +24,7 @@ describe('Image cache', () => {
     const server = await startTimeoutServer(100);
     try {
       await expect(
-        processImageCache('http://localhost:9999/', contract, tokenNumber)
+        processImageCache('http://127.0.0.1:9999/', contract, tokenNumber)
       ).rejects.toThrow(MetadataTimeoutError);
     } finally {
       const serverDone = waiter();
@@ -37,7 +37,7 @@ describe('Image cache', () => {
     const server = await startTestResponseServer('rate limit exceeded', 429);
     try {
       await expect(
-        processImageCache('http://localhost:9999/', contract, tokenNumber)
+        processImageCache('http://127.0.0.1:9999/', contract, tokenNumber)
       ).rejects.toThrow(TooManyRequestsHttpError);
     } finally {
       const serverDone = waiter();
@@ -50,7 +50,7 @@ describe('Image cache', () => {
     const server = await startTestResponseServer('not found', 404);
     try {
       await expect(
-        processImageCache('http://localhost:9999/', contract, tokenNumber)
+        processImageCache('http://127.0.0.1:9999/', contract, tokenNumber)
       ).rejects.toThrow(HttpError);
     } finally {
       const serverDone = waiter();
