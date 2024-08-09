@@ -1,12 +1,11 @@
 import { ENV } from '../../src/env';
 import { processImageCache } from '../../src/token-processor/images/image-cache';
-import { closeTestServer, sleep, startTestResponseServer, startTimeoutServer } from '../helpers';
+import { closeTestServer, startTestResponseServer, startTimeoutServer } from '../helpers';
 import {
   HttpError,
   MetadataTimeoutError,
   TooManyRequestsHttpError,
 } from '../../src/token-processor/util/errors';
-import { waiter } from '@hirosystems/api-toolkit';
 import { MockAgent, setGlobalDispatcher } from 'undici';
 
 describe('Image cache', () => {

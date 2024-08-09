@@ -1,9 +1,9 @@
 import { ENV } from '../../src/env';
 import { MIGRATIONS_DIR, PgStore } from '../../src/pg/pg-store';
-import { DbJob, DbJobStatus, DbSipNumber, DbSmartContractInsert } from '../../src/pg/types';
+import { DbJob, DbJobStatus, DbSipNumber } from '../../src/pg/types';
 import { JobQueue } from '../../src/token-processor/queue/job-queue';
-import { insertAndEnqueueTestContract, sleep } from '../helpers';
-import { cycleMigrations } from '@hirosystems/api-toolkit';
+import { insertAndEnqueueTestContract } from '../helpers';
+import { cycleMigrations, timeout } from '@hirosystems/api-toolkit';
 
 class TestJobQueue extends JobQueue {
   constructor(args: { db: PgStore }) {
@@ -86,7 +86,7 @@ describe('JobQueue', () => {
     await db.close();
     queue.start();
     // Wait 2 seconds and kill the queue.
-    await sleep(2000);
+    await timeout(2000);
     await queue.close();
   });
 });

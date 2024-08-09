@@ -27,10 +27,6 @@ export async function startTestApiServer(db: PgStore): Promise<TestFastifyServer
   return await buildApiServer({ db });
 }
 
-export const sleep = (time: number) => {
-  return new Promise(resolve => setTimeout(resolve, time));
-};
-
 export async function startTimeoutServer(delay: number, port: number = 9999) {
   const server = http.createServer((req, res) => {
     setTimeout(() => {
@@ -38,19 +34,10 @@ export async function startTimeoutServer(delay: number, port: number = 9999) {
       res.end('Delayed response');
     }, delay);
   });
-  server.on('error', e => {
-    console.log(e);
-    if ((e as any).code === 'EADDRINUSE') {
-      setTimeout(() => {
-        server.close();
-        server.listen(port, '0.0.0.0');
-      }, 1000);
-    }
-  });
+  server.on('error', e => console.log(e));
   const serverReady = waiter();
   server.listen(port, '0.0.0.0', () => serverReady.finish());
   await serverReady;
-  console.log(`Test timeout server started at port ${port}`);
   return server;
 }
 
@@ -63,19 +50,10 @@ export async function startTestResponseServer(
     res.statusCode = statusCode;
     res.end(response);
   });
-  server.on('error', e => {
-    console.log(e);
-    if ((e as any).code === 'EADDRINUSE') {
-      setTimeout(() => {
-        server.close();
-        server.listen(port, '0.0.0.0');
-      }, 1000);
-    }
-  });
+  server.on('error', e => console.log(e));
   const serverReady = waiter();
   server.listen(port, '0.0.0.0', () => serverReady.finish());
   await serverReady;
-  console.log(`Test response server (${statusCode}) started at port ${port}`);
   return server;
 }
 
@@ -83,12 +61,11 @@ export async function closeTestServer(server: http.Server) {
   const serverDone = waiter();
   server.close(err => {
     if (err) {
-      console.log(`Error closing test server: ${err}`);
+      console.log(err);
     }
     serverDone.finish();
   });
   await serverDone;
-  console.log(`Closed test server`);
 }
 
 export const SIP_009_ABI = {

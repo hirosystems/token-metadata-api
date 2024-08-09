@@ -7,7 +7,6 @@ import { DbJobStatus, DbSipNumber } from '../../src/pg/types';
 import {
   insertAndEnqueueTestContractWithTokens,
   markAllJobsAsDone,
-  sleep,
   TestFastifyServer,
 } from '../helpers';
 
