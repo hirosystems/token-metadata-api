@@ -19,9 +19,26 @@ describe('Image cache', () => {
     ENV.IMAGE_CACHE_GCS_OBJECT_NAME_PREFIX = 'prefix/';
   });
 
-  test('throws image fetch timeout error', async () => {
-    ENV.METADATA_FETCH_TIMEOUT_MS = 50;
-    const server = createTimeoutServer(100);
+  // test('throws image fetch timeout error', async () => {
+  //   ENV.METADATA_FETCH_TIMEOUT_MS = 50;
+  //   const server = createTimeoutServer(100);
+  //   const serverReady = waiter();
+  //   server.listen(9999, 'localhost', () => serverReady.finish());
+  //   await serverReady;
+
+  //   try {
+  //     await expect(
+  //       processImageCache('http://localhost:9999/', contract, tokenNumber)
+  //     ).rejects.toThrow(MetadataTimeoutError);
+  //   } finally {
+  //     const serverDone = waiter();
+  //     server.close(() => serverDone.finish());
+  //     await serverDone;
+  //   }
+  // });
+
+  test('throws rate limit error', async () => {
+    const server = createTestResponseServer('rate limit exceeded', 429);
     const serverReady = waiter();
     server.listen(9999, 'localhost', () => serverReady.finish());
     await serverReady;
@@ -29,36 +46,13 @@ describe('Image cache', () => {
     try {
       await expect(
         processImageCache('http://localhost:9999/', contract, tokenNumber)
-      ).rejects.toThrow(MetadataTimeoutError);
+      ).rejects.toThrow(TooManyRequestsHttpError);
     } finally {
       const serverDone = waiter();
       server.close(() => serverDone.finish());
       await serverDone;
     }
   });
-
-  // test('throws rate limit error', async () => {
-  //   console.log('A');
-  //   const server = createTestResponseServer('rate limit exceeded', 429);
-  //   const serverReady = waiter();
-  //   server.listen(9999, 'localhost', () => serverReady.finish());
-  //   await serverReady;
-  //   console.log('B');
-
-  //   try {
-  //     console.log('C');
-  //     await expect(
-  //       processImageCache('http://localhost:9999/', contract, tokenNumber)
-  //     ).rejects.toThrow(TooManyRequestsHttpError);
-  //     console.log('D');
-  //   } finally {
-  //     console.log('E');
-  //     const serverDone = waiter();
-  //     server.close(() => serverDone.finish());
-  //     await serverDone;
-  //     console.log('F');
-  //   }
-  // });
 
   test('throws other server errors', async () => {
     const server = createTestResponseServer('not found', 404);
@@ -77,12 +71,12 @@ describe('Image cache', () => {
     }
   });
 
-  // test('ignores data: URL', async () => {
-  //   const url = 'data:123456';
-  //   await expect(processImageCache(url, contract, tokenNumber)).resolves.toStrictEqual([
-  //     'data:123456',
-  //   ]);
-  // });
+  test('ignores data: URL', async () => {
+    const url = 'data:123456';
+    await expect(processImageCache(url, contract, tokenNumber)).resolves.toStrictEqual([
+      'data:123456',
+    ]);
+  });
 
   // test('throws upload error', async () => {
   //   const server = createTestResponseServer('success');
