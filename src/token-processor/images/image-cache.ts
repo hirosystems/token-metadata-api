@@ -78,7 +78,6 @@ export async function processImageCache(
       }),
     });
   } catch (error) {
-    console.log(error);
     if (error instanceof TypeError) {
       const typeError = error as UndiciCauseTypeError;
       if (
@@ -91,6 +90,7 @@ export async function processImageCache(
     }
     throw new HttpError(`ImageCache fetch error: ${imgUrl} ${error}`, error);
   }
+  console.log(`status ${fetchResponse.status}`);
   if (fetchResponse.status == 429) {
     throw new TooManyRequestsHttpError(new URL(imgUrl), new errors.ResponseStatusCodeError());
   }
