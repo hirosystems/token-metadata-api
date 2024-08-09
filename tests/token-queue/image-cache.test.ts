@@ -1,6 +1,6 @@
 import { ENV } from '../../src/env';
 import { processImageCache } from '../../src/token-processor/images/image-cache';
-import { sleep, startTestResponseServer, startTimeoutServer } from '../helpers';
+import { closeTestServer, sleep, startTestResponseServer, startTimeoutServer } from '../helpers';
 import {
   HttpError,
   MetadataTimeoutError,
@@ -27,10 +27,7 @@ describe('Image cache', () => {
         processImageCache('http://127.0.0.1:9999/', contract, tokenNumber)
       ).rejects.toThrow(MetadataTimeoutError);
     } finally {
-      await sleep(200);
-      const serverDone = waiter();
-      server.close(() => serverDone.finish());
-      await serverDone;
+      await closeTestServer(server);
     }
   });
 
@@ -41,9 +38,7 @@ describe('Image cache', () => {
         processImageCache('http://127.0.0.1:9999/', contract, tokenNumber)
       ).rejects.toThrow(TooManyRequestsHttpError);
     } finally {
-      const serverDone = waiter();
-      server.close(() => serverDone.finish());
-      await serverDone;
+      await closeTestServer(server);
     }
   });
 
@@ -54,9 +49,7 @@ describe('Image cache', () => {
         processImageCache('http://127.0.0.1:9999/', contract, tokenNumber)
       ).rejects.toThrow(HttpError);
     } finally {
-      const serverDone = waiter();
-      server.close(() => serverDone.finish());
-      await serverDone;
+      await closeTestServer(server);
     }
   });
 
