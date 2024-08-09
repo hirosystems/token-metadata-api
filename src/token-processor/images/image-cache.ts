@@ -88,7 +88,7 @@ export async function processImageCache(
         throw new MetadataTimeoutError(new URL(imgUrl));
       }
     }
-    throw new HttpError(`ImageCache fetch error: ${imgUrl}`);
+    throw new HttpError(`ImageCache fetch error: ${imgUrl} ${error}`, error);
   }
   if (fetchResponse.status == 429) {
     throw new TooManyRequestsHttpError(new URL(imgUrl), new errors.ResponseStatusCodeError());
@@ -136,7 +136,7 @@ export async function processImageCache(
         // GCS token is probably expired. Force a token refresh before trying again.
         gcsAuthToken = undefined;
         didRetryUnauthorized = true;
-      } else throw new HttpError(`ImageCache upload error`, error);
+      } else throw new HttpError(`ImageCache upload error: ${error}`, error);
     }
   }
 }
