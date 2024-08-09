@@ -8,6 +8,7 @@ import { logger, PINO_LOGGER_CONFIG } from '@hirosystems/api-toolkit';
 import { reprocessTokenImageCache } from '../token-processor/images/image-cache';
 import { StacksNodeRpcClient } from '../token-processor/stacks-node/stacks-node-rpc-client';
 import { getSmartContractSip } from '../token-processor/util/sip-validation';
+import { ENV } from '../env';
 
 export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTypeProvider> = (
   fastify,
@@ -83,6 +84,10 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
       },
     },
     async (request, reply) => {
+      if (!ENV.IMAGE_CACHE_PROCESSOR_ENABLED) {
+        await reply.code(422).send({ error: 'Image cache processor is not enabled' });
+        return;
+      }
       logger.info(
         `AdminRPC reprocessing image cache for ${request.body.contractId}: (${
           request.body.tokenIds ?? 'all'
