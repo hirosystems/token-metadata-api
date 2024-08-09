@@ -14,6 +14,7 @@ describe('Image cache', () => {
   const tokenNumber = 100n;
 
   beforeAll(() => {
+    ENV.IMAGE_CACHE_PROCESSOR_ENABLED = true;
     ENV.IMAGE_CACHE_GCS_BUCKET_NAME = 'test';
     ENV.IMAGE_CACHE_GCS_OBJECT_NAME_PREFIX = 'prefix/';
   });
@@ -37,19 +38,25 @@ describe('Image cache', () => {
   });
 
   test('throws rate limit error', async () => {
+    console.log('A');
     const server = createTestResponseServer('rate limit exceeded', 429);
     const serverReady = waiter();
     server.listen(9999, 'localhost', () => serverReady.finish());
     await serverReady;
+    console.log('B');
 
     try {
+      console.log('C');
       await expect(
         processImageCache('http://localhost:9999/', contract, tokenNumber)
       ).rejects.toThrow(TooManyRequestsHttpError);
+      console.log('D');
     } finally {
+      console.log('E');
       const serverDone = waiter();
       server.close(() => serverDone.finish());
       await serverDone;
+      console.log('F');
     }
   });
 

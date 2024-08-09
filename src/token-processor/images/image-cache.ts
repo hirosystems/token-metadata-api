@@ -60,8 +60,8 @@ export async function processImageCache(
   contractPrincipal: string,
   tokenNumber: bigint
 ): Promise<string[]> {
-  if (imgUrl.startsWith('data:')) return [imgUrl];
   logger.info(`ImageCache processing token ${contractPrincipal} (${tokenNumber}) at ${imgUrl}`);
+  if (imgUrl.startsWith('data:')) return [imgUrl];
 
   // Fetch original image.
   let fetchResponse: Response;
