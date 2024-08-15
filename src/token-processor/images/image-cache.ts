@@ -100,28 +100,19 @@ export async function processImageCache(
       new errors.ResponseStatusCodeError(fetchResponse.statusText, fetchResponse.status)
     );
   }
-
-  // Transform image.
-  let fullSizeTransform: sharp.Sharp;
-  let thumbnailTransform: sharp.Sharp;
-  try {
-    const imageReadStream = Readable.fromWeb(imageBody);
-    const passThrough = new PassThrough();
-    fullSizeTransform = sharp().png();
-    thumbnailTransform = sharp()
-      .resize({ width: ENV.IMAGE_CACHE_RESIZE_WIDTH, withoutEnlargement: true })
-      .png();
-    imageReadStream.pipe(passThrough);
-    passThrough.pipe(fullSizeTransform);
-    passThrough.pipe(thumbnailTransform);
-  } catch (error) {
-    throw new MetadataParseError(`ImageCache error transforming image: ${error}`);
-  }
+  const imageStream = Readable.fromWeb(imageBody);
 
   let didRetryUnauthorized = false;
   while (true) {
     const authToken = await getGcsAuthToken();
     try {
+      const sharpStream = sharp({ failOn: 'error' });
+      const fullSizeTransform = sharpStream.clone().png();
+      const thumbnailTransform = sharpStream
+        .clone()
+        .resize({ width: ENV.IMAGE_CACHE_RESIZE_WIDTH, withoutEnlargement: true })
+        .png();
+      imageStream.pipe(sharpStream);
       const results = await Promise.all([
         uploadToGcs(fullSizeTransform, `${contractPrincipal}/${tokenNumber}.png`, authToken),
         uploadToGcs(thumbnailTransform, `${contractPrincipal}/${tokenNumber}-thumb.png`, authToken),
@@ -136,7 +127,7 @@ export async function processImageCache(
         // GCS token is probably expired. Force a token refresh before trying again.
         gcsAuthToken = undefined;
         didRetryUnauthorized = true;
-      } else throw new HttpError(`ImageCache upload error: ${error}`, error);
+      } else throw new MetadataParseError(`ImageCache processing error: ${error}`);
     }
   }
 }
