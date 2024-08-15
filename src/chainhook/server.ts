@@ -1,3 +1,4 @@
+import * as fs from 'fs';
 import {
   ChainhookEventObserver,
   ChainhookNodeOptions,
@@ -6,24 +7,58 @@ import {
   ServerPredicate,
   StacksPayload,
 } from '@hirosystems/chainhook-client';
-import { randomUUID } from 'node:crypto';
 import { PgStore } from '../pg/pg-store';
 import { ENV } from '../env';
 import { logger } from '@hirosystems/api-toolkit';
+import { randomUUID } from 'node:crypto';
 
-const PREDICATE_UUID = randomUUID();
+export function getPersistedPredicateFromDisk(): ServerPredicate | undefined {
+  const predicatePath = `${ENV.CHAINHOOK_PREDICATE_PATH}/predicate.json`;
+  try {
+    if (!fs.existsSync(predicatePath)) {
+      return;
+    }
+    const fileData = fs.readFileSync(predicatePath, 'utf-8');
+    return JSON.parse(fileData) as ServerPredicate;
+  } catch (error) {
+    logger.error(error, `ChainhookServer unable to get persisted predicate`);
+  }
+}
+
+export function persistPredicateToDisk(predicate: ServerPredicate) {
+  const predicatePath = `${ENV.CHAINHOOK_PREDICATE_PATH}/predicate.json`;
+  try {
+    try {
+      fs.mkdirSync(ENV.CHAINHOOK_PREDICATE_PATH);
+    } catch (error: any) {
+      if (error.code != 'EEXIST') throw error;
+    }
+    fs.writeFileSync(predicatePath, JSON.stringify(predicate, null, 2));
+  } catch (error) {
+    logger.error(error, `ChainhookServer unable to persist predicate to disk`);
+  }
+}
 
 export async function startChainhookServer(args: { db: PgStore }): Promise<ChainhookEventObserver> {
+  const blockHeight = await args.db.getChainTipBlockHeight();
+  logger.info(`ChainhookServer is at block ${blockHeight}`);
+
   const predicates: ServerPredicate[] = [];
   if (ENV.CHAINHOOK_AUTO_PREDICATE_REGISTRATION) {
-    const blockHeight = await args.db.getChainTipBlockHeight();
-    logger.info(`Chainhook predicate starting from block ${blockHeight}...`);
+    const existingPredicate = getPersistedPredicateFromDisk();
+    if (existingPredicate) {
+      logger.info(
+        `ChainhookServer will attempt to resume existing predicate ${existingPredicate.uuid}`
+      );
+    }
+    const uuid = existingPredicate?.uuid ?? randomUUID();
     predicates.push({
-      uuid: PREDICATE_UUID,
+      uuid,
       name: 'block',
       version: 1,
       chain: 'stacks',
       networks: {
+        // TODO: Support testnet.
         mainnet: {
           start_block: blockHeight,
           include_contract_abi: true,
@@ -58,7 +93,16 @@ export async function startChainhookServer(args: { db: PgStore }): Promise<Chain
     );
     await args.db.chainhook.processPayload(payload as StacksPayload);
   });
-  const chainTip = await args.db.getChainTipBlockHeight();
-  logger.info(`ChainhookServer chain tip is at ${chainTip}`);
+  if (predicates.length) persistPredicateToDisk(predicates[0]);
   return server;
+}
+
+export async function closeChainhookServer(server: ChainhookEventObserver) {
+  try {
+    const predicatePath = `${ENV.CHAINHOOK_PREDICATE_PATH}/predicate.json`;
+    if (fs.existsSync(predicatePath)) fs.rmSync(predicatePath);
+  } catch (error) {
+    logger.error(error, `ChainhookServer unable to delete persisted predicate`);
+  }
+  await server.close();
 }
