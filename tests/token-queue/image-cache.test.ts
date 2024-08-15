@@ -1,39 +1,51 @@
 import { ENV } from '../../src/env';
-import { processImageCache } from '../../src/token-processor/util/image-cache';
+import { processImageCache } from '../../src/token-processor/images/image-cache';
+import { closeTestServer, startTestResponseServer, startTimeoutServer } from '../helpers';
+import {
+  HttpError,
+  MetadataTimeoutError,
+  TooManyRequestsHttpError,
+} from '../../src/token-processor/util/errors';
 
 describe('Image cache', () => {
   const contract = 'SP3QSAJQ4EA8WXEDSRRKMZZ29NH91VZ6C5X88FGZQ.crashpunks-v2';
   const tokenNumber = 100n;
-  const url = 'http://cloudflare-ipfs.com/test/image.png';
 
   beforeAll(() => {
-    ENV.METADATA_IMAGE_CACHE_PROCESSOR = './tests/token-queue/test-image-cache.js';
+    ENV.IMAGE_CACHE_PROCESSOR_ENABLED = true;
+    ENV.IMAGE_CACHE_GCS_BUCKET_NAME = 'test';
+    ENV.IMAGE_CACHE_GCS_OBJECT_NAME_PREFIX = 'prefix/';
   });
 
-  test('transforms image URL correctly', async () => {
-    const transformed = await processImageCache(url, contract, tokenNumber);
-    expect(transformed).toStrictEqual([
-      'http://cloudflare-ipfs.com/test/image.png?processed=true',
-      'http://cloudflare-ipfs.com/test/image.png?processed=true&thumb=true',
-    ]);
-  });
+  test('throws image fetch timeout error', async () => {
+    ENV.METADATA_FETCH_TIMEOUT_MS = 50;
+    const server = await startTimeoutServer(100);
+    await expect(
+      processImageCache('http://127.0.0.1:9999/', contract, tokenNumber)
+    ).rejects.toThrow(MetadataTimeoutError);
+    await closeTestServer(server);
+  }, 10000);
+
+  test('throws rate limit error', async () => {
+    const server = await startTestResponseServer('rate limit exceeded', 429);
+    await expect(
+      processImageCache('http://127.0.0.1:9999/', contract, tokenNumber)
+    ).rejects.toThrow(TooManyRequestsHttpError);
+    await closeTestServer(server);
+  }, 10000);
+
+  test('throws other server errors', async () => {
+    const server = await startTestResponseServer('not found', 404);
+    await expect(
+      processImageCache('http://127.0.0.1:9999/', contract, tokenNumber)
+    ).rejects.toThrow(HttpError);
+    await closeTestServer(server);
+  }, 10000);
 
   test('ignores data: URL', async () => {
     const url = 'data:123456';
-    const transformed = await processImageCache(url, contract, tokenNumber);
-    expect(transformed).toStrictEqual(['data:123456']);
-  });
-
-  test('ignores empty script paths', async () => {
-    ENV.METADATA_IMAGE_CACHE_PROCESSOR = '';
-    const transformed = await processImageCache(url, contract, tokenNumber);
-    expect(transformed).toStrictEqual([url]);
-  });
-
-  test('handles script errors', async () => {
-    ENV.METADATA_IMAGE_CACHE_PROCESSOR = './tests/test-image-cache-error.js';
-    await expect(processImageCache(url, contract, tokenNumber)).rejects.toThrow(
-      /ImageCache script error/
-    );
+    await expect(processImageCache(url, contract, tokenNumber)).resolves.toStrictEqual([
+      'data:123456',
+    ]);
   });
 });

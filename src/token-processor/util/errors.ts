@@ -1,6 +1,10 @@
 import { errors } from 'undici';
 import { parseRetryAfterResponseHeader } from './helpers';
 
+export interface UndiciCauseTypeError extends TypeError {
+  cause?: unknown;
+}
+
 /** Tags an error as a user error i.e. caused by a bad contract, incorrect SIP-016 metadata, etc. */
 export class UserError extends Error {}
 
@@ -15,9 +19,11 @@ export class MetadataSizeExceededError extends UserError {
 
 /** Thrown when fetching metadata exceeds the max allowed timeout */
 export class MetadataTimeoutError extends UserError {
-  constructor(message: string) {
+  public url: URL;
+
+  constructor(url: URL) {
     super();
-    this.message = message;
+    this.url = url;
     this.name = this.constructor.name;
   }
 }

@@ -1,3 +1,4 @@
+import * as http from 'http';
 import { PgStore } from '../src/pg/pg-store';
 import { buildApiServer } from '../src/api/init';
 import { FastifyBaseLogger, FastifyInstance } from 'fastify';
@@ -12,6 +13,7 @@ import {
 import { BlockCache, CachedEvent } from '../src/pg/chainhook/block-cache';
 import { SmartContractDeployment } from '../src/token-processor/util/sip-validation';
 import { DbJob, DbSipNumber, DbSmartContract, DbUpdateNotification } from '../src/pg/types';
+import { waiter } from '@hirosystems/api-toolkit';
 
 export type TestFastifyServer = FastifyInstance<
   Server,
@@ -25,9 +27,46 @@ export async function startTestApiServer(db: PgStore): Promise<TestFastifyServer
   return await buildApiServer({ db });
 }
 
-export const sleep = (time: number) => {
-  return new Promise(resolve => setTimeout(resolve, time));
-};
+export async function startTimeoutServer(delay: number, port: number = 9999) {
+  const server = http.createServer((req, res) => {
+    setTimeout(() => {
+      res.statusCode = 200;
+      res.end('Delayed response');
+    }, delay);
+  });
+  server.on('error', e => console.log(e));
+  const serverReady = waiter();
+  server.listen(port, '0.0.0.0', () => serverReady.finish());
+  await serverReady;
+  return server;
+}
+
+export async function startTestResponseServer(
+  response: string,
+  statusCode: number = 200,
+  port: number = 9999
+) {
+  const server = http.createServer((req, res) => {
+    res.statusCode = statusCode;
+    res.end(response);
+  });
+  server.on('error', e => console.log(e));
+  const serverReady = waiter();
+  server.listen(port, '0.0.0.0', () => serverReady.finish());
+  await serverReady;
+  return server;
+}
+
+export async function closeTestServer(server: http.Server) {
+  const serverDone = waiter();
+  server.close(err => {
+    if (err) {
+      console.log(err);
+    }
+    serverDone.finish();
+  });
+  await serverDone;
+}
 
 export const SIP_009_ABI = {
   maps: [

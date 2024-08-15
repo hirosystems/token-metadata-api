@@ -1,3 +1,4 @@
+import * as imageCache from '../../src/token-processor/images/image-cache';
 import { cycleMigrations } from '@hirosystems/api-toolkit';
 import { buildAdminRpcServer } from '../../src/admin-rpc/init';
 import { ENV } from '../../src/env';
@@ -6,7 +7,6 @@ import { DbJobStatus, DbSipNumber } from '../../src/pg/types';
 import {
   insertAndEnqueueTestContractWithTokens,
   markAllJobsAsDone,
-  sleep,
   TestFastifyServer,
 } from '../helpers';
 
@@ -118,7 +118,13 @@ describe('Admin RPC', () => {
 
   describe('/cache-images', () => {
     test('reprocesses token images', async () => {
-      ENV.METADATA_IMAGE_CACHE_PROCESSOR = './tests/token-queue/test-image-cache.js';
+      const spy = jest
+        .spyOn(imageCache, 'reprocessTokenImageCache')
+        .mockImplementation((a, b, c) => {
+          return Promise.resolve();
+        });
+
+      ENV.IMAGE_CACHE_PROCESSOR_ENABLED = true;
       const principal = 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world';
       await insertAndEnqueueTestContractWithTokens(db, principal, DbSipNumber.sip009, 1n);
       await db.updateProcessedTokenWithMetadata({
@@ -158,17 +164,52 @@ describe('Admin RPC', () => {
         headers: { 'content-type': 'application/json' },
       });
       expect(response.statusCode).toBe(200);
-      await sleep(1000); // Wait for changes to complete.
-      const bundle = await db.getTokenMetadataBundle({
-        contractPrincipal: principal,
-        tokenNumber: 1,
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      spy.mockRestore();
+    });
+
+    test('rejects when image cache is disabled', async () => {
+      ENV.IMAGE_CACHE_PROCESSOR_ENABLED = false;
+      const principal = 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world';
+      await insertAndEnqueueTestContractWithTokens(db, principal, DbSipNumber.sip009, 1n);
+      await db.updateProcessedTokenWithMetadata({
+        id: 1,
+        values: {
+          token: {
+            name: 'hello-world',
+            symbol: 'HELLO',
+            decimals: 6,
+            total_supply: '1',
+            uri: 'http://test.com/uri.json',
+          },
+          metadataLocales: [
+            {
+              metadata: {
+                sip: 16,
+                token_id: 1,
+                name: 'hello-world',
+                l10n_locale: 'en',
+                l10n_uri: null,
+                l10n_default: true,
+                description: 'test',
+                image: 'http://test.com/image.png',
+                cached_image: null,
+                cached_thumbnail_image: null,
+              },
+            },
+          ],
+        },
       });
-      expect(bundle.metadataLocale?.metadata.cached_image).toBe(
-        'http://test.com/image.png?processed=true'
-      );
-      expect(bundle.metadataLocale?.metadata.cached_thumbnail_image).toBe(
-        'http://test.com/image.png?processed=true&thumb=true'
-      );
+      const response = await fastify.inject({
+        url: '/metadata/admin/cache-images',
+        method: 'POST',
+        payload: JSON.stringify({
+          contractId: principal,
+        }),
+        headers: { 'content-type': 'application/json' },
+      });
+      expect(response.statusCode).toBe(422);
     });
   });
 });

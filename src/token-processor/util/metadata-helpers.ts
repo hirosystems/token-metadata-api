@@ -18,7 +18,7 @@ import {
   TooManyRequestsHttpError,
 } from './errors';
 import { RetryableJobError } from '../queue/errors';
-import { normalizeImageUri, processImageCache } from './image-cache';
+import { normalizeImageUri, processImageCache } from '../images/image-cache';
 import {
   RawMetadataLocale,
   RawMetadataLocalizationCType,
@@ -53,37 +53,69 @@ export async function fetchAllMetadataLocalesFromBaseUri(
   token: DbToken
 ): Promise<DbMetadataLocaleInsertBundle[]> {
   const tokenUri = getTokenSpecificUri(uri, token.token_number);
-  const rawMetadataLocales: RawMetadataLocale[] = [];
+  let insertBundles: DbMetadataLocaleInsertBundle[] = [];
 
-  const defaultMetadata = await getMetadataFromUri(tokenUri);
-  rawMetadataLocales.push({
-    metadata: defaultMetadata,
-    default: true,
-    uri: tokenUri,
-  });
+  // We'll try to fetch metadata and give it `METADATA_MAX_IMMEDIATE_URI_RETRIES` attempts
+  // for the external service to return a reasonable response, otherwise we'll consider the
+  // metadata as dead.
+  let fetchImmediateRetryCount = 0;
+  do {
+    try {
+      const rawMetadataLocales: RawMetadataLocale[] = [];
 
-  // Does it declare localizations? If so, fetch and parse all of them.
-  if (RawMetadataLocalizationCType.Check(defaultMetadata.localization)) {
-    const uri = defaultMetadata.localization.uri;
-    const locales = defaultMetadata.localization.locales;
-    rawMetadataLocales[0].locale = defaultMetadata.localization.default;
-    for (const locale of locales) {
-      if (locale === rawMetadataLocales[0].locale) {
-        // Skip the default, we already have it.
-        continue;
-      }
-      const localeUri = getTokenSpecificUri(uri, token.token_number, locale);
-      const localeMetadata = await getMetadataFromUri(localeUri);
+      const defaultMetadata = await getMetadataFromUri(tokenUri);
       rawMetadataLocales.push({
-        metadata: localeMetadata,
-        locale: locale,
-        default: false,
-        uri: localeUri,
+        metadata: defaultMetadata,
+        default: true,
+        uri: tokenUri,
       });
-    }
-  }
 
-  return parseMetadataForInsertion(rawMetadataLocales, contract, token);
+      // Does it declare localizations? If so, fetch and parse all of them.
+      if (RawMetadataLocalizationCType.Check(defaultMetadata.localization)) {
+        const uri = defaultMetadata.localization.uri;
+        const locales = defaultMetadata.localization.locales;
+        rawMetadataLocales[0].locale = defaultMetadata.localization.default;
+        for (const locale of locales) {
+          if (locale === rawMetadataLocales[0].locale) {
+            // Skip the default, we already have it.
+            continue;
+          }
+          const localeUri = getTokenSpecificUri(uri, token.token_number, locale);
+          const localeMetadata = await getMetadataFromUri(localeUri);
+          rawMetadataLocales.push({
+            metadata: localeMetadata,
+            locale: locale,
+            default: false,
+            uri: localeUri,
+          });
+        }
+      }
+
+      insertBundles = await parseMetadataForInsertion(rawMetadataLocales, contract, token);
+      break;
+    } catch (error) {
+      fetchImmediateRetryCount++;
+      if (
+        error instanceof MetadataTimeoutError &&
+        isUriFromDecentralizedStorage(error.url.toString())
+      ) {
+        // Gateways like IPFS and Arweave commonly time out when a resource can't be found quickly.
+        // Try again later if this is the case.
+        throw new RetryableJobError(`Gateway timeout for ${error.url}`, error);
+      } else if (error instanceof TooManyRequestsHttpError) {
+        // 429 status codes are common when fetching metadata for thousands of tokens in the same
+        // server.
+        throw new RetryableJobError(`Too many requests for ${error.url}`, error);
+      } else if (
+        error instanceof MetadataSizeExceededError ||
+        fetchImmediateRetryCount >= ENV.METADATA_MAX_IMMEDIATE_URI_RETRIES
+      ) {
+        throw error;
+      }
+    }
+  } while (fetchImmediateRetryCount < ENV.METADATA_MAX_IMMEDIATE_URI_RETRIES);
+
+  return insertBundles;
 }
 
 /**
@@ -133,7 +165,7 @@ async function parseMetadataForInsertion(
       null;
     let cachedImage: string | undefined;
     let cachedThumbnailImage: string | undefined;
-    if (image && typeof image === 'string') {
+    if (image && typeof image === 'string' && ENV.IMAGE_CACHE_PROCESSOR_ENABLED) {
       const normalizedUrl = normalizeImageUri(image);
       [cachedImage, cachedThumbnailImage] = await processImageCache(
         normalizedUrl,
@@ -221,7 +253,7 @@ export async function fetchMetadata(httpUrl: URL): Promise<string | undefined> {
       error instanceof errors.BodyTimeoutError ||
       error instanceof errors.ConnectTimeoutError
     ) {
-      throw new MetadataTimeoutError(url);
+      throw new MetadataTimeoutError(new URL(url));
     } else if (error instanceof errors.ResponseExceededMaxSizeError) {
       throw new MetadataSizeExceededError(url);
     } else if (error instanceof errors.ResponseStatusCodeError && error.statusCode === 429) {
@@ -257,35 +289,7 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
   // Support HTTP/S URLs otherwise
   const httpUrl = getFetchableDecentralizedStorageUrl(token_uri);
   const urlStr = httpUrl.toString();
-  let fetchImmediateRetryCount = 0;
-  let content: string | undefined;
-  let fetchError: unknown;
-  // We'll try to fetch metadata and give it `METADATA_MAX_IMMEDIATE_URI_RETRIES` attempts
-  // for the external service to return a reasonable response, otherwise we'll consider the
-  // metadata as dead.
-  do {
-    try {
-      content = await fetchMetadata(httpUrl);
-      break;
-    } catch (error) {
-      fetchImmediateRetryCount++;
-      fetchError = error;
-      if (error instanceof MetadataTimeoutError && isUriFromDecentralizedStorage(token_uri)) {
-        // Gateways like IPFS and Arweave commonly time out when a resource can't be found quickly.
-        // Try again later if this is the case.
-        throw new RetryableJobError(`Gateway timeout for ${urlStr}`, error);
-      } else if (error instanceof TooManyRequestsHttpError) {
-        // 429 status codes are common when fetching metadata for thousands of tokens in the same
-        // server.
-        throw new RetryableJobError(`Too many requests for ${urlStr}`, error);
-      } else if (
-        error instanceof MetadataSizeExceededError ||
-        fetchImmediateRetryCount >= ENV.METADATA_MAX_IMMEDIATE_URI_RETRIES
-      ) {
-        throw error;
-      }
-    }
-  } while (fetchImmediateRetryCount < ENV.METADATA_MAX_IMMEDIATE_URI_RETRIES);
+  const content = await fetchMetadata(httpUrl);
   return parseJsonMetadata(urlStr, content);
 }
 

@@ -12,26 +12,6 @@ export function dbSipNumberToDbTokenType(sip: DbSipNumber): DbTokenType {
   }
 }
 
-export type Waiter<T> = Promise<T> & {
-  finish: (result: T) => void;
-  isFinished: boolean;
-};
-
-export function waiter<T = void>(): Waiter<T> {
-  let resolveFn: (result: T) => void;
-  const promise = new Promise<T>(resolve => {
-    resolveFn = resolve;
-  });
-  const completer = {
-    finish: (result: T) => {
-      completer.isFinished = true;
-      resolveFn(result);
-    },
-    isFinished: false,
-  };
-  return Object.assign(promise, completer);
-}
-
 /**
  * Parses a `Retry-After` HTTP header from an undici 429 `ResponseStatusCodeError` error so we can
  * determine when we can try calling the same host again looking for metadata.
