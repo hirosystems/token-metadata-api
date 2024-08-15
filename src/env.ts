@@ -42,6 +42,12 @@ const schema = Type.Object({
    * if you're configuring your predicates manually.
    */
   CHAINHOOK_AUTO_PREDICATE_REGISTRATION: Type.Boolean({ default: true }),
+  /**
+   * File path to a directory where the `predicate.json` file will be persisted by the API when
+   * registering its chainhook predicate so it can validate and resume later. Only used if auto
+   * predicate registration is enabled.
+   */
+  CHAINHOOK_PREDICATE_PATH: Type.String({ default: '.' }),
 
   PGHOST: Type.String(),
   PGPORT: Type.Number({ default: 5432, minimum: 0, maximum: 65535 }),
