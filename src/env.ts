@@ -27,6 +27,8 @@ const schema = Type.Object({
   EVENT_SERVER_BODY_LIMIT: Type.Integer({ default: 20971520 }),
   /** Hostname that will be reported to the chainhook node so it can call us back with events */
   EXTERNAL_HOSTNAME: Type.String({ default: '127.0.0.1' }),
+  /** Port in which to serve prometheus metrics */
+  PROMETHEUS_PORT: Type.Number({ default: 9154 }),
 
   /** Hostname of the chainhook node we'll use to register predicates */
   CHAINHOOK_NODE_RPC_HOST: Type.String({ default: '127.0.0.1' }),
