@@ -49,6 +49,23 @@ async function uploadToGcs(stream: Readable, name: string, authToken: string) {
   return `${ENV.IMAGE_CACHE_CDN_BASE_PATH}${name}`;
 }
 
+function handleImageError(imgUrl: string, error: any) {
+  if (error instanceof TypeError) {
+    const typeError = error as UndiciCauseTypeError;
+    if (
+      typeError.cause instanceof errors.HeadersTimeoutError ||
+      typeError.cause instanceof errors.BodyTimeoutError ||
+      typeError.cause instanceof errors.ConnectTimeoutError
+    ) {
+      throw new MetadataTimeoutError(new URL(imgUrl));
+    }
+    if (typeError.cause instanceof errors.ResponseExceededMaxSizeError) {
+      throw new MetadataSizeExceededError(`ImageCache image too large: ${imgUrl}`);
+    }
+  }
+  throw error;
+}
+
 /**
  * Uploads processed token metadata images to a Google Cloud Storage bucket. It also provides the
  * option to resize the image to a max width before uploading so file sizes are more manageable upon
@@ -65,10 +82,9 @@ export async function processImageCache(
   if (imgUrl.startsWith('data:')) return [imgUrl];
 
   // Fetch original image.
-  let fetchResponse: Response;
   let imageStream: Readable;
   try {
-    fetchResponse = await fetch(imgUrl, {
+    const fetchResponse = await fetch(imgUrl, {
       dispatcher: new Agent({
         headersTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
         bodyTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
@@ -91,38 +107,34 @@ export async function processImageCache(
     }
     imageStream = Readable.fromWeb(imageBody);
   } catch (error) {
-    if (error instanceof TypeError) {
-      const typeError = error as UndiciCauseTypeError;
-      if (
-        typeError.cause instanceof errors.HeadersTimeoutError ||
-        typeError.cause instanceof errors.BodyTimeoutError ||
-        typeError.cause instanceof errors.ConnectTimeoutError
-      ) {
-        throw new MetadataTimeoutError(new URL(imgUrl));
-      }
-      if (typeError.cause instanceof errors.ResponseExceededMaxSizeError) {
-        throw new MetadataSizeExceededError(`ImageCache image too large: ${imgUrl}`);
-      }
-    }
-    throw error;
+    handleImageError(imgUrl, error);
   }
 
   let didRetryUnauthorized = false;
   while (true) {
     const authToken = await getGcsAuthToken();
     try {
-      const sharpStream = sharp({ failOn: 'error' });
-      const fullSizeTransform = sharpStream.clone().png();
-      const thumbnailTransform = sharpStream
-        .clone()
-        .resize({ width: ENV.IMAGE_CACHE_RESIZE_WIDTH, withoutEnlargement: true })
-        .png();
-      imageStream.pipe(sharpStream);
-      const results = await Promise.all([
-        uploadToGcs(fullSizeTransform, `${contractPrincipal}/${tokenNumber}.png`, authToken),
-        uploadToGcs(thumbnailTransform, `${contractPrincipal}/${tokenNumber}-thumb.png`, authToken),
-      ]);
-      return results;
+      return await new Promise((resolve, reject) => {
+        const sharpStream = sharp({ failOn: 'error' });
+        const fullSizeTransform = sharpStream.clone().png();
+        const thumbnailTransform = sharpStream
+          .clone()
+          .resize({ width: ENV.IMAGE_CACHE_RESIZE_WIDTH, withoutEnlargement: true })
+          .png();
+        imageStream.on('error', reject);
+        sharpStream.on('error', reject);
+        imageStream.pipe(sharpStream);
+        Promise.all([
+          uploadToGcs(fullSizeTransform, `${contractPrincipal}/${tokenNumber}.png`, authToken),
+          uploadToGcs(
+            thumbnailTransform,
+            `${contractPrincipal}/${tokenNumber}-thumb.png`,
+            authToken
+          ),
+        ])
+          .then(resolve)
+          .catch(reject);
+      });
     } catch (error) {
       if (
         !didRetryUnauthorized &&
@@ -132,7 +144,7 @@ export async function processImageCache(
         // GCS token is probably expired. Force a token refresh before trying again.
         gcsAuthToken = undefined;
         didRetryUnauthorized = true;
-      } else throw new MetadataParseError(`ImageCache processing error: ${error}`);
+      } else handleImageError(imgUrl, error);
     }
   }
 }
