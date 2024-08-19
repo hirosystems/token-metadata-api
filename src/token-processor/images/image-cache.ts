@@ -2,12 +2,13 @@ import { ENV } from '../../env';
 import { parseDataUrl, getFetchableDecentralizedStorageUrl } from '../util/metadata-helpers';
 import { logger } from '@hirosystems/api-toolkit';
 import { PgStore } from '../../pg/pg-store';
-import { PassThrough, Readable } from 'node:stream';
+import { Readable } from 'node:stream';
 import * as sharp from 'sharp';
 import { Agent, fetch, request, errors, Response } from 'undici';
 import {
   HttpError,
   MetadataParseError,
+  MetadataSizeExceededError,
   MetadataTimeoutError,
   TooManyRequestsHttpError,
   UndiciCauseTypeError,
@@ -65,6 +66,7 @@ export async function processImageCache(
 
   // Fetch original image.
   let fetchResponse: Response;
+  let imageStream: Readable;
   try {
     fetchResponse = await fetch(imgUrl, {
       dispatcher: new Agent({
@@ -77,6 +79,17 @@ export async function processImageCache(
         },
       }),
     });
+    if (fetchResponse.status == 429) {
+      throw new TooManyRequestsHttpError(new URL(imgUrl), new errors.ResponseStatusCodeError());
+    }
+    const imageBody = fetchResponse.body;
+    if (!fetchResponse.ok || !imageBody) {
+      throw new HttpError(
+        `ImageCache fetch error`,
+        new errors.ResponseStatusCodeError(fetchResponse.statusText, fetchResponse.status)
+      );
+    }
+    imageStream = Readable.fromWeb(imageBody);
   } catch (error) {
     if (error instanceof TypeError) {
       const typeError = error as UndiciCauseTypeError;
@@ -87,20 +100,12 @@ export async function processImageCache(
       ) {
         throw new MetadataTimeoutError(new URL(imgUrl));
       }
+      if (typeError.cause instanceof errors.ResponseExceededMaxSizeError) {
+        throw new MetadataSizeExceededError(`ImageCache image too large: ${imgUrl}`);
+      }
     }
-    throw new HttpError(`ImageCache fetch error: ${imgUrl} ${error}`, error);
+    throw error;
   }
-  if (fetchResponse.status == 429) {
-    throw new TooManyRequestsHttpError(new URL(imgUrl), new errors.ResponseStatusCodeError());
-  }
-  const imageBody = fetchResponse.body;
-  if (!fetchResponse.ok || !imageBody) {
-    throw new HttpError(
-      `ImageCache fetch error`,
-      new errors.ResponseStatusCodeError(fetchResponse.statusText, fetchResponse.status)
-    );
-  }
-  const imageStream = Readable.fromWeb(imageBody);
 
   let didRetryUnauthorized = false;
   while (true) {
