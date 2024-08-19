@@ -87,6 +87,6 @@ describe('JobQueue', () => {
     queue.start();
     // Wait 2 seconds and kill the queue.
     await timeout(2000);
-    await queue.close();
+    await queue.stop();
   });
 });
