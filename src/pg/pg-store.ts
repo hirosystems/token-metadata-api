@@ -23,6 +23,7 @@ import {
   DbFungibleTokenMetadataItem,
   DbPaginatedResult,
   DbFungibleTokenOrder,
+  DbJobInvalidReason,
 } from './types';
 import {
   ContractNotFoundError,
@@ -194,10 +195,16 @@ export class PgStore extends BasePgStore {
     });
   }
 
-  async updateJobStatus(args: { id: number; status: DbJobStatus }): Promise<void> {
+  async updateJobStatus(args: {
+    id: number;
+    status: DbJobStatus;
+    invalidReason?: DbJobInvalidReason;
+  }): Promise<void> {
     await this.sql`
       UPDATE jobs
-      SET status = ${args.status}, updated_at = NOW()
+      SET status = ${args.status},
+        invalid_reason = ${args.invalidReason ? args.invalidReason : this.sql`NULL`},
+        updated_at = NOW()
       WHERE id = ${args.id}
     `;
   }

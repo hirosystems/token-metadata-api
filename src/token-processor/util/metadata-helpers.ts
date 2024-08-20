@@ -11,7 +11,7 @@ import {
 } from '../../pg/types';
 import { ENV } from '../../env';
 import {
-  HttpError,
+  MetadataHttpError,
   MetadataParseError,
   MetadataSizeExceededError,
   MetadataTimeoutError,
@@ -111,7 +111,7 @@ export async function fetchAllMetadataLocalesFromBaseUri(
       }
       if (
         error instanceof MetadataSizeExceededError ||
-        error instanceof HttpError ||
+        error instanceof MetadataHttpError ||
         fetchImmediateRetryCount >= ENV.METADATA_MAX_IMMEDIATE_URI_RETRIES
       ) {
         throw error;
@@ -264,7 +264,7 @@ export async function fetchMetadata(httpUrl: URL): Promise<string | undefined> {
     } else if (error instanceof errors.ResponseStatusCodeError && error.statusCode === 429) {
       throw new TooManyRequestsHttpError(httpUrl, error);
     }
-    throw new HttpError(`${url}: ${error}`, error);
+    throw new MetadataHttpError(`${url}: ${error}`, error);
   }
 }
 

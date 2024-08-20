@@ -18,6 +18,19 @@ export enum DbJobStatus {
   invalid = 'invalid',
 }
 
+export enum DbJobInvalidReason {
+  unknown = 100,
+  metadataSizeExceeded = 101,
+  imageSizeExceeded = 102,
+  metadataTimeout = 103,
+  imageTimeout = 104,
+  metadataParseFailed = 105,
+  imageParseFailed = 106,
+  metadataHttpError = 107,
+  imageHttpError = 108,
+  tokenContractClarityError = 109,
+}
+
 export enum DbTokenType {
   ft = 'ft',
   nft = 'nft',
