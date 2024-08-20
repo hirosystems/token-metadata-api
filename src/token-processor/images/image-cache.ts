@@ -124,8 +124,11 @@ async function transformImage(filePath: string, resize: boolean = false): Promis
         withoutEnlargement: true,
       });
     }
-    sharpStream = sharpStream.png().toFile(outPath, err => reject(err));
-    resolve(outPath);
+    sharpStream.on('error', reject);
+    sharpStream = sharpStream.png().toFile(outPath, (err, _info) => {
+      if (err) reject(err);
+      else resolve(outPath);
+    });
   });
 }
 
