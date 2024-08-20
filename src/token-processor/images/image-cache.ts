@@ -5,7 +5,7 @@ import { PgStore } from '../../pg/pg-store';
 import { Readable } from 'node:stream';
 import * as sharp from 'sharp';
 import * as fs from 'fs';
-import { Agent, fetch, request, errors, Response } from 'undici';
+import { Agent, fetch, request, errors } from 'undici';
 import {
   HttpError,
   MetadataParseError,
@@ -17,7 +17,6 @@ import {
 import { pipeline } from 'node:stream/promises';
 
 let gcsAuthToken: string | undefined;
-
 async function getGcsAuthToken(): Promise<string> {
   if (gcsAuthToken !== undefined) return gcsAuthToken;
   try {
@@ -73,7 +72,7 @@ async function uploadImage(localPath: string, remoteName: string): Promise<strin
 }
 
 async function downloadImage(imgUrl: string, tmpPath: string): Promise<string> {
-  return await new Promise((resolve, reject) => {
+  return new Promise((resolve, reject) => {
     const filePath = `${tmpPath}/original`;
     fetch(imgUrl, {
       dispatcher: new Agent({
@@ -116,7 +115,7 @@ async function downloadImage(imgUrl: string, tmpPath: string): Promise<string> {
 }
 
 async function transformImage(filePath: string, resize: boolean = false): Promise<string> {
-  return await new Promise((resolve, reject) => {
+  return new Promise((resolve, reject) => {
     const outPath = resize ? `${filePath}-small.png` : `${filePath}.png`;
     let sharpStream = sharp(filePath, { failOn: 'error' });
     if (resize) {

@@ -27,6 +27,7 @@ import {
   RawMetadataCType,
   RawMetadata,
 } from './types';
+import { logger } from '@hirosystems/api-toolkit';
 
 const METADATA_FETCH_HTTP_AGENT = new Agent({
   headersTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
@@ -112,6 +113,7 @@ export async function fetchAllMetadataLocalesFromBaseUri(
       ) {
         throw error;
       }
+      logger.warn(error, `MetadataFetch error for immediate retry`);
     }
   } while (fetchImmediateRetryCount < ENV.METADATA_MAX_IMMEDIATE_URI_RETRIES);
 
