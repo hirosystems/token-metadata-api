@@ -103,12 +103,15 @@ export async function fetchAllMetadataLocalesFromBaseUri(
         // Gateways like IPFS and Arweave commonly time out when a resource can't be found quickly.
         // Try again later if this is the case.
         throw new RetryableJobError(`Gateway timeout for ${error.url}`, error);
-      } else if (error instanceof TooManyRequestsHttpError) {
+      }
+      if (error instanceof TooManyRequestsHttpError) {
         // 429 status codes are common when fetching metadata for thousands of tokens in the same
         // server.
         throw new RetryableJobError(`Too many requests for ${error.url}`, error);
-      } else if (
+      }
+      if (
         error instanceof MetadataSizeExceededError ||
+        error instanceof HttpError ||
         fetchImmediateRetryCount >= ENV.METADATA_MAX_IMMEDIATE_URI_RETRIES
       ) {
         throw error;

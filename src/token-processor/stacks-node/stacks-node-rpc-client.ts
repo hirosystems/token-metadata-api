@@ -8,7 +8,11 @@ import {
 import { request, errors } from 'undici';
 import { ENV } from '../../env';
 import { RetryableJobError } from '../queue/errors';
-import { StacksNodeClarityError, HttpError, StacksNodeJsonParseError } from '../util/errors';
+import {
+  StacksNodeClarityError,
+  StacksNodeJsonParseError,
+  StacksNodeUnreachableError,
+} from '../util/errors';
 import { ClarityAbi, getAddressFromPrivateKey, makeRandomPrivKey } from '@stacks/transactions';
 
 interface ReadOnlyContractCallSuccessResponse {
@@ -87,7 +91,7 @@ export class StacksNodeRpcClient {
       }
     } catch (error) {
       if (error instanceof errors.UndiciError) {
-        throw new HttpError(`${url}: ${error}`, error);
+        throw new StacksNodeUnreachableError(`${url}: ${error}`);
       }
       throw error;
     }
@@ -117,7 +121,7 @@ export class StacksNodeRpcClient {
       }
     } catch (error) {
       if (error instanceof errors.UndiciError) {
-        throw new HttpError(`${url}: ${error}`, error);
+        throw new StacksNodeUnreachableError(`${url}: ${error}`);
       }
       throw error;
     }

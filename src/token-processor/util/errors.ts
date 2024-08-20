@@ -45,7 +45,7 @@ export class StacksNodeClarityError extends UserError {
   }
 }
 
-export class HttpError extends Error {
+export class HttpError extends UserError {
   public cause?: unknown;
   constructor(message: string, cause?: unknown) {
     super();
@@ -69,6 +69,14 @@ export class TooManyRequestsHttpError extends HttpError {
 }
 
 export class StacksNodeJsonParseError extends Error {
+  constructor(message: string) {
+    super();
+    this.message = message;
+    this.name = this.constructor.name;
+  }
+}
+
+export class StacksNodeUnreachableError extends Error {
   constructor(message: string) {
     super();
     this.message = message;
