@@ -1,7 +1,7 @@
 import { MockAgent, setGlobalDispatcher } from 'undici';
 import { ENV } from '../../src/env';
 import {
-  HttpError,
+  MetadataHttpError,
   MetadataParseError,
   MetadataSizeExceededError,
   MetadataTimeoutError,
@@ -60,7 +60,7 @@ describe('Metadata Helpers', () => {
       .reply(500, { message: 'server error' });
     setGlobalDispatcher(agent);
 
-    await expect(fetchMetadata(url)).rejects.toThrow(HttpError);
+    await expect(fetchMetadata(url)).rejects.toThrow(MetadataHttpError);
   });
 
   test('does not throw on raw metadata with null or stringable values', async () => {

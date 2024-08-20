@@ -2,7 +2,7 @@ import { ENV } from '../../src/env';
 import { processImageCache } from '../../src/token-processor/images/image-cache';
 import { closeTestServer, startTestResponseServer, startTimeoutServer } from '../helpers';
 import {
-  HttpError,
+  MetadataHttpError,
   MetadataTimeoutError,
   TooManyRequestsHttpError,
 } from '../../src/token-processor/util/errors';
@@ -38,7 +38,7 @@ describe('Image cache', () => {
     const server = await startTestResponseServer('not found', 404);
     await expect(
       processImageCache('http://127.0.0.1:9999/', contract, tokenNumber)
-    ).rejects.toThrow(HttpError);
+    ).rejects.toThrow(MetadataHttpError);
     await closeTestServer(server);
   }, 10000);
 

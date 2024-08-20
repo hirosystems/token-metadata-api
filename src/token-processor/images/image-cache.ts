@@ -7,12 +7,12 @@ import * as sharp from 'sharp';
 import * as fs from 'fs';
 import { Agent, fetch, request, errors } from 'undici';
 import {
-  HttpError,
-  MetadataParseError,
-  MetadataSizeExceededError,
-  MetadataTimeoutError,
+  ImageSizeExceededError,
+  ImageTimeoutError,
   TooManyRequestsHttpError,
   UndiciCauseTypeError,
+  ImageHttpError,
+  ImageParseError,
 } from '../util/errors';
 import { pipeline } from 'node:stream/promises';
 
@@ -95,7 +95,7 @@ async function downloadImage(imgUrl: string, tmpPath: string): Promise<string> {
         const imageBody = response.body;
         if (!response.ok || !imageBody) {
           reject(
-            new HttpError(
+            new ImageHttpError(
               `ImageCache fetch error`,
               new errors.ResponseStatusCodeError(response.statusText, response.status)
             )
@@ -167,10 +167,10 @@ export async function processImageCache(
         typeError.cause instanceof errors.BodyTimeoutError ||
         typeError.cause instanceof errors.ConnectTimeoutError
       ) {
-        throw new MetadataTimeoutError(new URL(imgUrl));
+        throw new ImageTimeoutError(new URL(imgUrl));
       }
       if (typeError.cause instanceof errors.ResponseExceededMaxSizeError) {
-        throw new MetadataSizeExceededError(`ImageCache image too large: ${imgUrl}`);
+        throw new ImageSizeExceededError(`ImageCache image too large: ${imgUrl}`);
       }
     }
     throw error;
@@ -187,10 +187,10 @@ export function normalizeImageUri(uri: string): string {
   if (uri.startsWith('data:')) {
     const dataUrl = parseDataUrl(uri);
     if (!dataUrl) {
-      throw new MetadataParseError(`Data URL could not be parsed: ${uri}`);
+      throw new ImageParseError(`Data URL could not be parsed: ${uri}`);
     }
     if (!dataUrl.mediaType?.startsWith('image/')) {
-      throw new MetadataParseError(`Token image is a Data URL with a non-image media type: ${uri}`);
+      throw new ImageParseError(`Token image is a Data URL with a non-image media type: ${uri}`);
     }
     return uri;
   }
