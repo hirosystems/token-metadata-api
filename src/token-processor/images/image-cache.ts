@@ -73,7 +73,7 @@ async function uploadImage(localPath: string, remoteName: string): Promise<strin
 
 async function downloadImage(imgUrl: string, tmpPath: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const filePath = `${tmpPath}/original`;
+    const filePath = `${tmpPath}/image`;
     fetch(imgUrl, {
       dispatcher: new Agent({
         headersTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
@@ -104,9 +104,9 @@ async function downloadImage(imgUrl: string, tmpPath: string): Promise<string> {
         }
         const imageStream = Readable.fromWeb(imageBody);
         imageStream.on('error', reject);
-        const fileStream = fs.createWriteStream(`tmp/`);
+        const fileStream = fs.createWriteStream(filePath);
         fileStream.on('error', reject);
-        pipeline(imageBody, fileStream)
+        pipeline(imageStream, fileStream)
           .then(_ => resolve(filePath))
           .catch(reject);
       })
@@ -145,7 +145,7 @@ export async function processImageCache(
   if (imgUrl.startsWith('data:')) return [imgUrl];
 
   try {
-    const tmpPath = `tmp/${contractPrincipal}_${tokenNumber}/`;
+    const tmpPath = `tmp/${contractPrincipal}_${tokenNumber}`;
     fs.mkdirSync(tmpPath, { recursive: true });
 
     const original = await downloadImage(imgUrl, tmpPath);
