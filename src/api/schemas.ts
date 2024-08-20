@@ -217,20 +217,6 @@ export const TokenLocaleNotFoundResponse = Type.Object(
   { title: 'Locale Not Found Response' }
 );
 
-export const InvalidTokenContractResponse = Type.Object(
-  {
-    error: Type.Literal('Token contract is invalid or does not conform to its token standard'),
-  },
-  { title: 'Invalid Token Contract Response' }
-);
-
-export const InvalidTokenMetadataResponse = Type.Object(
-  {
-    error: Type.Literal('Token metadata is unreachable or does not conform to SIP-016'),
-  },
-  { title: 'Invalid Token Metadata Response' }
-);
-
 export const NotFoundResponse = Type.Union([TokenNotFoundResponse, ContractNotFoundResponse], {
   title: 'Not Found Error Response',
 });
@@ -239,10 +225,11 @@ export const ErrorResponse = Type.Union(
   [
     TokenNotProcessedResponse,
     TokenLocaleNotFoundResponse,
-    InvalidTokenContractResponse,
-    InvalidTokenMetadataResponse,
+    Type.Object({ error: Type.Literal('Token error'), message: Type.String() }),
   ],
-  { title: 'Error Response' }
+  {
+    title: 'Error Response',
+  }
 );
 
 export const PaginatedResponse = <T extends TSchema>(type: T, title: string) =>

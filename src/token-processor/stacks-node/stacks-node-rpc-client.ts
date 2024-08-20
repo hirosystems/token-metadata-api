@@ -11,7 +11,7 @@ import { RetryableJobError } from '../queue/errors';
 import {
   StacksNodeClarityError,
   StacksNodeJsonParseError,
-  StacksNodeUnreachableError,
+  StacksNodeHttpError,
 } from '../util/errors';
 import { ClarityAbi, getAddressFromPrivateKey, makeRandomPrivKey } from '@stacks/transactions';
 
@@ -91,7 +91,7 @@ export class StacksNodeRpcClient {
       }
     } catch (error) {
       if (error instanceof errors.UndiciError) {
-        throw new StacksNodeUnreachableError(`${url}: ${error}`);
+        throw new StacksNodeHttpError(`${url}: ${error}`);
       }
       throw error;
     }
@@ -121,7 +121,7 @@ export class StacksNodeRpcClient {
       }
     } catch (error) {
       if (error instanceof errors.UndiciError) {
-        throw new StacksNodeUnreachableError(`${url}: ${error}`);
+        throw new StacksNodeHttpError(`${url}: ${error}`);
       }
       throw error;
     }

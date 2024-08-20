@@ -85,7 +85,7 @@ export class StacksNodeJsonParseError extends Error {
   }
 }
 
-export class StacksNodeUnreachableError extends Error {
+export class StacksNodeHttpError extends Error {
   constructor(message: string) {
     super();
     this.message = message;

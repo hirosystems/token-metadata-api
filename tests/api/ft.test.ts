@@ -70,13 +70,13 @@ describe('FT routes', () => {
       DbSipNumber.sip010,
       1n
     );
-    await db.sql`UPDATE jobs SET status = 'invalid' WHERE id = 1`;
+    await db.sql`UPDATE jobs SET status = 'invalid', invalid_reason = 109 WHERE id = 1`;
     const response = await fastify.inject({
       method: 'GET',
       url: '/metadata/v1/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
     });
     expect(response.statusCode).toBe(422);
-    expect(response.json().error).toMatch(/Token contract/);
+    expect(response.json().message).toMatch(/Clarity error/);
   });
 
   test('invalid token metadata', async () => {
@@ -86,13 +86,13 @@ describe('FT routes', () => {
       DbSipNumber.sip010,
       1n
     );
-    await db.sql`UPDATE jobs SET status = 'invalid' WHERE id = 2`;
+    await db.sql`UPDATE jobs SET status = 'invalid', invalid_reason = 105 WHERE id = 2`;
     const response = await fastify.inject({
       method: 'GET',
       url: '/metadata/v1/ft/SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
     });
     expect(response.statusCode).toBe(422);
-    expect(response.json().error).toMatch(/Token metadata/);
+    expect(response.json().message).toMatch(/Metadata could not be parsed/);
   });
 
   test('locale not found', async () => {

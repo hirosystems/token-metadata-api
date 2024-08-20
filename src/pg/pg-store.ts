@@ -34,7 +34,13 @@ import {
   TokenNotProcessedError,
 } from './errors';
 import { FtOrderBy, Order } from '../api/schemas';
-import { BasePgStore, PgSqlClient, connectPostgres, runMigrations } from '@hirosystems/api-toolkit';
+import {
+  BasePgStore,
+  PgSqlClient,
+  PgSqlQuery,
+  connectPostgres,
+  runMigrations,
+} from '@hirosystems/api-toolkit';
 import * as path from 'path';
 import { ChainhookPgStore } from './chainhook/chainhook-pg-store';
 
@@ -115,8 +121,10 @@ export class PgStore extends BasePgStore {
   }): Promise<DbTokenMetadataLocaleBundle> {
     return await this.sqlTransaction(async sql => {
       // Is the contract invalid?
-      const contractJobStatus = await sql<{ status: DbJobStatus }[]>`
-        SELECT status
+      const contractJobStatus = await sql<
+        { status: DbJobStatus; invalid_reason: DbJobInvalidReason }[]
+      >`
+        SELECT status, invalid_reason
         FROM jobs
         INNER JOIN smart_contracts ON jobs.smart_contract_id = smart_contracts.id
         WHERE smart_contracts.principal = ${args.contractPrincipal}
@@ -125,7 +133,7 @@ export class PgStore extends BasePgStore {
         throw new ContractNotFoundError();
       }
       if (contractJobStatus[0].status === DbJobStatus.invalid) {
-        throw new InvalidContractError();
+        throw new InvalidContractError(contractJobStatus[0].invalid_reason);
       }
       // Get token id
       const tokenIdRes = await sql<{ id: number }[]>`
@@ -351,13 +359,13 @@ export class PgStore extends BasePgStore {
   }): Promise<DbPaginatedResult<DbFungibleTokenMetadataItem>> {
     return await this.sqlTransaction(async sql => {
       // `ORDER BY` statement
-      let orderBy = sql`t.name`;
+      let orderBy: PgSqlQuery;
       switch (args.order?.order_by) {
-        case FtOrderBy.name:
-          orderBy = sql`t.name`;
-          break;
         case FtOrderBy.symbol:
-          orderBy = sql`t.symbol`;
+          orderBy = sql`LOWER(t.symbol)`;
+          break;
+        default:
+          orderBy = sql`LOWER(t.name)`;
           break;
       }
       // `ORDER` statement
@@ -444,15 +452,15 @@ export class PgStore extends BasePgStore {
     locale?: string
   ): Promise<DbTokenMetadataLocaleBundle> {
     // Is token invalid?
-    const tokenJobStatus = await this.sql<{ status: string }[]>`
-      SELECT status FROM jobs WHERE token_id = ${tokenId}
+    const tokenJobStatus = await this.sql<{ status: string; invalid_reason: DbJobInvalidReason }[]>`
+      SELECT status, invalid_reason FROM jobs WHERE token_id = ${tokenId}
     `;
     if (tokenJobStatus.count === 0) {
       throw new TokenNotFoundError();
     }
     const status = tokenJobStatus[0].status;
     if (status === DbJobStatus.invalid) {
-      throw new InvalidTokenError();
+      throw new InvalidTokenError(tokenJobStatus[0].invalid_reason);
     }
     // Get token
     const tokenRes = await this.sql<DbToken[]>`
