@@ -2,19 +2,21 @@ import { ENV } from '../../env';
 import { parseDataUrl, getFetchableDecentralizedStorageUrl } from '../util/metadata-helpers';
 import { logger } from '@hirosystems/api-toolkit';
 import { PgStore } from '../../pg/pg-store';
-import { PassThrough, Readable } from 'node:stream';
+import { Readable } from 'node:stream';
 import * as sharp from 'sharp';
-import { Agent, fetch, request, errors, Response } from 'undici';
+import * as fs from 'fs';
+import { Agent, fetch, request, errors } from 'undici';
 import {
   HttpError,
   MetadataParseError,
+  MetadataSizeExceededError,
   MetadataTimeoutError,
   TooManyRequestsHttpError,
   UndiciCauseTypeError,
 } from '../util/errors';
+import { pipeline } from 'node:stream/promises';
 
 let gcsAuthToken: string | undefined;
-
 async function getGcsAuthToken(): Promise<string> {
   if (gcsAuthToken !== undefined) return gcsAuthToken;
   try {
@@ -35,17 +37,99 @@ async function getGcsAuthToken(): Promise<string> {
   }
 }
 
-async function uploadToGcs(stream: Readable, name: string, authToken: string) {
-  await request(
-    `https://storage.googleapis.com/upload/storage/v1/b/${ENV.IMAGE_CACHE_GCS_BUCKET_NAME}/o?uploadType=media&name=${ENV.IMAGE_CACHE_GCS_OBJECT_NAME_PREFIX}${name}`,
-    {
-      method: 'POST',
-      body: stream,
-      headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${authToken}` },
-      throwOnError: true,
+async function uploadImage(localPath: string, remoteName: string): Promise<string> {
+  let didRetryUnauthorized = false;
+  while (true) {
+    const authToken = await getGcsAuthToken();
+    try {
+      return await new Promise((resolve, reject) => {
+        const fileStream = fs.createReadStream(localPath);
+        fileStream.on('error', reject);
+        request(
+          `https://storage.googleapis.com/upload/storage/v1/b/${ENV.IMAGE_CACHE_GCS_BUCKET_NAME}/o?uploadType=media&name=${ENV.IMAGE_CACHE_GCS_OBJECT_NAME_PREFIX}${remoteName}`,
+          {
+            method: 'POST',
+            body: fileStream,
+            headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${authToken}` },
+            throwOnError: true,
+          }
+        )
+          .then(_ => resolve(`${ENV.IMAGE_CACHE_CDN_BASE_PATH}${remoteName}`))
+          .catch(reject);
+      });
+    } catch (error) {
+      if (
+        !didRetryUnauthorized &&
+        error instanceof errors.ResponseStatusCodeError &&
+        (error.statusCode === 401 || error.statusCode === 403)
+      ) {
+        // GCS token is probably expired. Force a token refresh before trying again.
+        gcsAuthToken = undefined;
+        didRetryUnauthorized = true;
+      } else throw error;
     }
-  );
-  return `${ENV.IMAGE_CACHE_CDN_BASE_PATH}${name}`;
+  }
+}
+
+async function downloadImage(imgUrl: string, tmpPath: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const filePath = `${tmpPath}/image`;
+    fetch(imgUrl, {
+      dispatcher: new Agent({
+        headersTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
+        bodyTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
+        maxRedirections: ENV.METADATA_FETCH_MAX_REDIRECTIONS,
+        maxResponseSize: ENV.IMAGE_CACHE_MAX_BYTE_SIZE,
+        connect: {
+          rejectUnauthorized: false, // Ignore SSL cert errors.
+        },
+      }),
+    })
+      .then(response => {
+        if (response.status == 429) {
+          reject(
+            new TooManyRequestsHttpError(new URL(imgUrl), new errors.ResponseStatusCodeError())
+          );
+          return;
+        }
+        const imageBody = response.body;
+        if (!response.ok || !imageBody) {
+          reject(
+            new HttpError(
+              `ImageCache fetch error`,
+              new errors.ResponseStatusCodeError(response.statusText, response.status)
+            )
+          );
+          return;
+        }
+        const imageStream = Readable.fromWeb(imageBody);
+        imageStream.on('error', reject);
+        const fileStream = fs.createWriteStream(filePath);
+        fileStream.on('error', reject);
+        pipeline(imageStream, fileStream)
+          .then(_ => resolve(filePath))
+          .catch(reject);
+      })
+      .catch(reject);
+  });
+}
+
+async function transformImage(filePath: string, resize: boolean = false): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const outPath = resize ? `${filePath}-small.png` : `${filePath}.png`;
+    let sharpStream = sharp(filePath, { failOn: 'error' });
+    if (resize) {
+      sharpStream = sharpStream.resize({
+        width: ENV.IMAGE_CACHE_RESIZE_WIDTH,
+        withoutEnlargement: true,
+      });
+    }
+    sharpStream.on('error', reject);
+    sharpStream = sharpStream.png().toFile(outPath, (err, _info) => {
+      if (err) reject(err);
+      else resolve(outPath);
+    });
+  });
 }
 
 /**
@@ -63,20 +147,18 @@ export async function processImageCache(
   logger.info(`ImageCache processing token ${contractPrincipal} (${tokenNumber}) at ${imgUrl}`);
   if (imgUrl.startsWith('data:')) return [imgUrl];
 
-  // Fetch original image.
-  let fetchResponse: Response;
   try {
-    fetchResponse = await fetch(imgUrl, {
-      dispatcher: new Agent({
-        headersTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
-        bodyTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
-        maxRedirections: ENV.METADATA_FETCH_MAX_REDIRECTIONS,
-        maxResponseSize: ENV.IMAGE_CACHE_MAX_BYTE_SIZE,
-        connect: {
-          rejectUnauthorized: false, // Ignore SSL cert errors.
-        },
-      }),
-    });
+    const tmpPath = `tmp/${contractPrincipal}_${tokenNumber}`;
+    fs.mkdirSync(tmpPath, { recursive: true });
+
+    const original = await downloadImage(imgUrl, tmpPath);
+    const image1 = await transformImage(original);
+    const cachedImage1 = await uploadImage(image1, `${contractPrincipal}/${tokenNumber}.png`);
+    const image2 = await transformImage(original, true);
+    const cachedImage2 = await uploadImage(image2, `${contractPrincipal}/${tokenNumber}-thumb.png`);
+    fs.rmdirSync(tmpPath, { recursive: true });
+
+    return [cachedImage1, cachedImage2];
   } catch (error) {
     if (error instanceof TypeError) {
       const typeError = error as UndiciCauseTypeError;
@@ -87,57 +169,11 @@ export async function processImageCache(
       ) {
         throw new MetadataTimeoutError(new URL(imgUrl));
       }
+      if (typeError.cause instanceof errors.ResponseExceededMaxSizeError) {
+        throw new MetadataSizeExceededError(`ImageCache image too large: ${imgUrl}`);
+      }
     }
-    throw new HttpError(`ImageCache fetch error: ${imgUrl} ${error}`, error);
-  }
-  if (fetchResponse.status == 429) {
-    throw new TooManyRequestsHttpError(new URL(imgUrl), new errors.ResponseStatusCodeError());
-  }
-  const imageBody = fetchResponse.body;
-  if (!fetchResponse.ok || !imageBody) {
-    throw new HttpError(
-      `ImageCache fetch error`,
-      new errors.ResponseStatusCodeError(fetchResponse.statusText, fetchResponse.status)
-    );
-  }
-
-  // Transform image.
-  let fullSizeTransform: sharp.Sharp;
-  let thumbnailTransform: sharp.Sharp;
-  try {
-    const imageReadStream = Readable.fromWeb(imageBody);
-    const passThrough = new PassThrough();
-    fullSizeTransform = sharp().png();
-    thumbnailTransform = sharp()
-      .resize({ width: ENV.IMAGE_CACHE_RESIZE_WIDTH, withoutEnlargement: true })
-      .png();
-    imageReadStream.pipe(passThrough);
-    passThrough.pipe(fullSizeTransform);
-    passThrough.pipe(thumbnailTransform);
-  } catch (error) {
-    throw new MetadataParseError(`ImageCache error transforming image: ${error}`);
-  }
-
-  let didRetryUnauthorized = false;
-  while (true) {
-    const authToken = await getGcsAuthToken();
-    try {
-      const results = await Promise.all([
-        uploadToGcs(fullSizeTransform, `${contractPrincipal}/${tokenNumber}.png`, authToken),
-        uploadToGcs(thumbnailTransform, `${contractPrincipal}/${tokenNumber}-thumb.png`, authToken),
-      ]);
-      return results;
-    } catch (error) {
-      if (
-        !didRetryUnauthorized &&
-        error instanceof errors.ResponseStatusCodeError &&
-        (error.statusCode === 401 || error.statusCode === 403)
-      ) {
-        // GCS token is probably expired. Force a token refresh before trying again.
-        gcsAuthToken = undefined;
-        didRetryUnauthorized = true;
-      } else throw new HttpError(`ImageCache upload error: ${error}`, error);
-    }
+    throw error;
   }
 }
 

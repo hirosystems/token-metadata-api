@@ -1,5 +1,6 @@
 import fastify from 'fastify';
 import { PgStore } from '../../../pg/pg-store';
+import { JobQueue } from '../../../token-processor/queue/job-queue';
 
 declare module 'fastify' {
   export interface FastifyInstance<
@@ -10,5 +11,6 @@ declare module 'fastify' {
     TypeProvider = FastifyTypeProviderDefault
   > {
     db: PgStore;
+    jobQueue?: JobQueue;
   }
 }

@@ -9,15 +9,18 @@ import {
   markAllJobsAsDone,
   TestFastifyServer,
 } from '../helpers';
+import { JobQueue } from '../../src/token-processor/queue/job-queue';
 
 describe('Admin RPC', () => {
   let db: PgStore;
   let fastify: TestFastifyServer;
+  let jobQueue: JobQueue;
 
   beforeEach(async () => {
     ENV.PGDATABASE = 'postgres';
     db = await PgStore.connect({ skipMigrations: true });
-    fastify = await buildAdminRpcServer({ db });
+    jobQueue = new JobQueue({ db });
+    fastify = await buildAdminRpcServer({ db, jobQueue });
     await cycleMigrations(MIGRATIONS_DIR);
   });
 

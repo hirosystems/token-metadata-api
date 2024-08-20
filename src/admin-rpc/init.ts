@@ -6,9 +6,8 @@ import { Type } from '@sinclair/typebox';
 import { SmartContractRegEx } from '../api/schemas';
 import { logger, PINO_LOGGER_CONFIG } from '@hirosystems/api-toolkit';
 import { reprocessTokenImageCache } from '../token-processor/images/image-cache';
-import { StacksNodeRpcClient } from '../token-processor/stacks-node/stacks-node-rpc-client';
-import { getSmartContractSip } from '../token-processor/util/sip-validation';
 import { ENV } from '../env';
+import { JobQueue } from '../token-processor/queue/job-queue';
 
 export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTypeProvider> = (
   fastify,
@@ -98,16 +97,45 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
     }
   );
 
+  fastify.post(
+    '/job-queue/start',
+    { schema: { description: 'Starts the job queue' } },
+    async (request, reply) => {
+      const jobQueue = fastify.jobQueue;
+      if (!jobQueue || jobQueue.isRunning()) {
+        await reply.code(422).send({ error: 'Job queue is already running' });
+        return;
+      }
+      jobQueue.start();
+      return reply.code(200).send();
+    }
+  );
+
+  fastify.post(
+    '/job-queue/stop',
+    { schema: { description: 'Stops the job queue' } },
+    async (request, reply) => {
+      const jobQueue = fastify.jobQueue;
+      if (!jobQueue || !jobQueue.isRunning()) {
+        await reply.code(422).send({ error: 'Job queue is already stopped' });
+        return;
+      }
+      void jobQueue.stop();
+      return reply.code(200).send();
+    }
+  );
+
   done();
 };
 
-export async function buildAdminRpcServer(args: { db: PgStore }) {
+export async function buildAdminRpcServer(args: { db: PgStore; jobQueue: JobQueue }) {
   const fastify = Fastify({
     trustProxy: true,
     logger: PINO_LOGGER_CONFIG,
   }).withTypeProvider<TypeBoxTypeProvider>();
 
   fastify.decorate('db', args.db);
+  fastify.decorate('jobQueue', args.jobQueue);
   await fastify.register(AdminApi, { prefix: '/metadata/admin' });
 
   return fastify;

@@ -17,8 +17,6 @@ const schema = Type.Object({
   API_HOST: Type.String({ default: '0.0.0.0' }),
   /** Port in which to serve the API */
   API_PORT: Type.Number({ default: 3000, minimum: 0, maximum: 65535 }),
-  /** Hostname from which to serve the Admin RPC interface */
-  ADMIN_RPC_HOST: Type.String({ default: '0.0.0.0' }),
   /** Port in which to serve the Admin RPC interface */
   ADMIN_RPC_PORT: Type.Number({ default: 3001, minimum: 0, maximum: 65535 }),
   /** Port in which to receive chainhook events */
@@ -29,6 +27,8 @@ const schema = Type.Object({
   EXTERNAL_HOSTNAME: Type.String({ default: '127.0.0.1' }),
   /** Port in which to serve prometheus metrics */
   PROMETHEUS_PORT: Type.Number({ default: 9154 }),
+  /** Port in which to serve the profiler */
+  PROFILER_PORT: Type.Number({ default: 9119 }),
 
   /** Hostname of the chainhook node we'll use to register predicates */
   CHAINHOOK_NODE_RPC_HOST: Type.String({ default: '127.0.0.1' }),
@@ -64,6 +64,8 @@ const schema = Type.Object({
   STACKS_NODE_RPC_HOST: Type.String(),
   STACKS_NODE_RPC_PORT: Type.Number({ minimum: 0, maximum: 65535 }),
 
+  /** Whether or not the job queue should start processing jobs immediately after bootup. */
+  JOB_QUEUE_AUTO_START: Type.Boolean({ default: true }),
   /** Whether or not the `JobQueue` will continue to try retryable failed jobs indefinitely. */
   JOB_QUEUE_STRICT_MODE: Type.Boolean({ default: false }),
   /**
