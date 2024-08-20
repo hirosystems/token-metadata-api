@@ -156,7 +156,7 @@ export async function processImageCache(
     const cachedImage1 = await uploadImage(image1, `${contractPrincipal}/${tokenNumber}.png`);
     const image2 = await transformImage(original, true);
     const cachedImage2 = await uploadImage(image2, `${contractPrincipal}/${tokenNumber}-thumb.png`);
-    fs.rmdirSync(tmpPath, { recursive: true });
+    fs.rmSync(tmpPath, { force: true, recursive: true });
 
     return [cachedImage1, cachedImage2];
   } catch (error) {
