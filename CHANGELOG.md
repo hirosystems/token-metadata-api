@@ -1,3 +1,19 @@
+## [1.0.0-beta.1](https://github.com/hirosystems/token-metadata-api/compare/v0.7.0...v1.0.0-beta.1) (2024-08-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* use chainhook to listen for chain events instead of a direct stacks api connection (#200)
+
+### Bug Fixes
+
+* use prometheus port configured in ENV ([c769d29](https://github.com/hirosystems/token-metadata-api/commit/c769d2950d65448265caf2bf6bd78fce437358c0))
+
+
+### Code Refactoring
+
+* use chainhook to listen for chain events instead of a direct stacks api connection ([#200](https://github.com/hirosystems/token-metadata-api/issues/200)) ([2ddb2c7](https://github.com/hirosystems/token-metadata-api/commit/2ddb2c7db37419538bd4267c863aaf1f8a2ec5c1)), closes [#229](https://github.com/hirosystems/token-metadata-api/issues/229) [#232](https://github.com/hirosystems/token-metadata-api/issues/232) [#233](https://github.com/hirosystems/token-metadata-api/issues/233) [#234](https://github.com/hirosystems/token-metadata-api/issues/234) [#235](https://github.com/hirosystems/token-metadata-api/issues/235) [#236](https://github.com/hirosystems/token-metadata-api/issues/236)
+
 ## [0.7.0](https://github.com/hirosystems/token-metadata-api/compare/v0.6.3...v0.7.0) (2024-05-13)
 
 
