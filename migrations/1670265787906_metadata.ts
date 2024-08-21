@@ -12,6 +12,8 @@ export function up(pgm: MigrationBuilder): void {
     token_id: {
       type: 'int',
       notNull: true,
+      references: 'tokens',
+      onDelete: 'CASCADE',
     },
     sip: {
       type: 'int',
@@ -39,17 +41,13 @@ export function up(pgm: MigrationBuilder): void {
     cached_image: {
       type: 'text',
     },
+    cached_thumbnail_image: {
+      type: 'text',
+    },
   });
-  pgm.createConstraint(
-    'metadata',
-    'metadata_token_id_fk',
-    'FOREIGN KEY(token_id) REFERENCES tokens(id) ON DELETE CASCADE'
-  );
-  pgm.createConstraint(
-    'metadata',
-    'metadata_token_id_l10n_locale_unique',
-    'UNIQUE(token_id, l10n_locale)'
-  );
+  pgm.createConstraint('metadata', 'metadata_token_id_l10n_locale_unique', {
+    unique: ['token_id', 'l10n_locale'],
+  });
   pgm.createIndex('metadata', ['token_id']);
   pgm.createIndex('metadata', ['l10n_locale']);
 }

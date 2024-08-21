@@ -1,21 +1,15 @@
-import { TokenMetadataUpdateNotification } from '../token-processor/util/sip-validation';
 import { ENV } from '../env';
 import {
   DbSmartContract,
-  DbSmartContractInsert,
   DbJobStatus,
-  DbTokenInsert,
   DbJob,
   DbToken,
-  DbTokenType,
   DbProcessedTokenUpdateBundle,
   DbTokenMetadataLocaleBundle,
   DbMetadata,
   DbMetadataAttribute,
   DbMetadataProperty,
   DbMetadataLocaleBundle,
-  DbTokenUpdateMode,
-  SMART_CONTRACTS_COLUMNS,
   TOKENS_COLUMNS,
   JOBS_COLUMNS,
   METADATA_COLUMNS,
@@ -29,6 +23,7 @@ import {
   DbFungibleTokenMetadataItem,
   DbPaginatedResult,
   DbFungibleTokenOrder,
+  DbJobInvalidReason,
 } from './types';
 import {
   ContractNotFoundError,
@@ -39,8 +34,15 @@ import {
   TokenNotProcessedError,
 } from './errors';
 import { FtOrderBy, Order } from '../api/schemas';
-import { BasePgStore, connectPostgres, runMigrations } from '@hirosystems/api-toolkit';
+import {
+  BasePgStore,
+  PgSqlClient,
+  PgSqlQuery,
+  connectPostgres,
+  runMigrations,
+} from '@hirosystems/api-toolkit';
 import * as path from 'path';
+import { ChainhookPgStore } from './chainhook/chainhook-pg-store';
 
 export const MIGRATIONS_DIR = path.join(__dirname, '../../migrations');
 
@@ -48,6 +50,8 @@ export const MIGRATIONS_DIR = path.join(__dirname, '../../migrations');
  * Connects and queries the Token Metadata Service's local postgres DB.
  */
 export class PgStore extends BasePgStore {
+  readonly chainhook: ChainhookPgStore;
+
   static async connect(opts?: { skipMigrations: boolean }): Promise<PgStore> {
     const pgConfig = {
       host: ENV.PGHOST,
@@ -71,27 +75,16 @@ export class PgStore extends BasePgStore {
     return new PgStore(sql);
   }
 
-  async insertAndEnqueueSmartContract(args: { values: DbSmartContractInsert }): Promise<DbJob> {
-    const result = await this.sql<DbJob[]>`
-      WITH smart_contract_inserts AS (
-        INSERT INTO smart_contracts ${this.sql(args.values)}
-        ON CONFLICT ON CONSTRAINT smart_contracts_principal_unique DO UPDATE SET updated_at = NOW()
-        RETURNING id
-      )
-      INSERT INTO jobs (smart_contract_id)
-        (SELECT id AS smart_contract_id FROM smart_contract_inserts)
-      ON CONFLICT (smart_contract_id) WHERE token_id IS NULL DO
-        UPDATE SET updated_at = NOW(), status = 'pending'
-      RETURNING *
-    `;
-    return result[0];
+  constructor(sql: PgSqlClient) {
+    super(sql);
+    this.chainhook = new ChainhookPgStore(this);
   }
 
   async getSmartContract(
     args: { id: number } | { principal: string }
   ): Promise<DbSmartContract | undefined> {
     const result = await this.sql<DbSmartContract[]>`
-      SELECT ${this.sql(SMART_CONTRACTS_COLUMNS)}
+      SELECT *
       FROM smart_contracts
       WHERE ${'id' in args ? this.sql`id = ${args.id}` : this.sql`principal = ${args.principal}`}
     `;
@@ -105,31 +98,6 @@ export class PgStore extends BasePgStore {
     await this.sql`
       UPDATE smart_contracts SET token_count = ${args.count.toString()} WHERE id = ${args.id}
     `;
-  }
-
-  /**
-   * Returns a cursor that inserts new tokens and new token queue entries until `token_count` items
-   * are created, usually used when processing an NFT contract. A cursor is preferred because
-   * `token_count` could be in the tens of thousands.
-   * @param smart_contract_id - smart contract id
-   * @param token_count - how many tokens to insert
-   * @param type - token type
-   * @returns `DbJob` array for all inserted tokens
-   */
-  async insertAndEnqueueSequentialTokens(args: {
-    smart_contract_id: number;
-    token_count: bigint;
-    type: DbTokenType;
-  }): Promise<DbJob[]> {
-    const tokenValues: DbTokenInsert[] = [];
-    for (let index = 1; index <= args.token_count; index++) {
-      tokenValues.push({
-        smart_contract_id: args.smart_contract_id,
-        token_number: index.toString(),
-        type: args.type,
-      });
-    }
-    return this.insertAndEnqueueTokenArray(tokenValues);
   }
 
   async getToken(args: { id: number }): Promise<DbToken | undefined> {
@@ -153,8 +121,10 @@ export class PgStore extends BasePgStore {
   }): Promise<DbTokenMetadataLocaleBundle> {
     return await this.sqlTransaction(async sql => {
       // Is the contract invalid?
-      const contractJobStatus = await sql<{ status: DbJobStatus }[]>`
-        SELECT status
+      const contractJobStatus = await sql<
+        { status: DbJobStatus; invalid_reason: DbJobInvalidReason }[]
+      >`
+        SELECT status, invalid_reason
         FROM jobs
         INNER JOIN smart_contracts ON jobs.smart_contract_id = smart_contracts.id
         WHERE smart_contracts.principal = ${args.contractPrincipal}
@@ -163,7 +133,7 @@ export class PgStore extends BasePgStore {
         throw new ContractNotFoundError();
       }
       if (contractJobStatus[0].status === DbJobStatus.invalid) {
-        throw new InvalidContractError();
+        throw new InvalidContractError(contractJobStatus[0].invalid_reason);
       }
       // Get token id
       const tokenIdRes = await sql<{ id: number }[]>`
@@ -202,9 +172,10 @@ export class PgStore extends BasePgStore {
   }): Promise<void> {
     await this.sqlWriteTransaction(async sql => {
       // Update token and clear old metadata (this will cascade into all properties and attributes)
-      await sql`
+      const tokenUpdate = await sql`
         UPDATE tokens SET ${sql(args.values.token)}, updated_at = NOW() WHERE id = ${args.id}
       `;
+      if (tokenUpdate.count === 0) return;
       await sql`DELETE FROM metadata WHERE token_id = ${args.id}`;
       // Write new metadata
       if (args.values.metadataLocales && args.values.metadataLocales.length > 0) {
@@ -232,10 +203,16 @@ export class PgStore extends BasePgStore {
     });
   }
 
-  async updateJobStatus(args: { id: number; status: DbJobStatus }): Promise<void> {
+  async updateJobStatus(args: {
+    id: number;
+    status: DbJobStatus;
+    invalidReason?: DbJobInvalidReason;
+  }): Promise<void> {
     await this.sql`
       UPDATE jobs
-      SET status = ${args.status}, updated_at = NOW()
+      SET status = ${args.status},
+        invalid_reason = ${args.invalidReason ? args.invalidReason : this.sql`NULL`},
+        updated_at = NOW()
       WHERE id = ${args.id}
     `;
   }
@@ -298,87 +275,9 @@ export class PgStore extends BasePgStore {
     }
   }
 
-  /**
-   * Enqueues the tokens specified by a SIP-019 notification for metadata refresh. Depending on the
-   * token type and notification parameters, this will refresh specific tokens or complete
-   * contracts. See SIP-019 for more info.
-   * @param notification - SIP-019 notification
-   */
-  async enqueueTokenMetadataUpdateNotification(args: {
-    notification: TokenMetadataUpdateNotification;
-  }): Promise<void> {
-    await this.sqlWriteTransaction(async sql => {
-      // First, make sure we have the specified contract.
-      const contractResult = await sql<{ id: number }[]>`
-        SELECT id FROM smart_contracts WHERE principal = ${args.notification.contract_id}
-      `;
-      if (contractResult.count === 0) {
-        throw new ContractNotFoundError();
-      }
-      const contractId = contractResult[0].id;
-
-      const refreshTokens = async (tokenIds: bigint[]) => {
-        const tokens = await sql<DbToken[]>`
-          SELECT ${this.sql(TOKENS_COLUMNS)} FROM tokens
-          WHERE smart_contract_id = ${contractId}
-          ${tokenIds.length ? sql`AND token_number IN ${sql(tokenIds)}` : sql``}
-        `;
-        for (const token of tokens) {
-          if (token.update_mode === DbTokenUpdateMode.frozen) {
-            continue; // Can't refresh frozen tokens.
-          }
-          // Update token mode.
-          await sql`
-            UPDATE tokens
-            SET update_mode = ${args.notification.update_mode},
-              ttl = ${args.notification.ttl ? sql`${args.notification.ttl}` : sql`NULL`}
-            WHERE id = ${token.id}
-          `;
-          // Re-enqueue job.
-          await sql`
-            UPDATE jobs
-            SET status = 'pending', updated_at = NOW()
-            WHERE token_id = ${token.id}
-          `;
-        }
-      };
-
-      switch (args.notification.token_class) {
-        case 'nft':
-          await refreshTokens(args.notification.token_ids ?? []);
-          break;
-        case 'ft':
-          await refreshTokens([1n]);
-          break;
-      }
-    });
-  }
-
-  async updateChainTipBlockHeight(args: { blockHeight: number }): Promise<void> {
-    await this.sql`UPDATE chain_tip SET block_height = ${args.blockHeight}`;
-  }
-
   async getChainTipBlockHeight(): Promise<number> {
     const result = await this.sql<{ block_height: number }[]>`SELECT block_height FROM chain_tip`;
     return result[0].block_height;
-  }
-
-  async enqueueDynamicTokensDueForRefresh(): Promise<void> {
-    const interval = ENV.METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL.toString();
-    await this.sql`
-      UPDATE jobs
-      SET status = 'pending', updated_at = NOW()
-      WHERE status IN ('done', 'failed') AND token_id = (
-        SELECT id FROM tokens
-        WHERE update_mode = 'dynamic'
-        AND CASE
-          WHEN ttl IS NOT NULL THEN
-            COALESCE(updated_at, created_at) < (NOW() - INTERVAL '1 seconds' * ttl)
-          ELSE
-            COALESCE(updated_at, created_at) < (NOW() - INTERVAL '${this.sql(interval)} seconds')
-        END
-      )
-    `;
   }
 
   /**
@@ -422,27 +321,6 @@ export class PgStore extends BasePgStore {
     `;
   }
 
-  async insertAndEnqueueTokenArray(tokenValues: DbTokenInsert[]): Promise<DbJob[]> {
-    return this.sql<DbJob[]>`
-      WITH token_inserts AS (
-        INSERT INTO tokens ${this.sql(tokenValues)}
-        ON CONFLICT ON CONSTRAINT tokens_smart_contract_id_token_number_unique DO
-          UPDATE SET
-            uri = EXCLUDED.uri,
-            name = EXCLUDED.name,
-            symbol = EXCLUDED.symbol,
-            decimals = EXCLUDED.decimals,
-            total_supply = EXCLUDED.total_supply,
-            updated_at = NOW()
-        RETURNING id
-      )
-      INSERT INTO jobs (token_id) (SELECT id AS token_id FROM token_inserts)
-      ON CONFLICT (token_id) WHERE smart_contract_id IS NULL DO
-        UPDATE SET updated_at = NOW(), status = 'pending'
-      RETURNING ${this.sql(JOBS_COLUMNS)}
-    `;
-  }
-
   async insertRateLimitedHost(args: {
     values: DbRateLimitedHostInsert;
   }): Promise<DbRateLimitedHost> {
@@ -450,7 +328,7 @@ export class PgStore extends BasePgStore {
     const results = await this.sql<DbRateLimitedHost[]>`
       INSERT INTO rate_limited_hosts (hostname, created_at, retry_after)
       VALUES (${args.values.hostname}, DEFAULT, NOW() + INTERVAL '${this.sql(retryAfter)} seconds')
-      ON CONFLICT ON CONSTRAINT rate_limited_hosts_hostname_unique DO
+      ON CONFLICT ON CONSTRAINT rate_limited_hosts_hostname_key DO
         UPDATE SET retry_after = EXCLUDED.retry_after
       RETURNING ${this.sql(RATE_LIMITED_HOSTS_COLUMNS)}
     `;
@@ -481,13 +359,13 @@ export class PgStore extends BasePgStore {
   }): Promise<DbPaginatedResult<DbFungibleTokenMetadataItem>> {
     return await this.sqlTransaction(async sql => {
       // `ORDER BY` statement
-      let orderBy = sql`t.name`;
+      let orderBy: PgSqlQuery;
       switch (args.order?.order_by) {
-        case FtOrderBy.name:
-          orderBy = sql`t.name`;
-          break;
         case FtOrderBy.symbol:
-          orderBy = sql`t.symbol`;
+          orderBy = sql`LOWER(t.symbol)`;
+          break;
+        default:
+          orderBy = sql`LOWER(t.name)`;
           break;
       }
       // `ORDER` statement
@@ -574,15 +452,15 @@ export class PgStore extends BasePgStore {
     locale?: string
   ): Promise<DbTokenMetadataLocaleBundle> {
     // Is token invalid?
-    const tokenJobStatus = await this.sql<{ status: string }[]>`
-      SELECT status FROM jobs WHERE token_id = ${tokenId}
+    const tokenJobStatus = await this.sql<{ status: string; invalid_reason: DbJobInvalidReason }[]>`
+      SELECT status, invalid_reason FROM jobs WHERE token_id = ${tokenId}
     `;
     if (tokenJobStatus.count === 0) {
       throw new TokenNotFoundError();
     }
     const status = tokenJobStatus[0].status;
     if (status === DbJobStatus.invalid) {
-      throw new InvalidTokenError();
+      throw new InvalidTokenError(tokenJobStatus[0].invalid_reason);
     }
     // Get token
     const tokenRes = await this.sql<DbToken[]>`

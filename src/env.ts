@@ -13,44 +13,61 @@ const schema = Type.Object({
     { default: 'default', readonly: 'readonly', writeonly: 'writeonly' },
     { default: 'default' }
   ),
+  /** Specifies which Stacks network this API is indexing */
+  NETWORK: Type.Enum({ mainnet: 'mainnet', testnet: 'testnet' }, { default: 'mainnet' }),
   /** Hosname of the Token Metadata API server */
   API_HOST: Type.String({ default: '0.0.0.0' }),
   /** Port in which to serve the API */
   API_PORT: Type.Number({ default: 3000, minimum: 0, maximum: 65535 }),
-  /** Hostname from which to serve the Admin RPC interface */
-  ADMIN_RPC_HOST: Type.String({ default: '0.0.0.0' }),
   /** Port in which to serve the Admin RPC interface */
   ADMIN_RPC_PORT: Type.Number({ default: 3001, minimum: 0, maximum: 65535 }),
+  /** Port in which to receive chainhook events */
+  EVENT_PORT: Type.Number({ default: 3099, minimum: 0, maximum: 65535 }),
+  /** Event server body limit (bytes) */
+  EVENT_SERVER_BODY_LIMIT: Type.Integer({ default: 20971520 }),
+  /** Hostname that will be reported to the chainhook node so it can call us back with events */
+  EXTERNAL_HOSTNAME: Type.String({ default: '127.0.0.1' }),
   /** Port in which to serve prometheus metrics */
   PROMETHEUS_PORT: Type.Number({ default: 9154 }),
+  /** Port in which to serve the profiler */
+  PROFILER_PORT: Type.Number({ default: 9119 }),
+
+  /** Hostname of the chainhook node we'll use to register predicates */
+  CHAINHOOK_NODE_RPC_HOST: Type.String({ default: '127.0.0.1' }),
+  /** Control port of the chainhook node */
+  CHAINHOOK_NODE_RPC_PORT: Type.Number({ default: 20456, minimum: 0, maximum: 65535 }),
+  /**
+   * Authorization token that the chainhook node must send with every event to make sure it's
+   * coming from the valid instance
+   */
+  CHAINHOOK_NODE_AUTH_TOKEN: Type.String(),
+  /**
+   * Register chainhook predicates automatically when the API is first launched. Set this to `false`
+   * if you're configuring your predicates manually.
+   */
+  CHAINHOOK_AUTO_PREDICATE_REGISTRATION: Type.Boolean({ default: true }),
+  /**
+   * File path to a directory where the `predicate.json` file will be persisted by the API when
+   * registering its chainhook predicate so it can validate and resume later. Only used if auto
+   * predicate registration is enabled.
+   */
+  CHAINHOOK_PREDICATE_PATH: Type.String({ default: '.' }),
 
   PGHOST: Type.String(),
   PGPORT: Type.Number({ default: 5432, minimum: 0, maximum: 65535 }),
   PGUSER: Type.String(),
   PGPASSWORD: Type.String(),
   PGDATABASE: Type.String(),
-  /**
-   * Limit to how many concurrent connections can be created, defaults to 10. Make sure this number
-   * is greater than `JOB_QUEUE_CONCURRENCY_LIMIT`.
-   */
+  /** Limit to how many concurrent connections can be created */
   PG_CONNECTION_POOL_MAX: Type.Number({ default: 10 }),
-  /** Idle connection timeout (seconds). */
   PG_IDLE_TIMEOUT: Type.Number({ default: 30 }),
-  /** Max lifetime of a connection (seconds). */
   PG_MAX_LIFETIME: Type.Number({ default: 60 }),
-
-  BLOCKCHAIN_API_PGHOST: Type.String(),
-  BLOCKCHAIN_API_PGPORT: Type.Number({ default: 5432, minimum: 0, maximum: 65535 }),
-  BLOCKCHAIN_API_PGUSER: Type.String(),
-  BLOCKCHAIN_API_PGPASSWORD: Type.String(),
-  BLOCKCHAIN_API_PGDATABASE: Type.String(),
-  BLOCKCHAIN_API_PG_CONNECTION_POOL_MAX: Type.Number({ default: 10 }),
-  BLOCKCHAIN_API_PG_IDLE_TIMEOUT: Type.Number({ default: 30 }),
-  BLOCKCHAIN_API_PG_MAX_LIFETIME: Type.Number({ default: 60 }),
 
   STACKS_NODE_RPC_HOST: Type.String(),
   STACKS_NODE_RPC_PORT: Type.Number({ minimum: 0, maximum: 65535 }),
 
+  /** Whether or not the job queue should start processing jobs immediately after bootup. */
+  JOB_QUEUE_AUTO_START: Type.Boolean({ default: true }),
   /** Whether or not the `JobQueue` will continue to try retryable failed jobs indefinitely. */
   JOB_QUEUE_STRICT_MODE: Type.Boolean({ default: false }),
   /**
@@ -89,12 +106,6 @@ const schema = Type.Object({
    */
   METADATA_MAX_NFT_CONTRACT_TOKEN_COUNT: Type.Number({ default: 50_000 }),
   /**
-   * Configure a script to handle image URLs during token metadata processing. Must be an executable
-   * script that accepts the URL as the first program argument and outputs a result URL to stdout.
-   * Example: ./config/image-cache.js
-   */
-  METADATA_IMAGE_CACHE_PROCESSOR: Type.Optional(Type.String()),
-  /**
    * How often will token metadata that is marked `dynamic` will be refreshed if it doesn't specify
    * an explicit TTL (seconds). See SIP-019 for more information. Defaults to 86400 seconds (24
    * hours).
@@ -121,6 +132,22 @@ const schema = Type.Object({
    * `https://arweave.net`.
    */
   PUBLIC_GATEWAY_ARWEAVE: Type.String({ default: 'https://arweave.net' }),
+
+  /** Enables token image uploads to a Google Cloud Storage bucket. */
+  IMAGE_CACHE_PROCESSOR_ENABLED: Type.Boolean({ default: false }),
+  /** Width to resize images into while preserving aspect ratio. */
+  IMAGE_CACHE_RESIZE_WIDTH: Type.Integer({ default: 300 }),
+  /** Google Cloud Storage bucket name. Example: 'assets.dev.hiro.so' */
+  IMAGE_CACHE_GCS_BUCKET_NAME: Type.Optional(Type.String()),
+  /** Path for object storage inside the bucket. Example: 'token-metadata-api/mainnet/' */
+  IMAGE_CACHE_GCS_OBJECT_NAME_PREFIX: Type.Optional(Type.String()),
+  /**
+   * Base path for URLs that will be returned to the API for storage. Example:
+   * 'https://assets.dev.hiro.so/token-metadata-api/mainnet/'
+   */
+  IMAGE_CACHE_CDN_BASE_PATH: Type.Optional(Type.String()),
+  /** Max payload size accepted when downloading remote images. */
+  IMAGE_CACHE_MAX_BYTE_SIZE: Type.Optional(Type.Integer()),
 });
 type Env = Static<typeof schema>;
 

@@ -119,6 +119,7 @@ const ShowRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTyp
           tokenNumber: 1,
           locale: request.query.locale,
         });
+        const contract = metadataBundle?.smartContract;
         await reply.send({
           name: metadataBundle?.token?.name ?? undefined,
           symbol: metadataBundle?.token?.symbol ?? undefined,
@@ -126,8 +127,9 @@ const ShowRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTyp
           total_supply: metadataBundle?.token?.total_supply?.toString() ?? undefined,
           token_uri: metadataBundle?.token?.uri ?? undefined,
           description: metadataBundle?.metadataLocale?.metadata?.description ?? undefined,
-          tx_id: metadataBundle?.smartContract.tx_id,
-          sender_address: metadataBundle?.smartContract.principal.split('.')[0],
+          tx_id: contract.tx_id,
+          sender_address: contract.principal.split('.')[0],
+          asset_identifier: `${contract.principal}::${contract.fungible_token_name}`,
           image_uri: metadataBundle?.metadataLocale?.metadata?.cached_image ?? undefined,
           image_canonical_uri: metadataBundle?.metadataLocale?.metadata?.image ?? undefined,
           image_thumbnail_uri:
