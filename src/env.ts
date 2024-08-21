@@ -13,6 +13,8 @@ const schema = Type.Object({
     { default: 'default', readonly: 'readonly', writeonly: 'writeonly' },
     { default: 'default' }
   ),
+  /** Specifies which Stacks network this API is indexing */
+  NETWORK: Type.Enum({ mainnet: 'mainnet', testnet: 'testnet' }, { default: 'mainnet' }),
   /** Hosname of the Token Metadata API server */
   API_HOST: Type.String({ default: '0.0.0.0' }),
   /** Port in which to serve the API */

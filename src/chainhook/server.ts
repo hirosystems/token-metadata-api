@@ -28,11 +28,7 @@ export function getPersistedPredicateFromDisk(): ServerPredicate | undefined {
 export function persistPredicateToDisk(predicate: ServerPredicate) {
   const predicatePath = `${ENV.CHAINHOOK_PREDICATE_PATH}/predicate.json`;
   try {
-    try {
-      fs.mkdirSync(ENV.CHAINHOOK_PREDICATE_PATH);
-    } catch (error: any) {
-      if (error.code != 'EEXIST') throw error;
-    }
+    fs.mkdirSync(ENV.CHAINHOOK_PREDICATE_PATH, { recursive: true });
     fs.writeFileSync(predicatePath, JSON.stringify(predicate, null, 2));
   } catch (error) {
     logger.error(error, `ChainhookServer unable to persist predicate to disk`);
@@ -51,24 +47,44 @@ export async function startChainhookServer(args: { db: PgStore }): Promise<Chain
         `ChainhookServer will attempt to resume existing predicate ${existingPredicate.uuid}`
       );
     }
-    const uuid = existingPredicate?.uuid ?? randomUUID();
-    predicates.push({
-      uuid,
+    const header = {
+      uuid: existingPredicate?.uuid ?? randomUUID(),
       name: 'block',
       version: 1,
       chain: 'stacks',
-      networks: {
-        // TODO: Support testnet.
-        mainnet: {
-          start_block: blockHeight,
-          include_contract_abi: true,
-          if_this: {
-            scope: 'block_height',
-            higher_than: 1,
+    };
+    switch (ENV.NETWORK) {
+      case 'mainnet':
+        predicates.push({
+          ...header,
+          networks: {
+            mainnet: {
+              start_block: blockHeight,
+              include_contract_abi: true,
+              if_this: {
+                scope: 'block_height',
+                higher_than: 1,
+              },
+            },
           },
-        },
-      },
-    });
+        });
+        break;
+      case 'testnet':
+        predicates.push({
+          ...header,
+          networks: {
+            testnet: {
+              start_block: blockHeight,
+              include_contract_abi: true,
+              if_this: {
+                scope: 'block_height',
+                higher_than: 1,
+              },
+            },
+          },
+        });
+        break;
+    }
   }
 
   const opts: ServerOptions = {
