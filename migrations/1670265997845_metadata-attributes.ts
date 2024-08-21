@@ -12,6 +12,8 @@ export function up(pgm: MigrationBuilder): void {
     metadata_id: {
       type: 'int',
       notNull: true,
+      references: 'metadata',
+      onDelete: 'CASCADE',
     },
     trait_type: {
       type: 'text',
@@ -25,10 +27,5 @@ export function up(pgm: MigrationBuilder): void {
       type: 'text',
     },
   });
-  pgm.createConstraint(
-    'metadata_attributes',
-    'metadata_attributes_metadata_id_fk',
-    'FOREIGN KEY(metadata_id) REFERENCES metadata(id) ON DELETE CASCADE'
-  );
   pgm.createIndex('metadata_attributes', ['metadata_id']);
 }

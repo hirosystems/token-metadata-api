@@ -1,17 +1,17 @@
 import { MockAgent, setGlobalDispatcher } from 'undici';
-import { ENV } from '../src/env';
+import { ENV } from '../../src/env';
 import {
-  HttpError,
+  MetadataHttpError,
   MetadataParseError,
   MetadataSizeExceededError,
   MetadataTimeoutError,
-} from '../src/token-processor/util/errors';
+} from '../../src/token-processor/util/errors';
 import {
   getFetchableDecentralizedStorageUrl,
   getMetadataFromUri,
   getTokenSpecificUri,
   fetchMetadata,
-} from '../src/token-processor/util/metadata-helpers';
+} from '../../src/token-processor/util/metadata-helpers';
 
 describe('Metadata Helpers', () => {
   test('performs timed and limited request', async () => {
@@ -60,7 +60,7 @@ describe('Metadata Helpers', () => {
       .reply(500, { message: 'server error' });
     setGlobalDispatcher(agent);
 
-    await expect(fetchMetadata(url)).rejects.toThrow(HttpError);
+    await expect(fetchMetadata(url)).rejects.toThrow(MetadataHttpError);
   });
 
   test('does not throw on raw metadata with null or stringable values', async () => {

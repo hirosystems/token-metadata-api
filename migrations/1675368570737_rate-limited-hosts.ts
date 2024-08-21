@@ -12,6 +12,7 @@ export function up(pgm: MigrationBuilder): void {
     hostname: {
       type: 'text',
       notNull: true,
+      unique: true,
     },
     created_at: {
       type: 'timestamptz',
@@ -23,10 +24,5 @@ export function up(pgm: MigrationBuilder): void {
       notNull: true,
     },
   });
-  pgm.createConstraint(
-    'rate_limited_hosts',
-    'rate_limited_hosts_hostname_unique',
-    'UNIQUE(hostname)'
-  );
   pgm.createIndex('rate_limited_hosts', ['hostname']);
 }

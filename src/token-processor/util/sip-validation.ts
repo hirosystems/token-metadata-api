@@ -7,8 +7,8 @@ import {
   ClarityValueUInt,
   decodeClarityValue,
 } from 'stacks-encoding-native-js';
-import { BlockchainDbContractLog } from '../../pg/blockchain-api/pg-blockchain-api-store';
 import { DbSipNumber } from '../../pg/types';
+import { StacksTransactionSmartContractEvent } from '@hirosystems/chainhook-client';
 
 const FtTraitFunctions: ClarityAbiFunction[] = [
   {
@@ -286,6 +286,13 @@ export function tokenClassFromSipNumber(sip: DbSipNumber): TokenClass {
 
 type MetadataUpdateMode = 'standard' | 'frozen' | 'dynamic';
 
+export type SmartContractDeployment = {
+  principal: string;
+  sip: DbSipNumber;
+  fungible_token_name?: string;
+  non_fungible_token_name?: string;
+};
+
 export type TokenMetadataUpdateNotification = {
   token_class: TokenClass;
   contract_id: string;
@@ -299,11 +306,13 @@ export type TokenMetadataUpdateNotification = {
  * @param log - Contract log entry
  */
 export function getContractLogMetadataUpdateNotification(
-  log: BlockchainDbContractLog
+  sender: string,
+  event: StacksTransactionSmartContractEvent
 ): TokenMetadataUpdateNotification | undefined {
+  const log = event.data;
   try {
     // Validate that we have the correct SIP-019 payload structure.
-    const value = decodeClarityValue<ClarityValueTuple>(log.value);
+    const value = decodeClarityValue<ClarityValueTuple>(log.raw_value);
     const notification = stringFromValue(value.data.notification);
     if (notification !== 'token-metadata-update') {
       return;
@@ -321,7 +330,7 @@ export function getContractLogMetadataUpdateNotification(
     // the transaction's tx-sender principal should match the principal contained in the
     // notification's payload.contract-id (i.e., the STX address that sent the transaction which
     // emits the notification should match the owner of the token contract being updated).
-    if (contractId !== log.contract_identifier && log.sender_address !== contractId.split('.')[0]) {
+    if (contractId !== log.contract_identifier && sender !== contractId.split('.')[0]) {
       return;
     }
 
@@ -361,6 +370,11 @@ export function getContractLogMetadataUpdateNotification(
   }
 }
 
+export type NftMintEvent = {
+  contractId: string;
+  tokenId: bigint;
+};
+
 export type SftMintEvent = {
   contractId: string;
   tokenId: bigint;
@@ -368,10 +382,13 @@ export type SftMintEvent = {
   recipient: string;
 };
 
-export function getContractLogSftMintEvent(log: BlockchainDbContractLog): SftMintEvent | undefined {
+export function getContractLogSftMintEvent(
+  event: StacksTransactionSmartContractEvent
+): SftMintEvent | undefined {
+  const log = event.data;
   try {
     // Validate that we have the correct SIP-013 `sft_mint` payload structure.
-    const value = decodeClarityValue<ClarityValueTuple>(log.value);
+    const value = decodeClarityValue<ClarityValueTuple>(log.raw_value);
     const type = stringFromValue(value.data.type);
     if (type !== 'sft_mint') {
       return;

@@ -4,7 +4,7 @@ import { MigrationBuilder, ColumnDefinitions } from 'node-pg-migrate';
 export const shorthands: ColumnDefinitions | undefined = undefined;
 
 export function up(pgm: MigrationBuilder): void {
-  pgm.createType('job_status', ['pending', 'queued', 'done', 'failed']);
+  pgm.createType('job_status', ['pending', 'queued', 'done', 'failed', 'invalid']);
   pgm.createTable('jobs', {
     id: {
       type: 'serial',
@@ -12,9 +12,13 @@ export function up(pgm: MigrationBuilder): void {
     },
     token_id: {
       type: 'int',
+      references: 'tokens',
+      onDelete: 'CASCADE',
     },
     smart_contract_id: {
       type: 'int',
+      references: 'smart_contracts',
+      onDelete: 'CASCADE',
     },
     status: {
       type: 'job_status',
@@ -33,12 +37,6 @@ export function up(pgm: MigrationBuilder): void {
       type: 'timestamptz',
     },
   });
-  pgm.createConstraint('jobs', 'jobs_token_id_fk', 'FOREIGN KEY(token_id) REFERENCES tokens(id)');
-  pgm.createConstraint(
-    'jobs',
-    'jobs_smart_contract_id_fk',
-    'FOREIGN KEY(smart_contract_id) REFERENCES smart_contracts(id)'
-  );
   pgm.createConstraint(
     'jobs',
     'jobs_job_type_check',

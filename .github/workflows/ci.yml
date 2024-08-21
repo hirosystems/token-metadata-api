@@ -18,7 +18,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Use Node.js
         uses: actions/setup-node@v4
@@ -26,7 +26,7 @@ jobs:
           node-version-file: '.nvmrc'
 
       - name: Cache node modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         env:
           cache-name: cache-node-modules
         with:
@@ -49,10 +49,15 @@ jobs:
         run: npm run lint:prettier
 
   test:
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [admin, api, chainhook, token-queue]
     runs-on: ubuntu-latest
     env:
       API_HOST: 127.0.0.1
       API_PORT: 3000
+      PROMETHEUS_PORT: 9154
       PGHOST: 127.0.0.1
       PGPORT: 5432
       PGUSER: postgres
@@ -66,7 +71,7 @@ jobs:
       STACKS_NODE_RPC_HOST: 127.0.0.1
       STACKS_NODE_RPC_PORT: 24440
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -76,7 +81,7 @@ jobs:
           node-version-file: '.nvmrc'
 
       - name: Cache node modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         env:
           cache-name: cache-node-modules
         with:
@@ -99,10 +104,12 @@ jobs:
           npm run testenv:logs -- --no-color &> docker-compose-logs.txt &
 
       - name: Run tests
-        run: npm run test -- --coverage
+        run: npm run test:${{ matrix.suite }} -- --coverage
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Print integration environment logs
         run: cat docker-compose-logs.txt
@@ -118,14 +125,14 @@ jobs:
       - lint
       - test
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
           persist-credentials: false
 
       - name: Semantic Release
-        uses: cycjimmy/semantic-release-action@v3
+        uses: cycjimmy/semantic-release-action@v4
         id: semantic
         # Only run on non-PR events or only PRs that aren't from forks
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository

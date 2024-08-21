@@ -2,12 +2,18 @@ import {
   ClarityTypeID,
   ClarityValue,
   ClarityValueUInt,
+  TransactionVersion,
   decodeClarityValue,
 } from 'stacks-encoding-native-js';
 import { request, errors } from 'undici';
 import { ENV } from '../../env';
 import { RetryableJobError } from '../queue/errors';
-import { StacksNodeClarityError, HttpError, StacksNodeJsonParseError } from '../util/errors';
+import {
+  StacksNodeClarityError,
+  StacksNodeJsonParseError,
+  StacksNodeHttpError,
+} from '../util/errors';
+import { ClarityAbi, getAddressFromPrivateKey, makeRandomPrivKey } from '@stacks/transactions';
 
 interface ReadOnlyContractCallSuccessResponse {
   okay: true;
@@ -32,6 +38,16 @@ export class StacksNodeRpcClient {
   private readonly contractName: string;
   private readonly senderAddress: string;
   private readonly basePath: string;
+
+  static create(args: { contractPrincipal: string }): StacksNodeRpcClient {
+    const randomPrivKey = makeRandomPrivKey();
+    const senderAddress = getAddressFromPrivateKey(randomPrivKey.data, TransactionVersion.Mainnet);
+    const client = new StacksNodeRpcClient({
+      contractPrincipal: args.contractPrincipal,
+      senderAddress: senderAddress,
+    });
+    return client;
+  }
 
   constructor(args: { contractPrincipal: string; senderAddress: string }) {
     [this.contractAddress, this.contractName] = args.contractPrincipal.split('.');
@@ -60,6 +76,27 @@ export class StacksNodeRpcClient {
     }
   }
 
+  async readContractInterface(): Promise<ClarityAbi | undefined> {
+    const url = `${this.basePath}/v2/contracts/interface/${this.contractAddress}/${this.contractName}`;
+    try {
+      const result = await request(url, {
+        method: 'GET',
+        throwOnError: true,
+      });
+      const text = await result.body.text();
+      try {
+        return JSON.parse(text) as ClarityAbi;
+      } catch (error) {
+        throw new StacksNodeJsonParseError(`JSON parse error ${url}: ${text}`);
+      }
+    } catch (error) {
+      if (error instanceof errors.UndiciError) {
+        throw new StacksNodeHttpError(`${url}: ${error}`);
+      }
+      throw error;
+    }
+  }
+
   private async sendReadOnlyContractCall(
     functionName: string,
     functionArgs: ClarityValue[]
@@ -84,7 +121,7 @@ export class StacksNodeRpcClient {
       }
     } catch (error) {
       if (error instanceof errors.UndiciError) {
-        throw new HttpError(`${url}: ${error}`, error);
+        throw new StacksNodeHttpError(`${url}: ${error}`);
       }
       throw error;
     }
