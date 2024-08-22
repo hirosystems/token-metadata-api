@@ -24,6 +24,7 @@ import {
 } from '../types';
 import { BlockCache, CachedEvent } from './block-cache';
 import { dbSipNumberToDbTokenType } from '../../token-processor/util/helpers';
+import BigNumber from 'bignumber.js';
 
 export class ChainhookPgStore extends BasePgStoreModule {
   async processPayload(payload: StacksPayload): Promise<void> {
@@ -155,7 +156,7 @@ export class ChainhookPgStore extends BasePgStoreModule {
     for (const mint of cache.nftMints) await this.rollBackNftMint(sql, mint, cache);
     for (const mint of cache.sftMints) await this.rollBackSftMint(sql, mint, cache);
     for (const [contract, delta] of cache.ftSupplyDelta)
-      await this.applyFtSupplyChange(sql, contract, delta * -1n, cache);
+      await this.applyFtSupplyChange(sql, contract, delta.negated(), cache);
   }
 
   private async applyNotification(
@@ -279,7 +280,7 @@ export class ChainhookPgStore extends BasePgStoreModule {
   private async applyFtSupplyChange(
     sql: PgSqlClient,
     contract: string,
-    delta: bigint,
+    delta: BigNumber,
     cache: BlockCache
   ): Promise<void> {
     await sql`
