@@ -1,3 +1,10 @@
+## [1.0.0-beta.3](https://github.com/hirosystems/token-metadata-api/compare/v1.0.0-beta.2...v1.0.0-beta.3) (2024-08-22)
+
+
+### Bug Fixes
+
+* use bignumber to handle FT supplies ([#239](https://github.com/hirosystems/token-metadata-api/issues/239)) ([053d622](https://github.com/hirosystems/token-metadata-api/commit/053d622d33bc46401acbe80980010e2407383c1a))
+
 ## [1.0.0-beta.2](https://github.com/hirosystems/token-metadata-api/compare/v1.0.0-beta.1...v1.0.0-beta.2) (2024-08-22)
 
 
