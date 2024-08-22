@@ -84,14 +84,13 @@ export type DbToken = {
   smart_contract_id: number;
   type: DbTokenType;
   token_number: bigint;
-  uri?: string;
-  name?: string;
-  decimals?: number;
-  total_supply?: string;
-  symbol?: string;
+  uri: string | null;
+  name: string | null;
+  decimals: number | null;
+  total_supply: string | null;
+  symbol: string | null;
   created_at: string;
-  updated_at?: string;
-  token_medatada_notification_id?: number;
+  updated_at: string | null;
 };
 
 export type DbJobInsert = {
