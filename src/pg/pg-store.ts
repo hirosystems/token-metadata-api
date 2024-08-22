@@ -107,11 +107,7 @@ export class PgStore extends BasePgStore {
     if (result.count === 0) {
       return undefined;
     }
-    const token = result[0];
-    return {
-      ...token,
-      total_supply: token.total_supply ? BigInt(token.total_supply.toString()) : undefined,
-    };
+    return result[0];
   }
 
   async getTokenMetadataBundle(args: {

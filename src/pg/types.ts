@@ -87,7 +87,7 @@ export type DbToken = {
   uri?: string;
   name?: string;
   decimals?: number;
-  total_supply?: bigint;
+  total_supply?: string;
   symbol?: string;
   created_at: string;
   updated_at?: string;
@@ -254,7 +254,7 @@ export type DbFungibleTokenMetadataItem = {
   name?: string;
   symbol?: string;
   decimals?: number;
-  total_supply?: bigint;
+  total_supply?: string;
   uri?: string;
   description?: string;
   tx_id: string;
