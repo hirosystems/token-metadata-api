@@ -1,3 +1,10 @@
+## [1.0.0-beta.2](https://github.com/hirosystems/token-metadata-api/compare/v1.0.0-beta.1...v1.0.0-beta.2) (2024-08-22)
+
+
+### Bug Fixes
+
+* use google cloud library for image uploads ([#238](https://github.com/hirosystems/token-metadata-api/issues/238)) ([c7f1b43](https://github.com/hirosystems/token-metadata-api/commit/c7f1b4368dbec0e028a4e7676c82c25f0ebaeb09))
+
 ## [1.0.0-beta.1](https://github.com/hirosystems/token-metadata-api/compare/v0.7.0...v1.0.0-beta.1) (2024-08-21)
 
 
