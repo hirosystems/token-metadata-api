@@ -14,6 +14,7 @@ import {
 } from '../../token-processor/util/sip-validation';
 import { ClarityAbi } from '@stacks/transactions';
 import { ClarityTypeID, decodeClarityValue } from 'stacks-encoding-native-js';
+import BigNumber from 'bignumber.js';
 
 export type CachedEvent<T> = {
   event: T;
@@ -22,7 +23,7 @@ export type CachedEvent<T> = {
   event_index?: number;
 };
 
-export type CachedFtSupplyDeltaMap = Map<string, bigint>;
+export type CachedFtSupplyDeltaMap = Map<string, BigNumber>;
 
 function contractPrincipalFromAssetIdentifier(asset_identifier: string): string {
   return asset_identifier.split('::')[0];
@@ -39,7 +40,7 @@ export class BlockCache {
   notifications: CachedEvent<TokenMetadataUpdateNotification>[] = [];
   sftMints: CachedEvent<SftMintEvent>[] = [];
   nftMints: CachedEvent<NftMintEvent>[] = [];
-  ftSupplyDelta: CachedFtSupplyDeltaMap = new Map<string, bigint>();
+  ftSupplyDelta: CachedFtSupplyDeltaMap = new Map<string, BigNumber>();
 
   constructor(block: BlockIdentifier) {
     this.block = block;
@@ -90,10 +91,10 @@ export class BlockCache {
         case 'FTMintEvent':
         case 'FTBurnEvent':
           const principal = contractPrincipalFromAssetIdentifier(event.data.asset_identifier);
-          const previous = this.ftSupplyDelta.get(principal) ?? 0n;
-          let amount = BigInt(event.data.amount);
-          if (event.type === 'FTBurnEvent') amount *= -1n;
-          this.ftSupplyDelta.set(principal, previous + amount);
+          const previous = this.ftSupplyDelta.get(principal) ?? BigNumber(0);
+          let amount = BigNumber(event.data.amount);
+          if (event.type === 'FTBurnEvent') amount = amount.negated();
+          this.ftSupplyDelta.set(principal, previous.plus(amount));
           break;
         case 'NFTMintEvent':
           const value = decodeClarityValue(event.data.raw_value);

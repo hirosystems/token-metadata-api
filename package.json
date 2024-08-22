@@ -60,6 +60,7 @@
     "@sinclair/typebox": "^0.28.17",
     "@stacks/transactions": "^6.1.0",
     "@types/node": "^20.16.1",
+    "bignumber.js": "^9.1.2",
     "env-schema": "^5.1.0",
     "evt": "^1.11.2",
     "fastify": "4.15.0",
