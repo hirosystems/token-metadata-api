@@ -63,7 +63,14 @@ async function downloadImage(imgUrl: string, tmpPath: string): Promise<string> {
 async function transformImage(filePath: string, resize: boolean = false): Promise<string> {
   return new Promise((resolve, reject) => {
     const outPath = resize ? `${filePath}-small.png` : `${filePath}.png`;
-    let sharpStream = sharp(filePath, { failOn: 'error' });
+    let sharpStream = sharp(filePath, {
+      failOn: 'error',
+      // TODO: This ignores multi-frame GIF formats to optimize memory and because we're converting
+      // to PNG anyway. We should support animated images in the future.
+      pages: 1,
+      page: 0,
+      animated: false,
+    });
     if (resize) {
       sharpStream = sharpStream.resize({
         width: ENV.IMAGE_CACHE_RESIZE_WIDTH,
