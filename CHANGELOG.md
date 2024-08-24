@@ -1,3 +1,10 @@
+## [1.0.0-beta.4](https://github.com/hirosystems/token-metadata-api/compare/v1.0.0-beta.3...v1.0.0-beta.4) (2024-08-24)
+
+
+### Bug Fixes
+
+* take only first page of gif images ([#241](https://github.com/hirosystems/token-metadata-api/issues/241)) ([334f8c5](https://github.com/hirosystems/token-metadata-api/commit/334f8c524d976719f9d33ed611ddf6a1a8e7bb05))
+
 ## [1.0.0-beta.3](https://github.com/hirosystems/token-metadata-api/compare/v1.0.0-beta.2...v1.0.0-beta.3) (2024-08-22)
 
 
