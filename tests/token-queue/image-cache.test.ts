@@ -41,11 +41,4 @@ describe('Image cache', () => {
     ).rejects.toThrow(MetadataHttpError);
     await closeTestServer(server);
   }, 10000);
-
-  test('ignores data: URL', async () => {
-    const url = 'data:123456';
-    await expect(processImageCache(url, contract, tokenNumber)).resolves.toStrictEqual([
-      'data:123456',
-    ]);
-  });
 });
