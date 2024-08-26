@@ -16,6 +16,7 @@ import {
   MetadataSizeExceededError,
   MetadataTimeoutError,
   TooManyRequestsHttpError,
+  UndiciCauseTypeError,
 } from './errors';
 import { RetryableJobError } from '../queue/errors';
 import { normalizeImageUri, processImageCache } from '../images/image-cache';
@@ -263,6 +264,11 @@ export async function fetchMetadata(httpUrl: URL): Promise<string | undefined> {
       throw new MetadataSizeExceededError(url);
     } else if (error instanceof errors.ResponseStatusCodeError && error.statusCode === 429) {
       throw new TooManyRequestsHttpError(httpUrl, error);
+    } else if (
+      error instanceof TypeError &&
+      ((error as UndiciCauseTypeError).cause as any).toString().includes('ECONNRESET')
+    ) {
+      throw new RetryableJobError(`Server connection interrupted`, error);
     }
     throw new MetadataHttpError(`${url}: ${error}`, error);
   }
