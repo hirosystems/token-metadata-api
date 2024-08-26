@@ -1,3 +1,10 @@
+## [1.0.0-beta.5](https://github.com/hirosystems/token-metadata-api/compare/v1.0.0-beta.4...v1.0.0-beta.5) (2024-08-26)
+
+
+### Bug Fixes
+
+* set maximum job timeout ([#244](https://github.com/hirosystems/token-metadata-api/issues/244)) ([3444917](https://github.com/hirosystems/token-metadata-api/commit/344491770172a8f8a22f4f5d8c485fd98256997c))
+
 ## [1.0.0-beta.4](https://github.com/hirosystems/token-metadata-api/compare/v1.0.0-beta.3...v1.0.0-beta.4) (2024-08-24)
 
 
