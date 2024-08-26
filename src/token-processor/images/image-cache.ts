@@ -16,6 +16,7 @@ import {
 } from '../util/errors';
 import { pipeline } from 'node:stream/promises';
 import { Storage } from '@google-cloud/storage';
+import { RetryableJobError } from '../queue/errors';
 
 /** Saves an image provided via a `data:` uri string to disk for processing. */
 function convertDataImage(uri: string, tmpPath: string): string {
@@ -155,6 +156,9 @@ export async function processImageCache(
       }
       if (typeError.cause instanceof errors.ResponseExceededMaxSizeError) {
         throw new ImageSizeExceededError(`ImageCache image too large: ${imgUrl}`);
+      }
+      if ((typeError.cause as any).toString().includes('ECONNRESET')) {
+        throw new RetryableJobError(`ImageCache server connection interrupted`, typeError);
       }
     }
     throw error;
