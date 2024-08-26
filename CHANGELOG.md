@@ -1,3 +1,10 @@
+## [1.0.0-beta.6](https://github.com/hirosystems/token-metadata-api/compare/v1.0.0-beta.5...v1.0.0-beta.6) (2024-08-26)
+
+
+### Features
+
+* convert data: image uris into image files and upload to cdn ([#245](https://github.com/hirosystems/token-metadata-api/issues/245)) ([903b0aa](https://github.com/hirosystems/token-metadata-api/commit/903b0aa2a63acc3340fdde570201f5c424f4443c))
+
 ## [1.0.0-beta.5](https://github.com/hirosystems/token-metadata-api/compare/v1.0.0-beta.4...v1.0.0-beta.5) (2024-08-26)
 
 
