@@ -1,3 +1,10 @@
+## [1.0.0-beta.7](https://github.com/hirosystems/token-metadata-api/compare/v1.0.0-beta.6...v1.0.0-beta.7) (2024-08-26)
+
+
+### Bug Fixes
+
+* catch econnreset errors ([#247](https://github.com/hirosystems/token-metadata-api/issues/247)) ([51347d6](https://github.com/hirosystems/token-metadata-api/commit/51347d635d4e50f299af07fef8378ae279f14461))
+
 ## [1.0.0-beta.6](https://github.com/hirosystems/token-metadata-api/compare/v1.0.0-beta.5...v1.0.0-beta.6) (2024-08-26)
 
 
