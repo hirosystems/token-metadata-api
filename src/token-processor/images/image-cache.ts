@@ -17,6 +17,21 @@ import {
 import { pipeline } from 'node:stream/promises';
 import { Storage } from '@google-cloud/storage';
 
+/** Saves an image provided via a `data:` uri string to disk for processing. */
+function convertDataImage(uri: string, tmpPath: string): string {
+  const dataUrl = parseDataUrl(uri);
+  if (!dataUrl) {
+    throw new ImageParseError(`Data URL could not be parsed: ${uri}`);
+  }
+  if (!dataUrl.mediaType?.startsWith('image/')) {
+    throw new ImageParseError(`Token image is a Data URL with a non-image media type: ${uri}`);
+  }
+  const filePath = `${tmpPath}/image`;
+  const imageBuffer = Buffer.from(dataUrl.data, 'base64');
+  fs.writeFileSync(filePath, imageBuffer);
+  return filePath;
+}
+
 async function downloadImage(imgUrl: string, tmpPath: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const filePath = `${tmpPath}/image`;
@@ -98,15 +113,18 @@ export async function processImageCache(
   tokenNumber: bigint
 ): Promise<string[]> {
   logger.info(`ImageCache processing token ${contractPrincipal} (${tokenNumber}) at ${imgUrl}`);
-  if (imgUrl.startsWith('data:')) return [imgUrl];
-
   try {
     const gcs = new Storage();
     const gcsBucket = ENV.IMAGE_CACHE_GCS_BUCKET_NAME as string;
 
     const tmpPath = `tmp/${contractPrincipal}_${tokenNumber}`;
     fs.mkdirSync(tmpPath, { recursive: true });
-    const original = await downloadImage(imgUrl, tmpPath);
+    let original: string;
+    if (imgUrl.startsWith('data:')) {
+      original = convertDataImage(imgUrl, tmpPath);
+    } else {
+      original = await downloadImage(imgUrl, tmpPath);
+    }
 
     const image1 = await transformImage(original);
     const remoteName1 = `${contractPrincipal}/${tokenNumber}.png`;
@@ -149,17 +167,7 @@ export async function processImageCache(
  * @returns Normalized URL string
  */
 export function normalizeImageUri(uri: string): string {
-  // Support images embedded in a Data URL
-  if (uri.startsWith('data:')) {
-    const dataUrl = parseDataUrl(uri);
-    if (!dataUrl) {
-      throw new ImageParseError(`Data URL could not be parsed: ${uri}`);
-    }
-    if (!dataUrl.mediaType?.startsWith('image/')) {
-      throw new ImageParseError(`Token image is a Data URL with a non-image media type: ${uri}`);
-    }
-    return uri;
-  }
+  if (uri.startsWith('data:')) return uri;
   const fetchableUrl = getFetchableDecentralizedStorageUrl(uri);
   return fetchableUrl.toString();
 }
