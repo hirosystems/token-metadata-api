@@ -1,16 +1,19 @@
-import * as postgres from 'postgres';
+import * as http from 'http';
 import { PgStore } from '../src/pg/pg-store';
 import { buildApiServer } from '../src/api/init';
 import { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { IncomingMessage, Server, ServerResponse } from 'http';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import {
-  PgBlockchainApiStore,
-  BlockchainDbSmartContract,
-  BlockchainDbContractLog,
-  BlockchainDbBlock,
-} from '../src/pg/blockchain-api/pg-blockchain-api-store';
-import { DbSipNumber, DbSmartContractInsert, DbTokenType } from '../src/pg/types';
+  StacksEvent,
+  StacksPayload,
+  StacksTransaction,
+  StacksTransactionEvent,
+} from '@hirosystems/chainhook-client';
+import { BlockCache, CachedEvent } from '../src/pg/chainhook/block-cache';
+import { SmartContractDeployment } from '../src/token-processor/util/sip-validation';
+import { DbJob, DbSipNumber, DbSmartContract, DbUpdateNotification } from '../src/pg/types';
+import { waiter } from '@hirosystems/api-toolkit';
 
 export type TestFastifyServer = FastifyInstance<
   Server,
@@ -24,104 +27,45 @@ export async function startTestApiServer(db: PgStore): Promise<TestFastifyServer
   return await buildApiServer({ db });
 }
 
-export const sleep = (time: number) => {
-  return new Promise(resolve => setTimeout(resolve, time));
-};
-
-export class MockPgBlockchainApiStore extends PgBlockchainApiStore {
-  constructor() {
-    super(postgres());
-  }
-
-  private cursor<T>(logs: T[]): AsyncIterable<T[]> {
-    return {
-      [Symbol.asyncIterator]: (): AsyncIterator<T[], any, undefined> => {
-        return {
-          next: () => {
-            if (logs.length) {
-              const value = logs.shift() as T;
-              return Promise.resolve({ value: [value], done: false });
-            }
-            return Promise.resolve({ value: [] as T[], done: true });
-          },
-        };
-      },
-    };
-  }
-
-  public smartContract?: BlockchainDbSmartContract;
-  getSmartContract(args: { contractId: string }): Promise<BlockchainDbSmartContract | undefined> {
-    return Promise.resolve(this.smartContract);
-  }
-
-  public contractLog?: BlockchainDbContractLog;
-  getSmartContractLog(args: {
-    txId: string;
-    eventIndex: number;
-  }): Promise<BlockchainDbContractLog | undefined> {
-    return Promise.resolve(this.contractLog);
-  }
-
-  public contractLogsByContract?: BlockchainDbContractLog[];
-  getSmartContractLogsByContractCursor(args: {
-    contractId: string;
-  }): AsyncIterable<BlockchainDbContractLog[]> {
-    return this.cursor(this.contractLogsByContract ?? []);
-  }
-
-  public smartContracts?: BlockchainDbSmartContract[];
-  getSmartContractsCursor(args: {
-    fromBlockHeight: number;
-    toBlockHeight: number;
-  }): AsyncIterable<BlockchainDbSmartContract[]> {
-    return this.cursor(this.smartContracts ?? []);
-  }
-
-  public block?: BlockchainDbBlock;
-  getBlock(args: { blockHash: string }): Promise<BlockchainDbBlock | undefined> {
-    return Promise.resolve(this.block);
-  }
-
-  public currentBlockHeight?: number;
-  getCurrentBlockHeight(): Promise<number | undefined> {
-    return Promise.resolve(this.currentBlockHeight);
-  }
-
-  public smartContractLogs?: BlockchainDbContractLog[];
-  getSmartContractLogsCursor(args: {
-    fromBlockHeight: number;
-    toBlockHeight: number;
-  }): AsyncIterable<BlockchainDbContractLog[]> {
-    return this.cursor(this.smartContractLogs ?? []);
-  }
-}
-
-export async function enqueueContract(
-  db: PgStore,
-  principal: string = 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
-  sip: DbSipNumber = DbSipNumber.sip010
-) {
-  const values: DbSmartContractInsert = {
-    principal,
-    sip,
-    abi: '"some"',
-    tx_id: '0x123456',
-    block_height: 1,
-  };
-  await db.insertAndEnqueueSmartContract({ values });
-}
-
-export async function enqueueToken(
-  db: PgStore,
-  principal: string = 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
-  sip: DbSipNumber = DbSipNumber.sip010
-) {
-  await enqueueContract(db, principal, sip);
-  await db.insertAndEnqueueSequentialTokens({
-    smart_contract_id: 1,
-    token_count: 1n,
-    type: DbTokenType.ft,
+export async function startTimeoutServer(delay: number, port: number = 9999) {
+  const server = http.createServer((req, res) => {
+    setTimeout(() => {
+      res.statusCode = 200;
+      res.end('Delayed response');
+    }, delay);
   });
+  server.on('error', e => console.log(e));
+  const serverReady = waiter();
+  server.listen(port, '0.0.0.0', () => serverReady.finish());
+  await serverReady;
+  return server;
+}
+
+export async function startTestResponseServer(
+  response: string,
+  statusCode: number = 200,
+  port: number = 9999
+) {
+  const server = http.createServer((req, res) => {
+    res.statusCode = statusCode;
+    res.end(response);
+  });
+  server.on('error', e => console.log(e));
+  const serverReady = waiter();
+  server.listen(port, '0.0.0.0', () => serverReady.finish());
+  await serverReady;
+  return server;
+}
+
+export async function closeTestServer(server: http.Server) {
+  const serverDone = waiter();
+  server.close(err => {
+    if (err) {
+      console.log(err);
+    }
+    serverDone.finish();
+  });
+  await serverDone;
 }
 
 export const SIP_009_ABI = {
@@ -1333,3 +1277,221 @@ export const SIP_013_ABI = {
   fungible_tokens: [{ name: 'key-alex-autoalex-v1' }],
   non_fungible_tokens: [],
 };
+
+export class TestChainhookPayloadBuilder {
+  private payload: StacksPayload = {
+    apply: [],
+    rollback: [],
+    chainhook: {
+      uuid: 'test',
+      predicate: {
+        scope: 'block_height',
+        higher_than: 0,
+      },
+      is_streaming_blocks: true,
+    },
+  };
+  private action: 'apply' | 'rollback' = 'apply';
+  private get lastBlock(): StacksEvent {
+    return this.payload[this.action][this.payload[this.action].length - 1] as StacksEvent;
+  }
+  private get lastBlockTx(): StacksTransaction {
+    return this.lastBlock.transactions[this.lastBlock.transactions.length - 1];
+  }
+
+  streamingBlocks(streaming: boolean): this {
+    this.payload.chainhook.is_streaming_blocks = streaming;
+    return this;
+  }
+
+  apply(): this {
+    this.action = 'apply';
+    return this;
+  }
+
+  rollback(): this {
+    this.action = 'rollback';
+    return this;
+  }
+
+  block(args: { height: number; hash?: string; timestamp?: number }): this {
+    this.payload[this.action].push({
+      block_identifier: {
+        hash: args.hash ?? '0x9430a78c5e166000980136a22764af72ff0f734b2108e33cfe5f9e3d4430adda',
+        index: args.height,
+      },
+      metadata: {
+        bitcoin_anchor_block_identifier: {
+          hash: '0x0000000000000000000bb26339f877f36e92d5a11d75fc2e34aed3f7623937fe',
+          index: 705573,
+        },
+        confirm_microblock_identifier: null,
+        pox_cycle_index: 18,
+        pox_cycle_length: 2100,
+        pox_cycle_position: 1722,
+        stacks_block_hash: '0xbccf63ec2438cf497786ce617ec7e64e2b27ee023a28a0927ee36b81870115d2',
+      },
+      parent_block_identifier: {
+        hash: '0xca71af03f9a3012491af2f59f3244ecb241551803d641f8c8306ffa1187938b4',
+        index: args.height - 1,
+      },
+      timestamp: 1634572508,
+      transactions: [],
+    });
+    return this;
+  }
+
+  transaction(args: { hash: string; sender?: string }): this {
+    this.lastBlock.transactions.push({
+      metadata: {
+        contract_abi: null,
+        description: 'description',
+        execution_cost: {
+          read_count: 5,
+          read_length: 5526,
+          runtime: 6430000,
+          write_count: 2,
+          write_length: 1,
+        },
+        fee: 2574302,
+        kind: { type: 'Coinbase' },
+        nonce: 8665,
+        position: { index: 1 },
+        proof: null,
+        raw_tx: '0x00',
+        receipt: {
+          contract_calls_stack: [],
+          events: [],
+          mutated_assets_radius: [],
+          mutated_contracts_radius: ['SP466FNC0P7JWTNM2R9T199QRZN1MYEDTAR0KP27.miamicoin-token'],
+        },
+        result: '(ok true)',
+        sender: args.sender ?? 'SP3HXJJMJQ06GNAZ8XWDN1QM48JEDC6PP6W3YZPZJ',
+        success: true,
+      },
+      operations: [],
+      transaction_identifier: {
+        hash: args.hash,
+      },
+    });
+    return this;
+  }
+
+  event(args: StacksTransactionEvent): this {
+    this.lastBlockTx.metadata.receipt.events.push(args);
+    return this;
+  }
+
+  contractDeploy(contract_identifier: string, abi: any): this {
+    this.lastBlockTx.metadata.kind = {
+      data: {
+        code: 'code',
+        contract_identifier,
+      },
+      type: 'ContractDeployment',
+    };
+    this.lastBlockTx.metadata.contract_abi = abi;
+    return this;
+  }
+
+  build(): StacksPayload {
+    return this.payload;
+  }
+}
+
+export async function insertAndEnqueueTestContract(
+  db: PgStore,
+  principal: string,
+  sip: DbSipNumber,
+  tx_id?: string
+): Promise<DbJob> {
+  return await db.sqlWriteTransaction(async sql => {
+    const cache = new BlockCache({ hash: '0x000001', index: 1 });
+    const deploy: CachedEvent<SmartContractDeployment> = {
+      event: {
+        principal,
+        sip,
+        fungible_token_name: sip == DbSipNumber.sip010 ? 'ft-token' : undefined,
+      },
+      tx_id: tx_id ?? '0x123456',
+      tx_index: 0,
+    };
+    await db.chainhook.applyContractDeployment(sql, deploy, cache);
+    const smart_contract = (await db.getSmartContract({ principal })) as DbSmartContract;
+
+    const jobs = await sql<DbJob[]>`
+      SELECT * FROM jobs WHERE smart_contract_id = ${smart_contract.id}
+    `;
+    return jobs[0];
+  });
+}
+
+export async function insertAndEnqueueTestContractWithTokens(
+  db: PgStore,
+  principal: string,
+  sip: DbSipNumber,
+  token_count: bigint,
+  tx_id?: string
+): Promise<DbJob[]> {
+  return await db.sqlWriteTransaction(async sql => {
+    await insertAndEnqueueTestContract(db, principal, sip, tx_id);
+    const smart_contract = (await db.getSmartContract({ principal })) as DbSmartContract;
+    await db.chainhook.insertAndEnqueueSequentialTokens({
+      smart_contract,
+      token_count,
+    });
+    return await sql<DbJob[]>`
+      SELECT * FROM jobs WHERE token_id IN (
+        SELECT id FROM tokens WHERE smart_contract_id = ${smart_contract.id}
+      )
+    `;
+  });
+}
+
+export async function markAllJobsAsDone(db: PgStore): Promise<void> {
+  await db.sql`UPDATE jobs SET status = 'done' WHERE TRUE`;
+}
+
+export async function getTokenCount(db: PgStore): Promise<string> {
+  const result = await db.sql<{ count: string }[]>`SELECT COUNT(*) FROM tokens`;
+  return result[0].count;
+}
+
+export async function getJobCount(db: PgStore): Promise<string> {
+  const result = await db.sql<{ count: string }[]>`SELECT COUNT(*) FROM jobs`;
+  return result[0].count;
+}
+
+export async function getLatestTokenNotification(
+  db: PgStore,
+  tokenId: number
+): Promise<DbUpdateNotification | undefined> {
+  const result = await db.sql<DbUpdateNotification[]>`
+    SELECT *
+    FROM update_notifications
+    WHERE token_id = ${tokenId}
+    ORDER BY block_height DESC, tx_index DESC, event_index DESC
+    LIMIT 1
+  `;
+  if (result.count) {
+    return result[0];
+  }
+}
+
+export async function getLatestContractTokenNotifications(
+  db: PgStore,
+  contractId: string
+): Promise<DbUpdateNotification[]> {
+  return await db.sql<DbUpdateNotification[]>`
+    WITH token_ids AS (
+      SELECT t.id
+      FROM tokens AS t
+      INNER JOIN smart_contracts AS s ON s.id = t.smart_contract_id
+      WHERE s.principal = ${contractId}
+    )
+    SELECT DISTINCT ON (token_id) *
+    FROM update_notifications
+    WHERE token_id IN (SELECT id FROM token_ids)
+    ORDER BY token_id, block_height DESC, tx_index DESC, event_index DESC
+  `;
+}

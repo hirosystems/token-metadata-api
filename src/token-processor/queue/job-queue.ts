@@ -4,7 +4,6 @@ import { DbJob, DbJobStatus } from '../../pg/types';
 import { ENV } from '../../env';
 import { ProcessSmartContractJob } from './job/process-smart-contract-job';
 import { ProcessTokenJob } from './job/process-token-job';
-import { PgBlockchainApiStore } from '../../pg/blockchain-api/pg-blockchain-api-store';
 import { logger, timeout } from '@hirosystems/api-toolkit';
 
 /**
@@ -34,14 +33,12 @@ import { logger, timeout } from '@hirosystems/api-toolkit';
 export class JobQueue {
   private readonly queue: PQueue;
   private readonly db: PgStore;
-  private readonly apiDb: PgBlockchainApiStore;
   /** IDs of jobs currently being processed by the queue. */
   private jobIds: Set<number>;
-  private isRunning = false;
+  private _isRunning = false;
 
-  constructor(args: { db: PgStore; apiDb: PgBlockchainApiStore }) {
+  constructor(args: { db: PgStore }) {
     this.db = args.db;
-    this.apiDb = args.apiDb;
     this.queue = new PQueue({
       concurrency: ENV.JOB_QUEUE_CONCURRENCY_LIMIT,
       autoStart: false,
@@ -55,19 +52,23 @@ export class JobQueue {
    */
   start() {
     logger.info(`JobQueue starting queue...`);
-    this.isRunning = true;
+    this._isRunning = true;
     this.queue.start();
     void this.runQueueLoop();
   }
 
   /**
-   * Shuts down the queue and waits for its current work to be complete.
+   * Stops the queue after waiting for its current work to be complete.
    */
-  async close() {
-    logger.info(`JobQueue closing, waiting on ${this.queue.pending} pending jobs...`);
-    this.isRunning = false;
+  async stop() {
+    logger.info(`JobQueue stopping, waiting on ${this.queue.pending} pending jobs...`);
+    this._isRunning = false;
     await this.queue.onIdle();
     this.queue.pause();
+  }
+
+  isRunning(): boolean {
+    return this._isRunning;
   }
 
   /**
@@ -78,7 +79,7 @@ export class JobQueue {
    */
   protected async add(job: DbJob): Promise<void> {
     if (
-      !this.isRunning ||
+      !this._isRunning ||
       this.jobIds.has(job.id) ||
       this.queue.size + this.queue.pending >= ENV.JOB_QUEUE_SIZE_LIMIT
     ) {
@@ -88,11 +89,11 @@ export class JobQueue {
     this.jobIds.add(job.id);
     void this.queue.add(async () => {
       try {
-        if (this.isRunning) {
+        if (this._isRunning) {
           if (job.token_id) {
-            await new ProcessTokenJob({ db: this.db, job: job }).work();
+            await new ProcessTokenJob({ db: this.db, job }).work();
           } else if (job.smart_contract_id) {
-            await new ProcessSmartContractJob({ db: this.db, apiDb: this.apiDb, job: job }).work();
+            await new ProcessSmartContractJob({ db: this.db, job }).work();
           }
         } else {
           logger.info(`JobQueue cancelling job ${job.id}, queue is now closed`);
@@ -135,7 +136,7 @@ export class JobQueue {
    * processing, repeating this cycle until the jobs table is completely processed.
    */
   private async runQueueLoop() {
-    while (this.isRunning) {
+    while (this._isRunning) {
       try {
         const loadedJobs = await this.addJobBatch();
         if (loadedJobs === 0) {

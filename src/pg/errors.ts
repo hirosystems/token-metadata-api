@@ -1,3 +1,5 @@
+import { DbJobInvalidReason } from './types';
+
 export class TokenNotFoundError extends Error {
   constructor() {
     super();
@@ -27,15 +29,19 @@ export class TokenLocaleNotFoundError extends Error {
 }
 
 export class InvalidContractError extends Error {
-  constructor() {
+  public reason: DbJobInvalidReason;
+  constructor(reason: DbJobInvalidReason) {
     super();
+    this.reason = reason;
     this.name = this.constructor.name;
   }
 }
 
 export class InvalidTokenError extends Error {
-  constructor() {
+  public reason: DbJobInvalidReason;
+  constructor(reason: DbJobInvalidReason) {
     super();
+    this.reason = reason;
     this.name = this.constructor.name;
   }
 }

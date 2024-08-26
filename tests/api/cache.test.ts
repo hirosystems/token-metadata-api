@@ -1,8 +1,12 @@
 import { cycleMigrations } from '@hirosystems/api-toolkit';
-import { ENV } from '../src/env';
-import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
-import { DbSmartContractInsert, DbSipNumber, DbTokenType } from '../src/pg/types';
-import { TestFastifyServer, startTestApiServer } from './helpers';
+import { ENV } from '../../src/env';
+import { MIGRATIONS_DIR, PgStore } from '../../src/pg/pg-store';
+import { DbSipNumber } from '../../src/pg/types';
+import {
+  TestFastifyServer,
+  insertAndEnqueueTestContractWithTokens,
+  startTestApiServer,
+} from '../helpers';
 
 describe('ETag cache', () => {
   let db: PgStore;
@@ -21,19 +25,12 @@ describe('ETag cache', () => {
   });
 
   test('FT cache control', async () => {
-    const values: DbSmartContractInsert = {
-      principal: 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
-      sip: DbSipNumber.sip010,
-      abi: '"some"',
-      tx_id: '0x123456',
-      block_height: 1,
-    };
-    await db.insertAndEnqueueSmartContract({ values });
-    await db.insertAndEnqueueSequentialTokens({
-      smart_contract_id: 1,
-      token_count: 1n,
-      type: DbTokenType.ft,
-    });
+    await insertAndEnqueueTestContractWithTokens(
+      db,
+      'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      DbSipNumber.sip010,
+      1n
+    );
     await db.updateProcessedTokenWithMetadata({
       id: 1,
       values: {
@@ -91,19 +88,12 @@ describe('ETag cache', () => {
   });
 
   test('NFT cache control', async () => {
-    const values: DbSmartContractInsert = {
-      principal: 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
-      sip: DbSipNumber.sip009,
-      abi: '"some"',
-      tx_id: '0x123456',
-      block_height: 1,
-    };
-    await db.insertAndEnqueueSmartContract({ values });
-    await db.insertAndEnqueueSequentialTokens({
-      smart_contract_id: 1,
-      token_count: 1n,
-      type: DbTokenType.nft,
-    });
+    await insertAndEnqueueTestContractWithTokens(
+      db,
+      'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world',
+      DbSipNumber.sip009,
+      1n
+    );
     await db.updateProcessedTokenWithMetadata({
       id: 1,
       values: {
@@ -163,21 +153,12 @@ describe('ETag cache', () => {
   test('SFT cache control', async () => {
     const address = 'SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9';
     const contractId = 'key-alex-autoalex-v1';
-    const values: DbSmartContractInsert = {
-      principal: `${address}.${contractId}`,
-      sip: DbSipNumber.sip013,
-      abi: '"some"',
-      tx_id: '0x123456',
-      block_height: 1,
-    };
-    await db.insertAndEnqueueSmartContract({ values });
-    await db.insertAndEnqueueTokenArray([
-      {
-        smart_contract_id: 1,
-        type: DbTokenType.sft,
-        token_number: '1',
-      },
-    ]);
+    await insertAndEnqueueTestContractWithTokens(
+      db,
+      `${address}.${contractId}`,
+      DbSipNumber.sip013,
+      1n
+    );
     await db.updateProcessedTokenWithMetadata({
       id: 1,
       values: {

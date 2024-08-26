@@ -1,8 +1,8 @@
-import { logger, stopwatch } from '@hirosystems/api-toolkit';
+import { logger, resolveOrTimeout, stopwatch } from '@hirosystems/api-toolkit';
 import { ENV } from '../../../env';
 import { PgStore } from '../../../pg/pg-store';
-import { DbJob, DbJobStatus } from '../../../pg/types';
-import { UserError } from '../../util/errors';
+import { DbJob, DbJobInvalidReason, DbJobStatus } from '../../../pg/types';
+import { getUserErrorInvalidReason, UserError } from '../../util/errors';
 import { RetryableJobError } from '../errors';
 import { getJobQueueProcessingMode, JobQueueProcessingMode } from '../helpers';
 
@@ -35,6 +35,7 @@ export abstract class Job {
    */
   async work(): Promise<void> {
     let status: DbJobStatus | undefined;
+    let invalidReason: DbJobInvalidReason | undefined;
     const sw = stopwatch();
 
     // This block will catch any and all errors that are generated while processing the job. Each of
@@ -42,8 +43,13 @@ export abstract class Job {
     // what to do in each case. If we choose to retry, this queue entry will simply not be marked as
     // `processed = true` so it can be picked up by the queue at a later time.
     try {
-      await this.handler();
-      status = DbJobStatus.done;
+      const success = await resolveOrTimeout(this.handler(), ENV.JOB_QUEUE_TIMEOUT_MS);
+      if (success) {
+        status = DbJobStatus.done;
+      } else {
+        logger.error(`Job ${this.description()} allowed timeout exceeded`);
+        status = DbJobStatus.failed;
+      }
     } catch (error) {
       if (error instanceof RetryableJobError) {
         const retries = await this.db.increaseJobRetryCount({ id: this.job.id });
@@ -61,24 +67,28 @@ export abstract class Job {
           status = DbJobStatus.failed;
         }
       } else if (error instanceof UserError) {
-        logger.error(error, `User error on Job ${this.description()}`);
+        logger.warn(error, `User error on Job ${this.description()}`);
         status = DbJobStatus.invalid;
+        invalidReason = getUserErrorInvalidReason(error);
       } else {
         logger.error(error, `Job ${this.description()}`);
         status = DbJobStatus.failed;
       }
     } finally {
       if (status) {
-        if (await this.updateStatus(status)) {
+        if (await this.updateStatus(status, invalidReason)) {
           logger.info(`Job ${this.description()} ${status} in ${sw.getElapsed()}ms`);
         }
       }
     }
   }
 
-  private async updateStatus(status: DbJobStatus): Promise<boolean> {
+  private async updateStatus(
+    status: DbJobStatus,
+    invalidReason?: DbJobInvalidReason
+  ): Promise<boolean> {
     try {
-      await this.db.updateJobStatus({ id: this.job.id, status: status });
+      await this.db.updateJobStatus({ id: this.job.id, status, invalidReason });
       return true;
     } catch (error) {
       logger.error(`Job ${this.description()} could not update status to ${status}: ${error}`);

@@ -1,6 +1,6 @@
 import fastify from 'fastify';
-import { PgBlockchainApiStore } from '../../../pg/blockchain-api/pg-blockchain-api-store';
 import { PgStore } from '../../../pg/pg-store';
+import { JobQueue } from '../../../token-processor/queue/job-queue';
 
 declare module 'fastify' {
   export interface FastifyInstance<
@@ -11,6 +11,6 @@ declare module 'fastify' {
     TypeProvider = FastifyTypeProviderDefault
   > {
     db: PgStore;
-    apiDb?: PgBlockchainApiStore;
+    jobQueue?: JobQueue;
   }
 }

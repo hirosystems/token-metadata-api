@@ -4,16 +4,10 @@ import { PgStore } from '../pg/pg-store';
 import { Server } from 'http';
 import { Type } from '@sinclair/typebox';
 import { SmartContractRegEx } from '../api/schemas';
-import { PgBlockchainApiStore } from '../pg/blockchain-api/pg-blockchain-api-store';
-import {
-  getSmartContractSip,
-  tokenClassFromSipNumber,
-  TokenMetadataUpdateNotification,
-} from '../token-processor/util/sip-validation';
-import { ClarityAbi } from '@stacks/transactions';
-import { DbTokenUpdateMode } from '../pg/types';
 import { logger, PINO_LOGGER_CONFIG } from '@hirosystems/api-toolkit';
-import { reprocessTokenImageCache } from '../token-processor/util/image-cache';
+import { reprocessTokenImageCache } from '../token-processor/images/image-cache';
+import { ENV } from '../env';
+import { JobQueue } from '../token-processor/queue/job-queue';
 
 export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTypeProvider> = (
   fastify,
@@ -21,45 +15,11 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
   done
 ) => {
   fastify.post(
-    '/import-contract',
-    {
-      schema: {
-        description: 'Import a contract from the Stacks chain and enqueue for processing',
-        body: Type.Object({ contractId: Type.RegEx(SmartContractRegEx) }),
-      },
-    },
-    async (request, reply) => {
-      const contract = await fastify.apiDb?.getSmartContract({
-        contractId: request.body.contractId,
-      });
-      if (!contract) {
-        await reply.code(422).send({ error: 'Contract not found' });
-        return;
-      }
-      const sip = getSmartContractSip(contract.abi as ClarityAbi);
-      if (!sip) {
-        await reply.code(422).send({ error: 'Not a token contract' });
-        return;
-      }
-      await fastify.db.insertAndEnqueueSmartContract({
-        values: {
-          principal: contract.contract_id,
-          sip: sip,
-          abi: contract.abi,
-          tx_id: contract.tx_id,
-          block_height: contract.block_height,
-        },
-      });
-      logger.info(`AdminRPC imported contract: ${contract.contract_id}`);
-      await reply.code(200).send();
-    }
-  );
-
-  fastify.post(
     '/refresh-token',
     {
       schema: {
-        description: 'Enqueue a token metadata refresh by simulating a SIP-019 notification',
+        description:
+          'Enqueue a token metadata refresh. This ignores any token refresh modes configured by a SIP-019 notification.',
         body: Type.Object({
           contractId: Type.RegEx(SmartContractRegEx),
           tokenIds: Type.Optional(Type.Array(Type.Integer())),
@@ -67,23 +27,32 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
       },
     },
     async (request, reply) => {
-      const contract = await fastify.db.getSmartContract({ principal: request.body.contractId });
-      if (!contract) {
-        await reply.code(422).send({ error: 'Contract not found' });
-        return;
-      }
-      const notification: TokenMetadataUpdateNotification = {
-        token_class: tokenClassFromSipNumber(contract.sip),
-        contract_id: contract.principal,
-        token_ids: (request.body.tokenIds ?? []).map(v => BigInt(v)),
-        update_mode: DbTokenUpdateMode.standard,
-      };
-      await fastify.db.enqueueTokenMetadataUpdateNotification({ notification });
-      logger.info(
-        request.body.tokenIds,
-        `AdminRPC refreshing tokens for contract: ${contract.principal}`
-      );
-      await reply.code(200).send();
+      await fastify.db.sqlWriteTransaction(async sql => {
+        const contract = await fastify.db.getSmartContract({ principal: request.body.contractId });
+        if (!contract) {
+          await reply.code(422).send({ error: 'Contract not found' });
+          return;
+        }
+        await sql`
+          UPDATE jobs
+          SET status = 'pending', updated_at = NOW()
+          WHERE token_id IN (
+            SELECT id
+            FROM tokens
+            WHERE smart_contract_id = ${contract.id}
+              ${
+                request.body.tokenIds
+                  ? sql`AND token_number IN ${sql(request.body.tokenIds)}`
+                  : sql``
+              }
+          )
+        `;
+        logger.info(
+          request.body.tokenIds,
+          `AdminRPC refreshing tokens for contract: ${contract.principal}`
+        );
+        await reply.code(200).send();
+      });
     }
   );
 
@@ -114,6 +83,10 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
       },
     },
     async (request, reply) => {
+      if (!ENV.IMAGE_CACHE_PROCESSOR_ENABLED) {
+        await reply.code(422).send({ error: 'Image cache processor is not enabled' });
+        return;
+      }
       logger.info(
         `AdminRPC reprocessing image cache for ${request.body.contractId}: (${
           request.body.tokenIds ?? 'all'
@@ -124,17 +97,45 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
     }
   );
 
+  fastify.post(
+    '/job-queue/start',
+    { schema: { description: 'Starts the job queue' } },
+    async (request, reply) => {
+      const jobQueue = fastify.jobQueue;
+      if (!jobQueue || jobQueue.isRunning()) {
+        await reply.code(422).send({ error: 'Job queue is already running' });
+        return;
+      }
+      jobQueue.start();
+      return reply.code(200).send();
+    }
+  );
+
+  fastify.post(
+    '/job-queue/stop',
+    { schema: { description: 'Stops the job queue' } },
+    async (request, reply) => {
+      const jobQueue = fastify.jobQueue;
+      if (!jobQueue || !jobQueue.isRunning()) {
+        await reply.code(422).send({ error: 'Job queue is already stopped' });
+        return;
+      }
+      void jobQueue.stop();
+      return reply.code(200).send();
+    }
+  );
+
   done();
 };
 
-export async function buildAdminRpcServer(args: { db: PgStore; apiDb: PgBlockchainApiStore }) {
+export async function buildAdminRpcServer(args: { db: PgStore; jobQueue: JobQueue }) {
   const fastify = Fastify({
     trustProxy: true,
     logger: PINO_LOGGER_CONFIG,
   }).withTypeProvider<TypeBoxTypeProvider>();
 
   fastify.decorate('db', args.db);
-  fastify.decorate('apiDb', args.apiDb);
+  fastify.decorate('jobQueue', args.jobQueue);
   await fastify.register(AdminApi, { prefix: '/metadata/admin' });
 
   return fastify;

@@ -1,17 +1,13 @@
 import { MockAgent, setGlobalDispatcher } from 'undici';
-import { ENV } from '../src/env';
-import {
-  HttpError,
-  MetadataParseError,
-  MetadataSizeExceededError,
-  MetadataTimeoutError,
-} from '../src/token-processor/util/errors';
+import { ENV } from '../../src/env';
+import { MetadataHttpError } from '../../src/token-processor/util/errors';
 import {
   getFetchableDecentralizedStorageUrl,
   getMetadataFromUri,
   getTokenSpecificUri,
   fetchMetadata,
-} from '../src/token-processor/util/metadata-helpers';
+} from '../../src/token-processor/util/metadata-helpers';
+import { RetryableJobError } from '../../src/token-processor/queue/errors';
 
 describe('Metadata Helpers', () => {
   test('performs timed and limited request', async () => {
@@ -60,7 +56,7 @@ describe('Metadata Helpers', () => {
       .reply(500, { message: 'server error' });
     setGlobalDispatcher(agent);
 
-    await expect(fetchMetadata(url)).rejects.toThrow(HttpError);
+    await expect(fetchMetadata(url)).rejects.toThrow(MetadataHttpError);
   });
 
   test('does not throw on raw metadata with null or stringable values', async () => {
@@ -216,5 +212,22 @@ describe('Metadata Helpers', () => {
     expect(getTokenSpecificUri(uri3, 7n, 'es')).toBe(
       'https://ipfs.io/ipfs/QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn/7-es.json'
     );
+  });
+
+  test('catches ECONNRESET errors', async () => {
+    const url = new URL('http://test.io/1.json');
+    const agent = new MockAgent();
+    agent.disableNetConnect();
+    agent
+      .get('http://test.io')
+      .intercept({
+        path: '/1.json',
+        method: 'GET',
+      })
+      // Simulate the weird error thrown by Undici.
+      .replyWithError(Object.assign(new TypeError(), { cause: new Error('read ECONNRESET') }));
+    setGlobalDispatcher(agent);
+
+    await expect(fetchMetadata(url)).rejects.toThrow(RetryableJobError);
   });
 });

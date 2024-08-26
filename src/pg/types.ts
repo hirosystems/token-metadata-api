@@ -18,6 +18,19 @@ export enum DbJobStatus {
   invalid = 'invalid',
 }
 
+export enum DbJobInvalidReason {
+  unknown = 100,
+  metadataSizeExceeded = 101,
+  imageSizeExceeded = 102,
+  metadataTimeout = 103,
+  imageTimeout = 104,
+  metadataParseFailed = 105,
+  imageParseFailed = 106,
+  metadataHttpError = 107,
+  imageHttpError = 108,
+  tokenContractClarityError = 109,
+}
+
 export enum DbTokenType {
   ft = 'ft',
   nft = 'nft',
@@ -33,26 +46,37 @@ export enum DbTokenUpdateMode {
 export type DbSmartContractInsert = {
   principal: string;
   sip: DbSipNumber;
-  abi: PgJsonb;
-  tx_id: string;
   block_height: number;
+  index_block_hash: string;
+  tx_id: string;
+  tx_index: number;
+  fungible_token_name: string | null;
+  non_fungible_token_name: string | null;
 };
 
 export type DbSmartContract = {
   id: number;
   principal: string;
   sip: DbSipNumber;
-  tx_id: string;
-  block_height: number;
   token_count?: bigint;
+  block_height: number;
+  index_block_hash: string;
+  tx_id: string;
+  tx_index: number;
   created_at: string;
   updated_at?: string;
+  fungible_token_name?: string;
+  non_fungible_token_name?: string;
 };
 
 export type DbTokenInsert = {
   smart_contract_id: number;
   type: DbTokenType;
   token_number: PgNumeric;
+  block_height: number;
+  index_block_hash: string;
+  tx_id: string;
+  tx_index: number;
 };
 
 export type DbToken = {
@@ -60,15 +84,13 @@ export type DbToken = {
   smart_contract_id: number;
   type: DbTokenType;
   token_number: bigint;
-  update_mode: DbTokenUpdateMode;
-  ttl?: number;
-  uri?: string;
-  name?: string;
-  decimals?: number;
-  total_supply?: bigint;
-  symbol?: string;
+  uri: string | null;
+  name: string | null;
+  decimals: number | null;
+  total_supply: string | null;
+  symbol: string | null;
   created_at: string;
-  updated_at?: string;
+  updated_at: string | null;
 };
 
 export type DbJobInsert = {
@@ -84,6 +106,17 @@ export type DbJob = {
   retry_count: number;
   created_at: string;
   updated_at?: string;
+};
+
+export type DbUpdateNotification = {
+  token_id: number;
+  block_height: number;
+  index_block_hash: string;
+  tx_id: string;
+  tx_index: number;
+  event_index: number;
+  update_mode: DbTokenUpdateMode;
+  ttl: bigint | null;
 };
 
 export type DbRateLimitedHostInsert = {
@@ -220,7 +253,7 @@ export type DbFungibleTokenMetadataItem = {
   name?: string;
   symbol?: string;
   decimals?: number;
-  total_supply?: bigint;
+  total_supply?: string;
   uri?: string;
   description?: string;
   tx_id: string;
@@ -230,24 +263,11 @@ export type DbFungibleTokenMetadataItem = {
   cached_thumbnail_image?: string;
 };
 
-export const SMART_CONTRACTS_COLUMNS = [
-  'id',
-  'principal',
-  'sip',
-  'tx_id',
-  'block_height',
-  'token_count',
-  'created_at',
-  'updated_at',
-];
-
 export const TOKENS_COLUMNS = [
   'id',
   'smart_contract_id',
   'type',
   'token_number',
-  'update_mode',
-  'ttl',
   'uri',
   'name',
   'decimals',

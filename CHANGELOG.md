@@ -1,3 +1,61 @@
+## [1.0.0-beta.7](https://github.com/hirosystems/token-metadata-api/compare/v1.0.0-beta.6...v1.0.0-beta.7) (2024-08-26)
+
+
+### Bug Fixes
+
+* catch econnreset errors ([#247](https://github.com/hirosystems/token-metadata-api/issues/247)) ([51347d6](https://github.com/hirosystems/token-metadata-api/commit/51347d635d4e50f299af07fef8378ae279f14461))
+
+## [1.0.0-beta.6](https://github.com/hirosystems/token-metadata-api/compare/v1.0.0-beta.5...v1.0.0-beta.6) (2024-08-26)
+
+
+### Features
+
+* convert data: image uris into image files and upload to cdn ([#245](https://github.com/hirosystems/token-metadata-api/issues/245)) ([903b0aa](https://github.com/hirosystems/token-metadata-api/commit/903b0aa2a63acc3340fdde570201f5c424f4443c))
+
+## [1.0.0-beta.5](https://github.com/hirosystems/token-metadata-api/compare/v1.0.0-beta.4...v1.0.0-beta.5) (2024-08-26)
+
+
+### Bug Fixes
+
+* set maximum job timeout ([#244](https://github.com/hirosystems/token-metadata-api/issues/244)) ([3444917](https://github.com/hirosystems/token-metadata-api/commit/344491770172a8f8a22f4f5d8c485fd98256997c))
+
+## [1.0.0-beta.4](https://github.com/hirosystems/token-metadata-api/compare/v1.0.0-beta.3...v1.0.0-beta.4) (2024-08-24)
+
+
+### Bug Fixes
+
+* take only first page of gif images ([#241](https://github.com/hirosystems/token-metadata-api/issues/241)) ([334f8c5](https://github.com/hirosystems/token-metadata-api/commit/334f8c524d976719f9d33ed611ddf6a1a8e7bb05))
+
+## [1.0.0-beta.3](https://github.com/hirosystems/token-metadata-api/compare/v1.0.0-beta.2...v1.0.0-beta.3) (2024-08-22)
+
+
+### Bug Fixes
+
+* use bignumber to handle FT supplies ([#239](https://github.com/hirosystems/token-metadata-api/issues/239)) ([053d622](https://github.com/hirosystems/token-metadata-api/commit/053d622d33bc46401acbe80980010e2407383c1a))
+
+## [1.0.0-beta.2](https://github.com/hirosystems/token-metadata-api/compare/v1.0.0-beta.1...v1.0.0-beta.2) (2024-08-22)
+
+
+### Bug Fixes
+
+* use google cloud library for image uploads ([#238](https://github.com/hirosystems/token-metadata-api/issues/238)) ([c7f1b43](https://github.com/hirosystems/token-metadata-api/commit/c7f1b4368dbec0e028a4e7676c82c25f0ebaeb09))
+
+## [1.0.0-beta.1](https://github.com/hirosystems/token-metadata-api/compare/v0.7.0...v1.0.0-beta.1) (2024-08-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* use chainhook to listen for chain events instead of a direct stacks api connection (#200)
+
+### Bug Fixes
+
+* use prometheus port configured in ENV ([c769d29](https://github.com/hirosystems/token-metadata-api/commit/c769d2950d65448265caf2bf6bd78fce437358c0))
+
+
+### Code Refactoring
+
+* use chainhook to listen for chain events instead of a direct stacks api connection ([#200](https://github.com/hirosystems/token-metadata-api/issues/200)) ([2ddb2c7](https://github.com/hirosystems/token-metadata-api/commit/2ddb2c7db37419538bd4267c863aaf1f8a2ec5c1)), closes [#229](https://github.com/hirosystems/token-metadata-api/issues/229) [#232](https://github.com/hirosystems/token-metadata-api/issues/232) [#233](https://github.com/hirosystems/token-metadata-api/issues/233) [#234](https://github.com/hirosystems/token-metadata-api/issues/234) [#235](https://github.com/hirosystems/token-metadata-api/issues/235) [#236](https://github.com/hirosystems/token-metadata-api/issues/236)
+
 ## [0.7.0](https://github.com/hirosystems/token-metadata-api/compare/v0.6.3...v0.7.0) (2024-05-13)
 
 

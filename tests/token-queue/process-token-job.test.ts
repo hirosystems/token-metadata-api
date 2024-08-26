@@ -1,6 +1,6 @@
 import { cvToHex, noneCV, stringUtf8CV, uintCV } from '@stacks/transactions';
 import { errors, MockAgent, setGlobalDispatcher } from 'undici';
-import { MIGRATIONS_DIR, PgStore } from '../src/pg/pg-store';
+import { MIGRATIONS_DIR, PgStore } from '../../src/pg/pg-store';
 import {
   DbJob,
   DbJobStatus,
@@ -9,13 +9,14 @@ import {
   DbSipNumber,
   DbSmartContractInsert,
   DbTokenType,
-} from '../src/pg/types';
-import { ENV } from '../src/env';
-import { ProcessTokenJob } from '../src/token-processor/queue/job/process-token-job';
-import { parseRetryAfterResponseHeader } from '../src/token-processor/util/helpers';
-import { RetryableJobError } from '../src/token-processor/queue/errors';
-import { TooManyRequestsHttpError } from '../src/token-processor/util/errors';
+} from '../../src/pg/types';
+import { ENV } from '../../src/env';
+import { ProcessTokenJob } from '../../src/token-processor/queue/job/process-token-job';
+import { parseRetryAfterResponseHeader } from '../../src/token-processor/util/helpers';
+import { RetryableJobError } from '../../src/token-processor/queue/errors';
+import { TooManyRequestsHttpError } from '../../src/token-processor/util/errors';
 import { cycleMigrations } from '@hirosystems/api-toolkit';
+import { insertAndEnqueueTestContractWithTokens } from '../helpers';
 
 describe('ProcessTokenJob', () => {
   let db: PgStore;
@@ -34,19 +35,12 @@ describe('ProcessTokenJob', () => {
     let tokenJob: DbJob;
 
     beforeEach(async () => {
-      const values: DbSmartContractInsert = {
-        principal: 'ABCD.test-ft',
-        sip: DbSipNumber.sip010,
-        abi: '"some"',
-        tx_id: '0x123456',
-        block_height: 1,
-      };
-      await db.insertAndEnqueueSmartContract({ values });
-      [tokenJob] = await db.insertAndEnqueueSequentialTokens({
-        smart_contract_id: 1,
-        token_count: 1n,
-        type: DbTokenType.ft,
-      });
+      [tokenJob] = await insertAndEnqueueTestContractWithTokens(
+        db,
+        'ABCD.test-ft',
+        DbSipNumber.sip010,
+        1n
+      );
     });
 
     test('parses FT info', async () => {
@@ -110,7 +104,7 @@ describe('ProcessTokenJob', () => {
       expect(token?.name).toBe('FooToken');
       expect(token?.symbol).toBe('FOO');
       expect(token?.decimals).toBe(6);
-      expect(token?.total_supply).toBe(1997500000000n);
+      expect(token?.total_supply).toBe('1997500000000');
     });
 
     test('keeps contract FT info if metadata fetch fails', async () => {
@@ -182,7 +176,7 @@ describe('ProcessTokenJob', () => {
       expect(token?.name).toBe('FooToken');
       expect(token?.symbol).toBe('FOO');
       expect(token?.decimals).toBe(6);
-      expect(token?.total_supply).toBe(1997500000000n);
+      expect(token?.total_supply).toBe('1997500000000');
       const bundle = await db.getTokenMetadataBundle({
         contractPrincipal: 'ABCD.test-ft',
         tokenNumber: 1,
@@ -252,7 +246,7 @@ describe('ProcessTokenJob', () => {
       expect(token?.name).toBe('FooToken');
       expect(token?.symbol).toBe('FOO');
       expect(token?.decimals).toBe(6);
-      expect(token?.total_supply).toBeUndefined();
+      expect(token?.total_supply).toBeNull();
     });
 
     test('accepts FTs with invalid image entries', async () => {
@@ -350,23 +344,15 @@ describe('ProcessTokenJob', () => {
     let tokenJob: DbJob;
 
     beforeEach(async () => {
-      const values: DbSmartContractInsert = {
-        principal: 'ABCD.test-nft',
-        sip: DbSipNumber.sip009,
-        abi: '"some"',
-        tx_id: '0x123456',
-        block_height: 1,
-      };
-      await db.insertAndEnqueueSmartContract({ values });
-      [tokenJob] = await db.insertAndEnqueueSequentialTokens({
-        smart_contract_id: 1,
-        token_count: 1n,
-        type: DbTokenType.nft,
-      });
+      [tokenJob] = await insertAndEnqueueTestContractWithTokens(
+        db,
+        'ABCD.test-nft',
+        DbSipNumber.sip009,
+        1n
+      );
     });
 
     test('parses metadata with arbitrary types', async () => {
-      ENV.METADATA_IMAGE_CACHE_PROCESSOR = './tests/test-image-cache.js';
       const metadata = {
         name: 'Mutant Monkeys #1',
         image:
@@ -430,9 +416,6 @@ describe('ProcessTokenJob', () => {
       expect(bundle?.metadataLocale?.metadata.name).toBe('Mutant Monkeys #1');
       expect(bundle?.metadataLocale?.metadata.image).toBe(
         'https://byzantion.mypinata.cloud/ipfs/QmWAYP9LJD15mgrnapfpJhBArG6T3J4XKTM77tzqggvP7w'
-      );
-      expect(bundle?.metadataLocale?.metadata.cached_image).toBe(
-        'https://byzantion.mypinata.cloud/ipfs/QmWAYP9LJD15mgrnapfpJhBArG6T3J4XKTM77tzqggvP7w?processed=true'
       );
       expect(bundle?.metadataLocale?.metadata.description).toBeNull();
 
@@ -743,21 +726,12 @@ describe('ProcessTokenJob', () => {
     let tokenJob: DbJob;
 
     beforeEach(async () => {
-      const values: DbSmartContractInsert = {
-        principal: `${address}.${contractId}`,
-        sip: DbSipNumber.sip013,
-        abi: '"some"',
-        tx_id: '0x123456',
-        block_height: 1,
-      };
-      await db.insertAndEnqueueSmartContract({ values });
-      [tokenJob] = await db.insertAndEnqueueTokenArray([
-        {
-          smart_contract_id: 1,
-          type: DbTokenType.sft,
-          token_number: '1',
-        },
-      ]);
+      [tokenJob] = await insertAndEnqueueTestContractWithTokens(
+        db,
+        `${address}.${contractId}`,
+        DbSipNumber.sip013,
+        1n
+      );
     });
 
     test('parses SFT info', async () => {
@@ -802,7 +776,7 @@ describe('ProcessTokenJob', () => {
       expect(token).not.toBeUndefined();
       expect(token?.uri).toBeNull();
       expect(token?.decimals).toBe(6);
-      expect(token?.total_supply).toBe(200200200n);
+      expect(token?.total_supply).toBe('200200200');
     });
   });
 
@@ -811,19 +785,12 @@ describe('ProcessTokenJob', () => {
     let agent: MockAgent;
 
     beforeEach(async () => {
-      const values: DbSmartContractInsert = {
-        principal: 'ABCD.test-nft',
-        sip: DbSipNumber.sip009,
-        abi: '"some"',
-        tx_id: '0x123456',
-        block_height: 1,
-      };
-      await db.insertAndEnqueueSmartContract({ values });
-      [tokenJob] = await db.insertAndEnqueueSequentialTokens({
-        smart_contract_id: 1,
-        token_count: 1n,
-        type: DbTokenType.nft,
-      });
+      [tokenJob] = await insertAndEnqueueTestContractWithTokens(
+        db,
+        'ABCD.test-nft',
+        DbSipNumber.sip009,
+        1n
+      );
 
       agent = new MockAgent();
       agent.disableNetConnect();

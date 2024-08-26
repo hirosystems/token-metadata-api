@@ -13,25 +13,36 @@ export function up(pgm: MigrationBuilder): void {
     principal: {
       type: 'text',
       notNull: true,
+      unique: true,
     },
     sip: {
       type: 'sip_number',
       notNull: true,
     },
-    abi: {
-      type: 'jsonb',
+    token_count: {
+      type: 'numeric',
+    },
+    fungible_token_name: {
+      type: 'text',
+    },
+    non_fungible_token_name: {
+      type: 'text',
+    },
+    block_height: {
+      type: 'int',
+      notNull: true,
+    },
+    index_block_hash: {
+      type: 'text',
       notNull: true,
     },
     tx_id: {
       type: 'text',
       notNull: true,
     },
-    block_height: {
+    tx_index: {
       type: 'int',
       notNull: true,
-    },
-    token_count: {
-      type: 'numeric',
     },
     created_at: {
       type: 'timestamptz',
@@ -42,7 +53,5 @@ export function up(pgm: MigrationBuilder): void {
       type: 'timestamptz',
     },
   });
-  pgm.createConstraint('smart_contracts', 'smart_contracts_principal_unique', 'UNIQUE(principal)');
   pgm.createIndex('smart_contracts', [{ name: 'block_height', sort: 'DESC' }]);
-  pgm.createIndex('smart_contracts', ['principal']);
 }
