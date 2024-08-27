@@ -2,6 +2,7 @@ import * as prom from 'prom-client';
 import { PgStore } from '../pg/pg-store';
 
 export class TokenProcessorMetrics {
+  readonly token_metadata_block_height: prom.Gauge;
   /** Job count divided by status */
   readonly token_metadata_job_count: prom.Gauge;
   /** Smart contract count divided by SIP number */
@@ -14,6 +15,14 @@ export class TokenProcessorMetrics {
   }
 
   private constructor(db: PgStore) {
+    this.token_metadata_block_height = new prom.Gauge({
+      name: `token_metadata_block_height`,
+      help: 'The most recent Bitcoin block height ingested by the API',
+      async collect() {
+        const height = await db.getChainTipBlockHeight();
+        this.set(height);
+      },
+    });
     this.token_metadata_job_count = new prom.Gauge({
       name: `token_metadata_job_count`,
       help: 'Job count divided by status',

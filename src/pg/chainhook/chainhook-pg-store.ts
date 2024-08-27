@@ -113,6 +113,10 @@ export class ChainhookPgStore extends BasePgStoreModule {
     );
   }
 
+  async updateChainTipBlockHeight(blockHeight: number): Promise<void> {
+    await this.sql`UPDATE chain_tip SET block_height = GREATEST(${blockHeight}, block_height)`;
+  }
+
   private async getLastIngestedBlockHeight(): Promise<number> {
     const result = await this.sql<{ block_height: number }[]>`SELECT block_height FROM chain_tip`;
     return result[0].block_height;
@@ -381,10 +385,6 @@ export class ChainhookPgStore extends BasePgStoreModule {
     `;
     if (result.count) return result[0].id;
     throw new ContractNotFoundError();
-  }
-
-  private async updateChainTipBlockHeight(blockHeight: number): Promise<void> {
-    await this.sql`UPDATE chain_tip SET block_height = GREATEST(${blockHeight}, block_height)`;
   }
 
   private async enqueueDynamicTokensDueForRefresh(): Promise<void> {
