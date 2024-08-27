@@ -7,7 +7,6 @@ import {
   getTokenSpecificUri,
   fetchMetadata,
 } from '../../src/token-processor/util/metadata-helpers';
-import { RetryableJobError } from '../../src/token-processor/queue/errors';
 
 describe('Metadata Helpers', () => {
   test('performs timed and limited request', async () => {
@@ -24,7 +23,7 @@ describe('Metadata Helpers', () => {
       .reply(200, 'hello');
     setGlobalDispatcher(agent);
 
-    const result = await fetchMetadata(url);
+    const result = await fetchMetadata(url, 'ABCD.test', 1n);
     expect(result).toBe('hello');
   });
 
@@ -40,7 +39,9 @@ describe('Metadata Helpers', () => {
       .reply(200, '[{"test-bad-json": true}]');
     setGlobalDispatcher(agent);
 
-    await expect(getMetadataFromUri('http://test.io/1.json')).rejects.toThrow(/JSON parse error/);
+    await expect(getMetadataFromUri('http://test.io/1.json', 'ABCD.test', 1n)).rejects.toThrow(
+      /JSON parse error/
+    );
   });
 
   test('throws metadata http errors', async () => {
@@ -56,7 +57,7 @@ describe('Metadata Helpers', () => {
       .reply(500, { message: 'server error' });
     setGlobalDispatcher(agent);
 
-    await expect(fetchMetadata(url)).rejects.toThrow(MetadataHttpError);
+    await expect(fetchMetadata(url, 'ABCD.test', 1n)).rejects.toThrow(MetadataHttpError);
   });
 
   test('does not throw on raw metadata with null or stringable values', async () => {
@@ -91,7 +92,9 @@ describe('Metadata Helpers', () => {
       .reply(200, crashPunks1);
     setGlobalDispatcher(agent);
 
-    await expect(getMetadataFromUri('http://test.io/1.json')).resolves.not.toThrow();
+    await expect(
+      getMetadataFromUri('http://test.io/1.json', 'ABCD.test', 1n)
+    ).resolves.not.toThrow();
   });
 
   test('fetches typed raw metadata', async () => {
@@ -127,7 +130,7 @@ describe('Metadata Helpers', () => {
       .reply(200, json);
     setGlobalDispatcher(agent);
 
-    const metadata = await getMetadataFromUri('http://test.io/1.json');
+    const metadata = await getMetadataFromUri('http://test.io/1.json', 'ABCD.test', 1n);
     expect(metadata.name).toBe('Mutant Monkeys #27');
     expect(metadata.image).toBe(
       'https://byzantion.mypinata.cloud/ipfs/QmbNC9qvcYZugaeGeReDhyYiNH7oPzrCX1cZUnQeszFz4P'
@@ -154,7 +157,7 @@ describe('Metadata Helpers', () => {
       .reply(200, json);
     setGlobalDispatcher(agent);
 
-    const metadata = await getMetadataFromUri('http://test.io/1.json');
+    const metadata = await getMetadataFromUri('http://test.io/1.json', 'ABCD.test', 1n);
     expect(metadata.name).toBe('Boombox [4th Edition]');
     expect(metadata.description).toBe(
       'The first ever Boombox to exist IRL, this art was created by 3D printing a model and photographing it under some very Boomerific lighting. 💥'
@@ -228,6 +231,6 @@ describe('Metadata Helpers', () => {
       .replyWithError(Object.assign(new TypeError(), { cause: new Error('read ECONNRESET') }));
     setGlobalDispatcher(agent);
 
-    await expect(fetchMetadata(url)).rejects.toThrow(MetadataHttpError);
+    await expect(fetchMetadata(url, 'ABCD.test', 1n)).rejects.toThrow(MetadataHttpError);
   });
 });
