@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/hirosystems/token-metadata-api/compare/v1.0.2...v1.0.3) (2024-08-27)
+
+
+### Bug Fixes
+
+* correctly classify image errors vs metadata errors ([#251](https://github.com/hirosystems/token-metadata-api/issues/251)) ([7369554](https://github.com/hirosystems/token-metadata-api/commit/736955451c651f7c5f9d4d985060bfa68dee7b27))
+
 ## [1.0.2](https://github.com/hirosystems/token-metadata-api/compare/v1.0.1...v1.0.2) (2024-08-27)
 
 
