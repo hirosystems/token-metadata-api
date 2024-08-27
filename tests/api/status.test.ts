@@ -30,6 +30,9 @@ describe('Status routes', () => {
     expect(json).toStrictEqual({
       server_version: 'token-metadata-api v0.0.1 (test:123456)',
       status: 'ready',
+      chain_tip: {
+        block_height: 1,
+      },
     });
     const noVersionResponse = await fastify.inject({ method: 'GET', url: '/metadata/' });
     expect(response.statusCode).toEqual(noVersionResponse.statusCode);
@@ -43,12 +46,16 @@ describe('Status routes', () => {
       DbSipNumber.sip009,
       1n
     );
+    await db.chainhook.updateChainTipBlockHeight(100);
 
     const response = await fastify.inject({ method: 'GET', url: '/metadata/v1/' });
     const json = response.json();
     expect(json).toStrictEqual({
       server_version: 'token-metadata-api v0.0.1 (test:123456)',
       status: 'ready',
+      chain_tip: {
+        block_height: 100,
+      },
       job_queue: {
         pending: 2,
       },

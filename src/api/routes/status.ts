@@ -24,6 +24,8 @@ export const StatusRoutes: FastifyPluginCallback<
     },
     async (request, reply) => {
       const result = await fastify.db.sqlTransaction(async sql => {
+        const block_height = await fastify.db.getChainTipBlockHeight();
+
         const smartContracts: Record<string, number> = {};
         const contractCounts = await fastify.db.getSmartContractCounts();
         for (const row of contractCounts) {
@@ -45,6 +47,9 @@ export const StatusRoutes: FastifyPluginCallback<
         return {
           server_version: `token-metadata-api ${SERVER_VERSION.tag} (${SERVER_VERSION.branch}:${SERVER_VERSION.commit})`,
           status: 'ready',
+          chain_tip: {
+            block_height,
+          },
           tokens: tokenCounts.length ? tokens : undefined,
           token_contracts: contractCounts.length ? smartContracts : undefined,
           job_queue: jobCounts.length ? queue : undefined,
