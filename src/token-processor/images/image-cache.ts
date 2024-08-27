@@ -158,7 +158,7 @@ export async function processImageCache(
         throw new ImageSizeExceededError(`ImageCache image too large: ${imgUrl}`);
       }
       if ((typeError.cause as any).toString().includes('ECONNRESET')) {
-        throw new RetryableJobError(`ImageCache server connection interrupted`, typeError);
+        throw new ImageHttpError(`ImageCache server connection interrupted`, typeError);
       }
     }
     throw error;

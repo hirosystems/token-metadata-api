@@ -9,7 +9,7 @@ import {
   DbTokenType,
 } from '../../../pg/types';
 import { StacksNodeRpcClient } from '../../stacks-node/stacks-node-rpc-client';
-import { StacksNodeClarityError, TooManyRequestsHttpError } from '../../util/errors';
+import { SmartContractClarityError, TooManyRequestsHttpError } from '../../util/errors';
 import {
   fetchAllMetadataLocalesFromBaseUri,
   getFetchableDecentralizedStorageUrl,
@@ -108,7 +108,7 @@ export class ProcessTokenJob extends Job {
     } catch (error) {
       // We'll treat Clarity errors here as if the supply was `undefined` to accommodate ALEX's
       // wrapped tokens which return an error in `get-total-supply`.
-      if (!(error instanceof StacksNodeClarityError)) {
+      if (!(error instanceof SmartContractClarityError)) {
         throw error;
       }
     }

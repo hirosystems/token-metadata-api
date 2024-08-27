@@ -9,7 +9,7 @@ import { request, errors } from 'undici';
 import { ENV } from '../../env';
 import { RetryableJobError } from '../queue/errors';
 import {
-  StacksNodeClarityError,
+  SmartContractClarityError,
   StacksNodeJsonParseError,
   StacksNodeHttpError,
 } from '../util/errors';
@@ -72,7 +72,7 @@ export class StacksNodeRpcClient {
     try {
       return BigInt(uintVal.value.toString());
     } catch (error) {
-      throw new RetryableJobError(`Invalid uint value '${uintVal.value}'`);
+      throw new SmartContractClarityError(`Invalid uint value '${uintVal.value}'`);
     }
   }
 
@@ -131,23 +131,18 @@ export class StacksNodeRpcClient {
     functionName: string,
     functionArgs: ClarityValue[]
   ): Promise<ClarityValue> {
-    let result: ReadOnlyContractCallResponse;
-    try {
-      result = await this.sendReadOnlyContractCall(functionName, functionArgs);
-    } catch (error) {
-      throw new RetryableJobError(`Error making read-only contract call: ${error}`, error);
-    }
+    const result = await this.sendReadOnlyContractCall(functionName, functionArgs);
     if (!result.okay) {
       if (result.cause.startsWith('Runtime')) {
         throw new RetryableJobError(
           `Runtime error while calling read-only function ${functionName}`
         );
       } else if (result.cause.includes('NoSuchContract')) {
-        throw new RetryableJobError(
+        throw new SmartContractClarityError(
           `Contract not available yet when calling read-only function ${functionName}`
         );
       }
-      throw new StacksNodeClarityError(`Read-only error ${functionName}: ${result.cause}`);
+      throw new SmartContractClarityError(`Read-only error ${functionName}: ${result.cause}`);
     }
     return decodeClarityValue(result.result);
   }
@@ -168,7 +163,7 @@ export class StacksNodeRpcClient {
     if (unwrappedClarityValue.type_id === ClarityTypeID.UInt) {
       return unwrappedClarityValue;
     }
-    throw new StacksNodeClarityError(
+    throw new SmartContractClarityError(
       `Unexpected Clarity type '${unwrappedClarityValue.type_id}' while unwrapping uint`
     );
   }
@@ -183,7 +178,7 @@ export class StacksNodeRpcClient {
     } else if (unwrappedClarityValue.type_id === ClarityTypeID.OptionalNone) {
       return undefined;
     }
-    throw new StacksNodeClarityError(
+    throw new SmartContractClarityError(
       `Unexpected Clarity type '${unwrappedClarityValue.type_id}' while unwrapping string`
     );
   }

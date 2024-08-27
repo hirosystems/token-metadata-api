@@ -97,14 +97,6 @@ export async function fetchAllMetadataLocalesFromBaseUri(
       break;
     } catch (error) {
       fetchImmediateRetryCount++;
-      if (
-        error instanceof MetadataTimeoutError &&
-        isUriFromDecentralizedStorage(error.url.toString())
-      ) {
-        // Gateways like IPFS and Arweave commonly time out when a resource can't be found quickly.
-        // Try again later if this is the case.
-        throw new RetryableJobError(`Gateway timeout for ${error.url}`, error);
-      }
       if (error instanceof TooManyRequestsHttpError) {
         // 429 status codes are common when fetching metadata for thousands of tokens in the same
         // server.
@@ -268,7 +260,7 @@ export async function fetchMetadata(httpUrl: URL): Promise<string | undefined> {
       error instanceof TypeError &&
       ((error as UndiciCauseTypeError).cause as any).toString().includes('ECONNRESET')
     ) {
-      throw new RetryableJobError(`Server connection interrupted`, error);
+      throw new MetadataHttpError(`Server connection interrupted`, error);
     }
     throw new MetadataHttpError(`${url}: ${error}`, error);
   }
