@@ -44,7 +44,7 @@ export class MetadataParseError extends UserError {
 
 export class ImageParseError extends MetadataParseError {}
 
-export class StacksNodeClarityError extends UserError {
+export class SmartContractClarityError extends UserError {
   constructor(message: string) {
     super();
     this.message = message;
@@ -111,7 +111,7 @@ export function getUserErrorInvalidReason(error: UserError): DbJobInvalidReason 
       return DbJobInvalidReason.metadataHttpError;
     case error instanceof ImageHttpError:
       return DbJobInvalidReason.imageHttpError;
-    case error instanceof StacksNodeClarityError:
+    case error instanceof SmartContractClarityError:
       return DbJobInvalidReason.tokenContractClarityError;
     default:
       return DbJobInvalidReason.unknown;

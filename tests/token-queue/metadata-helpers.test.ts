@@ -228,6 +228,6 @@ describe('Metadata Helpers', () => {
       .replyWithError(Object.assign(new TypeError(), { cause: new Error('read ECONNRESET') }));
     setGlobalDispatcher(agent);
 
-    await expect(fetchMetadata(url)).rejects.toThrow(RetryableJobError);
+    await expect(fetchMetadata(url)).rejects.toThrow(MetadataHttpError);
   });
 });
