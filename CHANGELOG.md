@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/hirosystems/token-metadata-api/compare/v1.0.1...v1.0.2) (2024-08-27)
+
+
+### Bug Fixes
+
+* add block_height to status and prometheus ([#250](https://github.com/hirosystems/token-metadata-api/issues/250)) ([4502c7d](https://github.com/hirosystems/token-metadata-api/commit/4502c7dd2ba8ad6ef3159e0abdad482e73437800))
+
 ## [1.0.1](https://github.com/hirosystems/token-metadata-api/compare/v1.0.0...v1.0.1) (2024-08-27)
 
 
