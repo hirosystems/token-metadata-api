@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/hirosystems/token-metadata-api/compare/v1.0.0...v1.0.1) (2024-08-27)
+
+
+### Bug Fixes
+
+* demote server connection errors and contract clarity errors to be non-retryable ([#249](https://github.com/hirosystems/token-metadata-api/issues/249)) ([87ad8af](https://github.com/hirosystems/token-metadata-api/commit/87ad8af6e36a139950286da1b37818dc32f30927))
+
 ## [1.0.0](https://github.com/hirosystems/token-metadata-api/compare/v0.7.0...v1.0.0) (2024-08-26)
 
 
