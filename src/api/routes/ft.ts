@@ -16,7 +16,7 @@ import {
   StacksAddressParam,
   TokenQuerystringParams,
 } from '../schemas';
-import { handleTokenCache } from '../util/cache';
+import { handleChainTipCache, handleTokenCache } from '../util/cache';
 import { generateTokenErrorResponse, TokenErrorResponseSchema } from '../util/errors';
 import { parseMetadataLocaleBundle } from '../util/helpers';
 
@@ -25,6 +25,7 @@ const IndexRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTy
   options,
   done
 ) => {
+  fastify.addHook('preHandler', handleChainTipCache);
   fastify.get(
     '/ft',
     {
