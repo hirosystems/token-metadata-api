@@ -21,9 +21,9 @@ async function handleCache(type: ETagType, request: FastifyRequest, reply: Fasti
       break;
   }
   if (etag) {
-    if (ifNoneMatch && typeof etag === 'string' && ifNoneMatch.includes(etag)) {
+    if (ifNoneMatch && ifNoneMatch.includes(etag)) {
       await reply.header('Cache-Control', CACHE_CONTROL_MUST_REVALIDATE).code(304).send();
-    } else if (typeof etag === 'string') {
+    } else {
       void reply.headers({ 'Cache-Control': CACHE_CONTROL_MUST_REVALIDATE, ETag: `"${etag}"` });
     }
   }
