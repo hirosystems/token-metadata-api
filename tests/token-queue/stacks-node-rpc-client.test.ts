@@ -13,6 +13,7 @@ import { StacksNodeRpcClient } from '../../src/token-processor/stacks-node/stack
 import {
   StacksNodeJsonParseError,
   StacksNodeHttpError,
+  SmartContractClarityError,
 } from '../../src/token-processor/util/errors';
 
 describe('StacksNodeRpcClient', () => {
@@ -69,7 +70,7 @@ describe('StacksNodeRpcClient', () => {
     setGlobalDispatcher(agent);
 
     await expect(client.readStringFromContract('get-token-uri', [])).rejects.toThrow(
-      RetryableJobError
+      SmartContractClarityError
     );
   });
 
@@ -110,9 +111,7 @@ describe('StacksNodeRpcClient', () => {
     try {
       await client.readStringFromContract('get-token-uri', []);
     } catch (error) {
-      expect(error).toBeInstanceOf(RetryableJobError);
-      const err = error as RetryableJobError;
-      expect(err.cause).toBeInstanceOf(StacksNodeHttpError);
+      expect(error).toBeInstanceOf(StacksNodeHttpError);
     }
   });
 
@@ -131,9 +130,7 @@ describe('StacksNodeRpcClient', () => {
     try {
       await client.readStringFromContract('get-token-uri', []);
     } catch (error) {
-      expect(error).toBeInstanceOf(RetryableJobError);
-      const err = error as RetryableJobError;
-      expect(err.cause).toBeInstanceOf(StacksNodeJsonParseError);
+      expect(error).toBeInstanceOf(StacksNodeJsonParseError);
     }
   });
 

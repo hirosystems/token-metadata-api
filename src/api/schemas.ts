@@ -310,6 +310,9 @@ export const ApiStatusResponse = Type.Object(
   {
     server_version: Type.String({ examples: ['token-metadata-api v0.0.1 (master:a1b2c3)'] }),
     status: Type.String({ examples: ['ready'] }),
+    chain_tip: Type.Object({
+      block_height: Type.Integer({ examples: [163541] }),
+    }),
     tokens: Type.Optional(
       Type.Object(
         {

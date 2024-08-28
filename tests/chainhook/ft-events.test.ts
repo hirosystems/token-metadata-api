@@ -38,7 +38,7 @@ describe('FT events', () => {
     };
     await db.updateProcessedTokenWithMetadata({ id: 1, values: tokenValues });
     let token = await db.getToken({ id: 1 });
-    expect(token?.total_supply).toBe(10000n);
+    expect(token?.total_supply).toBe('10000');
 
     await db.chainhook.processPayload(
       new TestChainhookPayloadBuilder()
@@ -58,7 +58,7 @@ describe('FT events', () => {
     );
 
     token = await db.getToken({ id: 1 });
-    expect(token?.total_supply).toBe(12000n);
+    expect(token?.total_supply).toBe('12000');
   });
 
   test('FT mints do not enqueue refresh', async () => {
@@ -105,7 +105,7 @@ describe('FT events', () => {
     };
     await db.updateProcessedTokenWithMetadata({ id: 1, values: tokenValues });
     let token = await db.getToken({ id: 1 });
-    expect(token?.total_supply).toBe(10000n);
+    expect(token?.total_supply).toBe('10000');
 
     await db.chainhook.processPayload(
       new TestChainhookPayloadBuilder()
@@ -125,7 +125,7 @@ describe('FT events', () => {
     );
 
     token = await db.getToken({ id: 1 });
-    expect(token?.total_supply).toBe(8000n);
+    expect(token?.total_supply).toBe('8000');
   });
 
   test('FT burns do not enqueue refresh', async () => {

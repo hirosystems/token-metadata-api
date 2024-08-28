@@ -44,7 +44,7 @@ export class MetadataParseError extends UserError {
 
 export class ImageParseError extends MetadataParseError {}
 
-export class StacksNodeClarityError extends UserError {
+export class SmartContractClarityError extends UserError {
   constructor(message: string) {
     super();
     this.message = message;
@@ -95,23 +95,23 @@ export class StacksNodeHttpError extends Error {
 
 export function getUserErrorInvalidReason(error: UserError): DbJobInvalidReason {
   switch (true) {
-    case error instanceof MetadataSizeExceededError:
-      return DbJobInvalidReason.metadataSizeExceeded;
     case error instanceof ImageSizeExceededError:
       return DbJobInvalidReason.imageSizeExceeded;
-    case error instanceof MetadataTimeoutError:
-      return DbJobInvalidReason.metadataTimeout;
+    case error instanceof MetadataSizeExceededError:
+      return DbJobInvalidReason.metadataSizeExceeded;
     case error instanceof ImageTimeoutError:
       return DbJobInvalidReason.imageTimeout;
-    case error instanceof MetadataParseError:
-      return DbJobInvalidReason.metadataParseFailed;
+    case error instanceof MetadataTimeoutError:
+      return DbJobInvalidReason.metadataTimeout;
     case error instanceof ImageParseError:
       return DbJobInvalidReason.imageParseFailed;
-    case error instanceof MetadataHttpError:
-      return DbJobInvalidReason.metadataHttpError;
+    case error instanceof MetadataParseError:
+      return DbJobInvalidReason.metadataParseFailed;
     case error instanceof ImageHttpError:
       return DbJobInvalidReason.imageHttpError;
-    case error instanceof StacksNodeClarityError:
+    case error instanceof MetadataHttpError:
+      return DbJobInvalidReason.metadataHttpError;
+    case error instanceof SmartContractClarityError:
       return DbJobInvalidReason.tokenContractClarityError;
     default:
       return DbJobInvalidReason.unknown;

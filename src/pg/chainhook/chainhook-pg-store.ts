@@ -24,6 +24,7 @@ import {
 } from '../types';
 import { BlockCache, CachedEvent } from './block-cache';
 import { dbSipNumberToDbTokenType } from '../../token-processor/util/helpers';
+import BigNumber from 'bignumber.js';
 
 export class ChainhookPgStore extends BasePgStoreModule {
   async processPayload(payload: StacksPayload): Promise<void> {
@@ -112,6 +113,10 @@ export class ChainhookPgStore extends BasePgStoreModule {
     );
   }
 
+  async updateChainTipBlockHeight(blockHeight: number): Promise<void> {
+    await this.sql`UPDATE chain_tip SET block_height = GREATEST(${blockHeight}, block_height)`;
+  }
+
   private async getLastIngestedBlockHeight(): Promise<number> {
     const result = await this.sql<{ block_height: number }[]>`SELECT block_height FROM chain_tip`;
     return result[0].block_height;
@@ -155,7 +160,7 @@ export class ChainhookPgStore extends BasePgStoreModule {
     for (const mint of cache.nftMints) await this.rollBackNftMint(sql, mint, cache);
     for (const mint of cache.sftMints) await this.rollBackSftMint(sql, mint, cache);
     for (const [contract, delta] of cache.ftSupplyDelta)
-      await this.applyFtSupplyChange(sql, contract, delta * -1n, cache);
+      await this.applyFtSupplyChange(sql, contract, delta.negated(), cache);
   }
 
   private async applyNotification(
@@ -279,7 +284,7 @@ export class ChainhookPgStore extends BasePgStoreModule {
   private async applyFtSupplyChange(
     sql: PgSqlClient,
     contract: string,
-    delta: bigint,
+    delta: BigNumber,
     cache: BlockCache
   ): Promise<void> {
     await sql`
@@ -380,10 +385,6 @@ export class ChainhookPgStore extends BasePgStoreModule {
     `;
     if (result.count) return result[0].id;
     throw new ContractNotFoundError();
-  }
-
-  private async updateChainTipBlockHeight(blockHeight: number): Promise<void> {
-    await this.sql`UPDATE chain_tip SET block_height = GREATEST(${blockHeight}, block_height)`;
   }
 
   private async enqueueDynamicTokensDueForRefresh(): Promise<void> {

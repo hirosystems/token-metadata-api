@@ -1,4 +1,4 @@
-import { logger, stopwatch } from '@hirosystems/api-toolkit';
+import { logger, resolveOrTimeout, stopwatch } from '@hirosystems/api-toolkit';
 import { ENV } from '../../../env';
 import { PgStore } from '../../../pg/pg-store';
 import { DbJob, DbJobInvalidReason, DbJobStatus } from '../../../pg/types';
@@ -43,8 +43,13 @@ export abstract class Job {
     // what to do in each case. If we choose to retry, this queue entry will simply not be marked as
     // `processed = true` so it can be picked up by the queue at a later time.
     try {
-      await this.handler();
-      status = DbJobStatus.done;
+      const success = await resolveOrTimeout(this.handler(), ENV.JOB_QUEUE_TIMEOUT_MS);
+      if (success) {
+        status = DbJobStatus.done;
+      } else {
+        logger.error(`Job ${this.description()} allowed timeout exceeded`);
+        status = DbJobStatus.failed;
+      }
     } catch (error) {
       if (error instanceof RetryableJobError) {
         const retries = await this.db.increaseJobRetryCount({ id: this.job.id });
@@ -62,7 +67,7 @@ export abstract class Job {
           status = DbJobStatus.failed;
         }
       } else if (error instanceof UserError) {
-        logger.error(error, `User error on Job ${this.description()}`);
+        logger.warn(error, `User error on Job ${this.description()}`);
         status = DbJobStatus.invalid;
         invalidReason = getUserErrorInvalidReason(error);
       } else {

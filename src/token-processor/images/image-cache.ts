@@ -5,7 +5,7 @@ import { PgStore } from '../../pg/pg-store';
 import { Readable } from 'node:stream';
 import * as sharp from 'sharp';
 import * as fs from 'fs';
-import { Agent, fetch, request, errors } from 'undici';
+import { Agent, fetch, errors } from 'undici';
 import {
   ImageSizeExceededError,
   ImageTimeoutError,
@@ -15,60 +15,22 @@ import {
   ImageParseError,
 } from '../util/errors';
 import { pipeline } from 'node:stream/promises';
+import { Storage } from '@google-cloud/storage';
+import { RetryableJobError } from '../queue/errors';
 
-let gcsAuthToken: string | undefined;
-async function getGcsAuthToken(): Promise<string> {
-  if (gcsAuthToken !== undefined) return gcsAuthToken;
-  try {
-    const response = await request(
-      'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',
-      {
-        method: 'GET',
-        headers: { 'Metadata-Flavor': 'Google' },
-        throwOnError: true,
-      }
-    );
-    const json = (await response.body.json()) as { access_token: string };
-    // Cache the token so we can reuse it for other images.
-    gcsAuthToken = json.access_token;
-    return json.access_token;
-  } catch (error) {
-    throw new Error(`GCS access token error: ${error}`);
+/** Saves an image provided via a `data:` uri string to disk for processing. */
+function convertDataImage(uri: string, tmpPath: string): string {
+  const dataUrl = parseDataUrl(uri);
+  if (!dataUrl) {
+    throw new ImageParseError(`Data URL could not be parsed: ${uri}`);
   }
-}
-
-async function uploadImage(localPath: string, remoteName: string): Promise<string> {
-  let didRetryUnauthorized = false;
-  while (true) {
-    const authToken = await getGcsAuthToken();
-    try {
-      return await new Promise((resolve, reject) => {
-        const fileStream = fs.createReadStream(localPath);
-        fileStream.on('error', reject);
-        request(
-          `https://storage.googleapis.com/upload/storage/v1/b/${ENV.IMAGE_CACHE_GCS_BUCKET_NAME}/o?uploadType=media&name=${ENV.IMAGE_CACHE_GCS_OBJECT_NAME_PREFIX}${remoteName}`,
-          {
-            method: 'POST',
-            body: fileStream,
-            headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${authToken}` },
-            throwOnError: true,
-          }
-        )
-          .then(_ => resolve(`${ENV.IMAGE_CACHE_CDN_BASE_PATH}${remoteName}`))
-          .catch(reject);
-      });
-    } catch (error) {
-      if (
-        !didRetryUnauthorized &&
-        error instanceof errors.ResponseStatusCodeError &&
-        (error.statusCode === 401 || error.statusCode === 403)
-      ) {
-        // GCS token is probably expired. Force a token refresh before trying again.
-        gcsAuthToken = undefined;
-        didRetryUnauthorized = true;
-      } else throw error;
-    }
+  if (!dataUrl.mediaType?.startsWith('image/')) {
+    throw new ImageParseError(`Token image is a Data URL with a non-image media type: ${uri}`);
   }
+  const filePath = `${tmpPath}/image`;
+  const imageBuffer = Buffer.from(dataUrl.data, 'base64');
+  fs.writeFileSync(filePath, imageBuffer);
+  return filePath;
 }
 
 async function downloadImage(imgUrl: string, tmpPath: string): Promise<string> {
@@ -117,7 +79,14 @@ async function downloadImage(imgUrl: string, tmpPath: string): Promise<string> {
 async function transformImage(filePath: string, resize: boolean = false): Promise<string> {
   return new Promise((resolve, reject) => {
     const outPath = resize ? `${filePath}-small.png` : `${filePath}.png`;
-    let sharpStream = sharp(filePath, { failOn: 'error' });
+    let sharpStream = sharp(filePath, {
+      failOn: 'error',
+      // TODO: This ignores multi-frame GIF formats to optimize memory and because we're converting
+      // to PNG anyway. We should support animated images in the future.
+      pages: 1,
+      page: 0,
+      animated: false,
+    });
     if (resize) {
       sharpStream = sharpStream.resize({
         width: ENV.IMAGE_CACHE_RESIZE_WIDTH,
@@ -145,20 +114,36 @@ export async function processImageCache(
   tokenNumber: bigint
 ): Promise<string[]> {
   logger.info(`ImageCache processing token ${contractPrincipal} (${tokenNumber}) at ${imgUrl}`);
-  if (imgUrl.startsWith('data:')) return [imgUrl];
-
   try {
+    const gcs = new Storage();
+    const gcsBucket = ENV.IMAGE_CACHE_GCS_BUCKET_NAME as string;
+
     const tmpPath = `tmp/${contractPrincipal}_${tokenNumber}`;
     fs.mkdirSync(tmpPath, { recursive: true });
+    let original: string;
+    if (imgUrl.startsWith('data:')) {
+      original = convertDataImage(imgUrl, tmpPath);
+    } else {
+      original = await downloadImage(imgUrl, tmpPath);
+    }
 
-    const original = await downloadImage(imgUrl, tmpPath);
     const image1 = await transformImage(original);
-    const cachedImage1 = await uploadImage(image1, `${contractPrincipal}/${tokenNumber}.png`);
-    const image2 = await transformImage(original, true);
-    const cachedImage2 = await uploadImage(image2, `${contractPrincipal}/${tokenNumber}-thumb.png`);
-    fs.rmSync(tmpPath, { force: true, recursive: true });
+    const remoteName1 = `${contractPrincipal}/${tokenNumber}.png`;
+    await gcs.bucket(gcsBucket).upload(image1, {
+      destination: `${ENV.IMAGE_CACHE_GCS_OBJECT_NAME_PREFIX}${remoteName1}`,
+    });
 
-    return [cachedImage1, cachedImage2];
+    const image2 = await transformImage(original, true);
+    const remoteName2 = `${contractPrincipal}/${tokenNumber}-thumb.png`;
+    await gcs.bucket(gcsBucket).upload(image2, {
+      destination: `${ENV.IMAGE_CACHE_GCS_OBJECT_NAME_PREFIX}${remoteName2}`,
+    });
+
+    fs.rmSync(tmpPath, { force: true, recursive: true });
+    return [
+      `${ENV.IMAGE_CACHE_CDN_BASE_PATH}${remoteName1}`,
+      `${ENV.IMAGE_CACHE_CDN_BASE_PATH}${remoteName2}`,
+    ];
   } catch (error) {
     if (error instanceof TypeError) {
       const typeError = error as UndiciCauseTypeError;
@@ -172,6 +157,9 @@ export async function processImageCache(
       if (typeError.cause instanceof errors.ResponseExceededMaxSizeError) {
         throw new ImageSizeExceededError(`ImageCache image too large: ${imgUrl}`);
       }
+      if ((typeError.cause as any).toString().includes('ECONNRESET')) {
+        throw new ImageHttpError(`ImageCache server connection interrupted`, typeError);
+      }
     }
     throw error;
   }
@@ -183,17 +171,7 @@ export async function processImageCache(
  * @returns Normalized URL string
  */
 export function normalizeImageUri(uri: string): string {
-  // Support images embedded in a Data URL
-  if (uri.startsWith('data:')) {
-    const dataUrl = parseDataUrl(uri);
-    if (!dataUrl) {
-      throw new ImageParseError(`Data URL could not be parsed: ${uri}`);
-    }
-    if (!dataUrl.mediaType?.startsWith('image/')) {
-      throw new ImageParseError(`Token image is a Data URL with a non-image media type: ${uri}`);
-    }
-    return uri;
-  }
+  if (uri.startsWith('data:')) return uri;
   const fetchableUrl = getFetchableDecentralizedStorageUrl(uri);
   return fetchableUrl.toString();
 }

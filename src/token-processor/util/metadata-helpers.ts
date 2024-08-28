@@ -16,6 +16,7 @@ import {
   MetadataSizeExceededError,
   MetadataTimeoutError,
   TooManyRequestsHttpError,
+  UndiciCauseTypeError,
 } from './errors';
 import { RetryableJobError } from '../queue/errors';
 import { normalizeImageUri, processImageCache } from '../images/image-cache';
@@ -64,7 +65,11 @@ export async function fetchAllMetadataLocalesFromBaseUri(
     try {
       const rawMetadataLocales: RawMetadataLocale[] = [];
 
-      const defaultMetadata = await getMetadataFromUri(tokenUri);
+      const defaultMetadata = await getMetadataFromUri(
+        tokenUri,
+        contract.principal,
+        token.token_number
+      );
       rawMetadataLocales.push({
         metadata: defaultMetadata,
         default: true,
@@ -82,7 +87,11 @@ export async function fetchAllMetadataLocalesFromBaseUri(
             continue;
           }
           const localeUri = getTokenSpecificUri(uri, token.token_number, locale);
-          const localeMetadata = await getMetadataFromUri(localeUri);
+          const localeMetadata = await getMetadataFromUri(
+            localeUri,
+            contract.principal,
+            token.token_number
+          );
           rawMetadataLocales.push({
             metadata: localeMetadata,
             locale: locale,
@@ -96,14 +105,6 @@ export async function fetchAllMetadataLocalesFromBaseUri(
       break;
     } catch (error) {
       fetchImmediateRetryCount++;
-      if (
-        error instanceof MetadataTimeoutError &&
-        isUriFromDecentralizedStorage(error.url.toString())
-      ) {
-        // Gateways like IPFS and Arweave commonly time out when a resource can't be found quickly.
-        // Try again later if this is the case.
-        throw new RetryableJobError(`Gateway timeout for ${error.url}`, error);
-      }
       if (error instanceof TooManyRequestsHttpError) {
         // 429 status codes are common when fetching metadata for thousands of tokens in the same
         // server.
@@ -241,9 +242,14 @@ async function parseMetadataForInsertion(
  * @param httpUrl - URL to fetch
  * @returns Response text
  */
-export async function fetchMetadata(httpUrl: URL): Promise<string | undefined> {
+export async function fetchMetadata(
+  httpUrl: URL,
+  contract_principal: string,
+  token_number: bigint
+): Promise<string | undefined> {
   const url = httpUrl.toString();
   try {
+    logger.info(`MetadataFetch for ${contract_principal}#${token_number} from ${url}`);
     const result = await request(url, {
       method: 'GET',
       throwOnError: true,
@@ -263,12 +269,21 @@ export async function fetchMetadata(httpUrl: URL): Promise<string | undefined> {
       throw new MetadataSizeExceededError(url);
     } else if (error instanceof errors.ResponseStatusCodeError && error.statusCode === 429) {
       throw new TooManyRequestsHttpError(httpUrl, error);
+    } else if (
+      error instanceof TypeError &&
+      ((error as UndiciCauseTypeError).cause as any).toString().includes('ECONNRESET')
+    ) {
+      throw new MetadataHttpError(`Server connection interrupted`, error);
     }
     throw new MetadataHttpError(`${url}: ${error}`, error);
   }
 }
 
-export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata> {
+export async function getMetadataFromUri(
+  token_uri: string,
+  contract_principal: string,
+  token_number: bigint
+): Promise<RawMetadata> {
   // Support JSON embedded in a Data URL
   if (new URL(token_uri).protocol === 'data:') {
     const dataUrl = parseDataUrl(token_uri);
@@ -294,7 +309,7 @@ export async function getMetadataFromUri(token_uri: string): Promise<RawMetadata
   // Support HTTP/S URLs otherwise
   const httpUrl = getFetchableDecentralizedStorageUrl(token_uri);
   const urlStr = httpUrl.toString();
-  const content = await fetchMetadata(httpUrl);
+  const content = await fetchMetadata(httpUrl, contract_principal, token_number);
   return parseJsonMetadata(urlStr, content);
 }
 

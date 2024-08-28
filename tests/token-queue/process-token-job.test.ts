@@ -104,7 +104,7 @@ describe('ProcessTokenJob', () => {
       expect(token?.name).toBe('FooToken');
       expect(token?.symbol).toBe('FOO');
       expect(token?.decimals).toBe(6);
-      expect(token?.total_supply).toBe(1997500000000n);
+      expect(token?.total_supply).toBe('1997500000000');
     });
 
     test('keeps contract FT info if metadata fetch fails', async () => {
@@ -176,7 +176,7 @@ describe('ProcessTokenJob', () => {
       expect(token?.name).toBe('FooToken');
       expect(token?.symbol).toBe('FOO');
       expect(token?.decimals).toBe(6);
-      expect(token?.total_supply).toBe(1997500000000n);
+      expect(token?.total_supply).toBe('1997500000000');
       const bundle = await db.getTokenMetadataBundle({
         contractPrincipal: 'ABCD.test-ft',
         tokenNumber: 1,
@@ -246,7 +246,7 @@ describe('ProcessTokenJob', () => {
       expect(token?.name).toBe('FooToken');
       expect(token?.symbol).toBe('FOO');
       expect(token?.decimals).toBe(6);
-      expect(token?.total_supply).toBeUndefined();
+      expect(token?.total_supply).toBeNull();
     });
 
     test('accepts FTs with invalid image entries', async () => {
@@ -776,7 +776,7 @@ describe('ProcessTokenJob', () => {
       expect(token).not.toBeUndefined();
       expect(token?.uri).toBeNull();
       expect(token?.decimals).toBe(6);
-      expect(token?.total_supply).toBe(200200200n);
+      expect(token?.total_supply).toBe('200200200');
     });
   });
 
