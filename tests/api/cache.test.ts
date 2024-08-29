@@ -24,6 +24,35 @@ describe('ETag cache', () => {
     await db.close();
   });
 
+  test('chain tip cache control', async () => {
+    const response = await fastify.inject({ method: 'GET', url: '/metadata/v1/' });
+    const json = response.json();
+    expect(json).toStrictEqual({
+      server_version: 'token-metadata-api v0.0.1 (test:123456)',
+      status: 'ready',
+      chain_tip: {
+        block_height: 1,
+      },
+    });
+    expect(response.headers.etag).not.toBeUndefined();
+    const etag = response.headers.etag;
+
+    const cached = await fastify.inject({
+      method: 'GET',
+      url: '/metadata/v1/',
+      headers: { 'if-none-match': etag },
+    });
+    expect(cached.statusCode).toBe(304);
+
+    await db.chainhook.updateChainTipBlockHeight(100);
+    const cached2 = await fastify.inject({
+      method: 'GET',
+      url: '/metadata/v1/',
+      headers: { 'if-none-match': etag },
+    });
+    expect(cached2.statusCode).toBe(200);
+  });
+
   test('FT cache control', async () => {
     await insertAndEnqueueTestContractWithTokens(
       db,
