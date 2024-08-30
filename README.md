@@ -13,13 +13,9 @@
     * [Stopping the service](#stopping-the-service)
     * [Using an image cache service](#using-an-image-cache-service)
 * [Service architecture](#service-architecture)
-    * [External](#external)
-    * [Internal](#internal)
-        * [Blockchain importer](#smart-contract-importer)
-        * [Smart Contract Monitor](#smart-contract-monitor)
-        * [Job Queue](#job-queue)
-            * [Process Smart Contract Job](#process-smart-contract-job)
-            * [Process Token Job](#process-token-job)
+    * [Job Queue](#job-queue)
+        * [Process Smart Contract Job](#process-smart-contract-job)
+        * [Process Token Job](#process-token-job)
 * [Bugs and Feature Requests](#bugs-and-feature-requests)
 * [Contribute](#contribute)
 * [Community](#community)
@@ -63,11 +59,9 @@ The Token Metadata Service is a microservice that has hard dependencies on other
 components. Before you start, you'll need to have access to:
 
 1. A fully synchronized [Stacks node](https://github.com/stacks-network/stacks-blockchain)
-1. A fully synchronized instance of the [Stacks Blockchain
-API](https://github.com/hirosystems/stacks-blockchain-api) running in `default` or `write-only`
-mode, with its Postgres database exposed for new connections. A read-only DB replica is also
-acceptable.
+1. A fully synchronized instance of [Chainhook](https://github.com/hirosystems/chainhook)
 1. A local writeable Postgres database for token metadata storage
+1. (Optional) A Google Cloud Storage bucket for storing token images
 
 ### Running the service
 
@@ -110,77 +104,14 @@ disconnected.
 
 ### Using an image cache service
 
-The Token Metadata Service allows you to specify the path to a custom script that can pre-process
-every image URL detected by the service before it's inserted into the DB. This allows you to serve
-CDN image URLs in your metadata responses instead of raw URLs, providing key advantages such as:
-
-* Improves image load speed
-* Increases reliability in case original image becomes unavailable
-* Protects original image hosts from DDoS attacks
-* Increases user privacy
-* etc.
-
-An example IMGIX processor script is included in
-[`config/image-cache.js`](https://github.com/hirosystems/token-metadata-api/blob/develop/config/image-cache.js).
-You can customize the script path by altering the `METADATA_IMAGE_CACHE_PROCESSOR` environment
-variable.
+The Token Metadata API allows you to specify a Google Cloud Storage bucket to store the token images
+scanned by the metadata processor. This is recommended if you're looking to optimize your image speeds
+when using the API via a wallet, etc. See the `env.ts` file for more information on which environment
+variables you need to provide.
 
 ## Service architecture
 
-### External
-
-![Architecture](architecture.png)
-
-The Stacks Token Metadata Service connects to three different systems to operate:
-
-1. A Stacks Blockchain API database to import all historical smart contracts when booting up, and to
-   listen for new contracts that may be deployed. Read-only access is recommended as this service
-   will never need to write anything to this DB.
-1. A Stacks node to respond to all read-only contract calls required when fetching token metadata
-   (calls to get token count, token metadata URIs, etc.)
-1. A local Postgres DB to store all processed metadata info
-
-The service will also need to fetch external metadata files (JSONs, images) from the Internet, so it
-must have access to external networks.
-
-### Internal
-
-![Flowchart](flowchart.png)
-
-#### Blockchain importer
-
-The
-[`BlockchainImporter`](https://github.com/hirosystems/token-metadata-api/blob/develop/src/token-processor/blockchain-api/blockchain-importer.ts)
-component is only used on service boot.
-
-It connects to the Stacks Blockchain API database and scans the entire `smart_contracts` table
-looking for any contract that conforms to SIP-009, SIP-010 or SIP-013. When it finds a token
-contract, it creates a
-[`ProcessSmartContractJob`](https://github.com/hirosystems/token-metadata-api/blob/develop/src/token-processor/process-smart-contract-job.ts)
-job and adds it to the [Job queue](#job-queue) so its tokens can be read and processed thereafter.
-
-This process is only run once. If the Token Metadata Service is ever restarted, though, this
-component re-scans the API `smart_contracts` table from the last processed block height so it can
-pick up any newer contracts it might have missed while the service was unavailable.
-
-#### Smart Contract Monitor
-
-The
-[`BlockchainSmartContractMonitor`](https://github.com/hirosystems/token-metadata-api/blob/develop/src/token-processor/blockchain-api/blockchain-smart-contract-monitor.ts)
-component constantly listens for the following Stacks Blockchain API events:
-
-* **Smart contract log events**
-
-    If a contract `print` event conforms to SIP-019, it finds the affected tokens and marks them for
-    metadata refresh.
-
-* **Smart contract deployments**
-
-    If the new contract is a token contract, it saves it and enqueues it for token processing.
-
-This process is kept alive throughout the entire service lifetime.
-
-#### Job Queue
+### Job Queue
 
 The role of the
 [`JobQueue`](https://github.com/hirosystems/token-metadata-api/blob/develop/src/token-processor/queue/job-queue.ts)
@@ -204,13 +135,13 @@ There are two env vars that can help you tune how the queue performs:
 
 This queue runs continuously and can handle an unlimited number of jobs.
 
-##### Process Smart Contract Job
+#### Process Smart Contract Job
 
 This job makes a contract call to the Stacks node in order to determine the total number of tokens
 declared by the given contract. Once determined, it creates and enqueues all of these tokens for
 metadata ingestion.
 
-##### Process Token Job
+#### Process Token Job
 
 This job fetches the metadata JSON object for a single token as well as other relevant properties
 depending on the token type (symbol, decimals, etc.). Once fetched, it parses and ingests this data
