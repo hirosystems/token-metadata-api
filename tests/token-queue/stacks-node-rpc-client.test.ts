@@ -13,7 +13,6 @@ import { StacksNodeRpcClient } from '../../src/token-processor/stacks-node/stack
 import {
   StacksNodeJsonParseError,
   StacksNodeHttpError,
-  SmartContractClarityError,
 } from '../../src/token-processor/util/errors';
 
 describe('StacksNodeRpcClient', () => {
@@ -70,7 +69,7 @@ describe('StacksNodeRpcClient', () => {
     setGlobalDispatcher(agent);
 
     await expect(client.readStringFromContract('get-token-uri', [])).rejects.toThrow(
-      SmartContractClarityError
+      RetryableJobError
     );
   });
 
