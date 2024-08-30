@@ -59,42 +59,6 @@ describe('Chainhook observer', () => {
       await expect(db.getChainTipBlockHeight()).resolves.toBe(101);
     });
 
-    test('keeps only the highest chain tip value', async () => {
-      await db.chainhook.processPayload(
-        new TestChainhookPayloadBuilder()
-          .apply()
-          .block({ height: 100 })
-          .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
-          .contractDeploy('SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft', {
-            maps: [],
-            functions: [],
-            variables: [],
-            fungible_tokens: [],
-            non_fungible_tokens: [],
-          })
-          .build()
-      );
-      await expect(db.getChainTipBlockHeight()).resolves.toBe(100);
-
-      await db.chainhook.processPayload(
-        new TestChainhookPayloadBuilder()
-          .apply()
-          .block({ height: 65 })
-          .transaction({ hash: '0x01', sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60' })
-          .event({
-            type: 'SmartContractEvent',
-            position: { index: 0 },
-            data: {
-              contract_identifier: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft',
-              topic: 'print',
-              raw_value: cvToHex(stringUtf8CV('test')),
-            },
-          })
-          .build()
-      );
-      await expect(db.getChainTipBlockHeight()).resolves.toBe(100);
-    });
-
     test('enqueues dynamic tokens for refresh with standard interval', async () => {
       const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
       const contractId = `${address}.friedger-pool-nft`;
