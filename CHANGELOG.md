@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/hirosystems/token-metadata-api/compare/v1.1.0...v1.1.1) (2024-08-30)
+
+
+### Bug Fixes
+
+* allow boolean metadata properties ([#260](https://github.com/hirosystems/token-metadata-api/issues/260)) ([d52861a](https://github.com/hirosystems/token-metadata-api/commit/d52861a1434d51ffd340063ca2cc5ccc4bb03676))
+
 ## [1.1.0](https://github.com/hirosystems/token-metadata-api/compare/v1.0.3...v1.1.0) (2024-08-30)
 
 
