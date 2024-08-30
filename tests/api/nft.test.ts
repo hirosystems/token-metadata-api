@@ -221,6 +221,10 @@ describe('NFT routes', () => {
                 name: 'prop3',
                 value: true,
               },
+              {
+                name: 'prop4',
+                value: false,
+              },
             ],
           },
         ],
@@ -256,6 +260,7 @@ describe('NFT routes', () => {
           prop1: 'ABC',
           prop2: 1,
           prop3: true,
+          prop4: false,
         },
       },
     });

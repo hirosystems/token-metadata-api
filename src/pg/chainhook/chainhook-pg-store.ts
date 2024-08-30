@@ -39,6 +39,10 @@ export class ChainhookPgStore extends BasePgStoreModule {
           } finished in ${time.getElapsedSeconds()}s`
         );
       }
+      if (payload.rollback.length) {
+        const earliestRolledBack = Math.min(...payload.rollback.map(r => r.block_identifier.index));
+        await this.updateChainTipBlockHeight(earliestRolledBack - 1);
+      }
       for (const block of payload.apply) {
         if (block.block_identifier.index <= (await this.getLastIngestedBlockHeight())) {
           logger.info(
@@ -114,7 +118,7 @@ export class ChainhookPgStore extends BasePgStoreModule {
   }
 
   async updateChainTipBlockHeight(blockHeight: number): Promise<void> {
-    await this.sql`UPDATE chain_tip SET block_height = GREATEST(${blockHeight}, block_height)`;
+    await this.sql`UPDATE chain_tip SET block_height = ${blockHeight}`;
   }
 
   private async getLastIngestedBlockHeight(): Promise<number> {

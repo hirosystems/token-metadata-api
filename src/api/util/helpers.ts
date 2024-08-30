@@ -32,9 +32,7 @@ export function parseMetadataLocaleBundle(
     if (locale.properties.length > 0) {
       const mergedProperties: MetadataPropertiesType = {};
       for (const property of locale.properties) {
-        if (property.value) {
-          mergedProperties[property.name] = property.value as MetadataValueType;
-        }
+        mergedProperties[property.name] = property.value as MetadataValueType;
       }
       response.properties = mergedProperties;
     }
