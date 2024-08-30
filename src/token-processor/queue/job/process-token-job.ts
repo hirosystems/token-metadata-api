@@ -54,25 +54,16 @@ export class ProcessTokenJob extends Job {
       contractPrincipal: contract.principal,
     });
     logger.info(`ProcessTokenJob processing ${this.description()}`);
-    try {
-      switch (token.type) {
-        case DbTokenType.ft:
-          await this.handleFt(client, token, contract);
-          break;
-        case DbTokenType.nft:
-          await this.handleNft(client, token, contract);
-          break;
-        case DbTokenType.sft:
-          await this.handleSft(client, token, contract);
-          break;
-      }
-    } catch (error) {
-      // If we got rate limited, save this host so we can skip further calls even from jobs for
-      // other tokens.
-      if (error instanceof RetryableJobError && error.cause instanceof TooManyRequestsHttpError) {
-        await this.saveRateLimitedHost(error.cause);
-      }
-      throw error;
+    switch (token.type) {
+      case DbTokenType.ft:
+        await this.handleFt(client, token, contract);
+        break;
+      case DbTokenType.nft:
+        await this.handleNft(client, token, contract);
+        break;
+      case DbTokenType.sft:
+        await this.handleSft(client, token, contract);
+        break;
     }
   }
 
@@ -189,13 +180,6 @@ export class ProcessTokenJob extends Job {
       metadataLocales: metadataLocales,
     };
     await this.db.updateProcessedTokenWithMetadata({ id: token.id, values: tokenValues });
-  }
-
-  private async saveRateLimitedHost(error: TooManyRequestsHttpError) {
-    const hostname = error.url.hostname;
-    const retryAfter = error.retryAfter ?? ENV.METADATA_RATE_LIMITED_HOST_RETRY_AFTER;
-    logger.info(`ProcessTokenJob saving rate limited host ${hostname}, retry after ${retryAfter}s`);
-    await this.db.insertRateLimitedHost({ values: { hostname, retry_after: retryAfter } });
   }
 
   private async getTokenUri(

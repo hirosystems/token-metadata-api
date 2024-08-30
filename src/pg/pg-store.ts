@@ -207,7 +207,16 @@ export class PgStore extends BasePgStore {
     await this.sql`
       UPDATE jobs
       SET status = ${args.status},
-        invalid_reason = ${args.invalidReason ? args.invalidReason : this.sql`NULL`},
+        invalid_reason = ${
+          args.status == DbJobStatus.invalid && args.invalidReason
+            ? args.invalidReason
+            : this.sql`NULL`
+        },
+        ${
+          args.status != DbJobStatus.pending
+            ? this.sql`retry_count = 0, retry_after = NULL,`
+            : this.sql``
+        }
         updated_at = NOW()
       WHERE id = ${args.id}
     `;
@@ -216,15 +225,18 @@ export class PgStore extends BasePgStore {
   async retryAllFailedJobs(): Promise<void> {
     await this.sql`
       UPDATE jobs
-      SET status = ${DbJobStatus.pending}, retry_count = 0, updated_at = NOW()
+      SET status = ${DbJobStatus.pending}, retry_count = 0, updated_at = NOW(), retry_after = NULL
       WHERE status IN (${DbJobStatus.failed}, ${DbJobStatus.invalid})
     `;
   }
 
-  async increaseJobRetryCount(args: { id: number }): Promise<number> {
+  async increaseJobRetryCount(args: { id: number; retry_after: number }): Promise<number> {
+    const retryAfter = args.retry_after.toString();
     const result = await this.sql<{ retry_count: number }[]>`
       UPDATE jobs
-      SET retry_count = retry_count + 1, updated_at = NOW()
+      SET retry_count = retry_count + 1,
+        updated_at = NOW(),
+        retry_after = NOW() + INTERVAL '${this.sql(retryAfter)} ms'
       WHERE id = ${args.id}
       RETURNING retry_count
     `;
@@ -232,14 +244,14 @@ export class PgStore extends BasePgStore {
   }
 
   /**
-   * Retrieves a number of queued jobs so they can be processed immediately.
+   * Retrieves a number of pending jobs so they can be processed immediately.
    * @param limit - number of jobs to retrieve
    * @returns `DbJob[]`
    */
   async getPendingJobBatch(args: { limit: number }): Promise<DbJob[]> {
     return this.sql<DbJob[]>`
       SELECT ${this.sql(JOBS_COLUMNS)} FROM jobs
-      WHERE status = 'pending'
+      WHERE status = 'pending' AND (retry_after IS NULL OR retry_after < NOW())
       ORDER BY COALESCE(updated_at, created_at) ASC
       LIMIT ${args.limit}
     `;
