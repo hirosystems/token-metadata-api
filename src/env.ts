@@ -84,6 +84,8 @@ const schema = Type.Object({
   JOB_QUEUE_SIZE_LIMIT: Type.Number({ default: 200 }),
   /** Maximum time a job will run before marking it as failed. */
   JOB_QUEUE_TIMEOUT_MS: Type.Number({ default: 60_000 }),
+  /** Minimum time we will wait to retry a job after it's been executed. */
+  JOB_QUEUE_RETRY_AFTER_MS: Type.Number({ default: 5_000 }),
 
   /**
    * The max number of immediate attempts that will be made to retrieve metadata from external URIs

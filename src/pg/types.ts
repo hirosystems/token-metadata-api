@@ -106,6 +106,7 @@ export type DbJob = {
   retry_count: number;
   created_at: string;
   updated_at?: string;
+  retry_after?: string;
 };
 
 export type DbUpdateNotification = {
@@ -285,6 +286,7 @@ export const JOBS_COLUMNS = [
   'retry_count',
   'created_at',
   'updated_at',
+  'retry_after',
 ];
 
 export const METADATA_COLUMNS = [

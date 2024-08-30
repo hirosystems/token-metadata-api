@@ -52,7 +52,10 @@ export abstract class Job {
       }
     } catch (error) {
       if (error instanceof RetryableJobError) {
-        const retries = await this.db.increaseJobRetryCount({ id: this.job.id });
+        const retries = await this.db.increaseJobRetryCount({
+          id: this.job.id,
+          retry_after: ENV.JOB_QUEUE_RETRY_AFTER_MS,
+        });
         if (
           getJobQueueProcessingMode() === JobQueueProcessingMode.strict ||
           retries <= ENV.JOB_QUEUE_MAX_RETRIES
