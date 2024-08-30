@@ -189,7 +189,11 @@ export class PgStore extends BasePgStore {
           }
           if (locale.properties && locale.properties.length > 0) {
             const values = locale.properties.map(property => ({
-              ...property,
+              name: property.name,
+              value:
+                typeof property.value == 'boolean'
+                  ? sql`TO_JSONB(${property.value})`
+                  : property.value,
               metadata_id: metadataId,
             }));
             await sql`INSERT INTO metadata_properties ${sql(values)}`;
