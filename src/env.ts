@@ -120,7 +120,7 @@ const schema = Type.Object({
    * next request that is sent to it (seconds). This value will be overridden by the `Retry-After`
    * header returned by the domain, if any.
    */
-  METADATA_RATE_LIMITED_HOST_RETRY_AFTER: Type.Number({ default: 3600 }), // 1 hour
+  METADATA_RATE_LIMITED_HOST_RETRY_AFTER: Type.Number({ default: 60 }), // 1 minute
   /**
    * Maximum number of HTTP redirections to follow when fetching metadata. Defaults to 5.
    */

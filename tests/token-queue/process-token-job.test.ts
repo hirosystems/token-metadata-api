@@ -851,7 +851,7 @@ describe('ProcessTokenJob', () => {
         })
         .reply(429, { error: 'nope' }, { headers: { 'retry-after': '999' } });
       try {
-        await new ProcessTokenJob({ db, job: tokenJob }).handler();
+        await new ProcessTokenJob({ db, job: tokenJob }).work();
       } catch (error) {
         expect(error).toBeInstanceOf(RetryableJobError);
         const err = error as RetryableJobError;
