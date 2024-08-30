@@ -1,3 +1,10 @@
+## [1.1.2](https://github.com/hirosystems/token-metadata-api/compare/v1.1.1...v1.1.2) (2024-08-30)
+
+
+### Bug Fixes
+
+* handle updated chain tip on rollbacks correctly ([#261](https://github.com/hirosystems/token-metadata-api/issues/261)) ([b85b1d3](https://github.com/hirosystems/token-metadata-api/commit/b85b1d3903a336d5691e05387140fcc1e8a41f16))
+
 ## [1.1.1](https://github.com/hirosystems/token-metadata-api/compare/v1.1.0...v1.1.1) (2024-08-30)
 
 
