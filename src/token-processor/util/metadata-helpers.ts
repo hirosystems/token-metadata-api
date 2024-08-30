@@ -211,16 +211,14 @@ async function parseMetadataForInsertion(
     const properties: DbMetadataPropertyInsert[] = defaultInsert?.properties ?? [];
     if (RawMetadataPropertiesCType.Check(metadata.properties)) {
       for (const [key, value] of Object.entries(metadata.properties)) {
-        if (key && value) {
-          const defaultProp = properties.find(p => p.name === key);
-          if (defaultProp) {
-            defaultProp.value = value;
-          } else {
-            properties.push({
-              name: key,
-              value: value,
-            });
-          }
+        const defaultProp = properties.find(p => p.name === key);
+        if (defaultProp) {
+          defaultProp.value = value;
+        } else {
+          properties.push({
+            name: key,
+            value: value,
+          });
         }
       }
     }

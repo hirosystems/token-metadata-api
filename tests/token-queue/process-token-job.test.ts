@@ -382,6 +382,8 @@ describe('ProcessTokenJob', () => {
           collection_size: 5000,
           artist: 'Bitcoin Monkeys',
           prop: { a: 1, b: 2 },
+          allow_multiple_claims: true,
+          whitelisted: false,
         },
       };
       const agent = new MockAgent();
@@ -441,6 +443,10 @@ describe('ProcessTokenJob', () => {
       expect(properties[4].value).toBe(5000);
       expect(properties[6].name).toBe('prop');
       expect(properties[6].value).toStrictEqual({ a: 1, b: 2 });
+      expect(properties[7].name).toBe('allow_multiple_claims');
+      expect(properties[7].value).toStrictEqual(true);
+      expect(properties[8].name).toBe('whitelisted');
+      expect(properties[8].value).toStrictEqual(false);
     });
 
     test('parses metadata with localizations', async () => {
