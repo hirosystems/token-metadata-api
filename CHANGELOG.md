@@ -1,3 +1,16 @@
+## [1.1.0](https://github.com/hirosystems/token-metadata-api/compare/v1.0.3...v1.1.0) (2024-08-30)
+
+
+### Features
+
+* add configurable delay for retrying jobs ([#257](https://github.com/hirosystems/token-metadata-api/issues/257)) ([20d753a](https://github.com/hirosystems/token-metadata-api/commit/20d753a82a4e7f214cf9dc8cb2fee333ac5a4f4c))
+
+
+### Bug Fixes
+
+* add chain tip etag generator ([#255](https://github.com/hirosystems/token-metadata-api/issues/255)) ([2b993cd](https://github.com/hirosystems/token-metadata-api/commit/2b993cd34484e156db9e24be8571c0e0e5b4bde0))
+* retry when a contract is not yet found ([#256](https://github.com/hirosystems/token-metadata-api/issues/256)) ([46d8fc8](https://github.com/hirosystems/token-metadata-api/commit/46d8fc892790d64e2a2646efbc64d97be4a109e3))
+
 ## [1.0.3](https://github.com/hirosystems/token-metadata-api/compare/v1.0.2...v1.0.3) (2024-08-27)
 
 
