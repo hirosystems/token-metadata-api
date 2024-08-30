@@ -851,7 +851,7 @@ describe('ProcessTokenJob', () => {
         })
         .reply(429, { error: 'nope' }, { headers: { 'retry-after': '999' } });
       try {
-        await new ProcessTokenJob({ db, job: tokenJob }).handler();
+        await new ProcessTokenJob({ db, job: tokenJob }).work();
       } catch (error) {
         expect(error).toBeInstanceOf(RetryableJobError);
         const err = error as RetryableJobError;
@@ -911,5 +911,34 @@ describe('ProcessTokenJob', () => {
       const host = await db.getRateLimitedHost({ hostname: 'm.io' });
       expect(host).toBeUndefined();
     });
+  });
+
+  test('Contract not found gets retried', async () => {
+    const nodeUrl = `http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`;
+    const [tokenJob] = await insertAndEnqueueTestContractWithTokens(
+      db,
+      'ABCD.test-nft',
+      DbSipNumber.sip009,
+      1n
+    );
+
+    const mockResponse = {
+      okay: false,
+      cause: `Unchecked(NoSuchContract("ABCD.test-nft"))`,
+    };
+    const agent = new MockAgent();
+    agent.disableNetConnect();
+    agent
+      .get(nodeUrl)
+      .intercept({
+        path: `/v2/contracts/call-read/ABCD/test-nft/get-token-uri`,
+        method: 'POST',
+      })
+      .reply(200, mockResponse);
+    setGlobalDispatcher(agent);
+
+    await expect(new ProcessTokenJob({ db, job: tokenJob }).handler()).rejects.toThrow(
+      RetryableJobError
+    );
   });
 });

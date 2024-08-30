@@ -3,12 +3,14 @@ import { FastifyPluginCallback } from 'fastify';
 import { Server } from 'http';
 import { ApiStatusResponse } from '../schemas';
 import { SERVER_VERSION } from '@hirosystems/api-toolkit';
+import { handleChainTipCache } from '../util/cache';
 
 export const StatusRoutes: FastifyPluginCallback<
   Record<never, never>,
   Server,
   TypeBoxTypeProvider
 > = (fastify, options, done) => {
+  fastify.addHook('preHandler', handleChainTipCache);
   fastify.get(
     '/',
     {

@@ -340,6 +340,7 @@ export const ApiStatusResponse = Type.Object(
           queued: Type.Optional(Type.Integer({ examples: [512] })),
           done: Type.Optional(Type.Integer({ examples: [12532] })),
           failed: Type.Optional(Type.Integer({ examples: [11] })),
+          invalid: Type.Optional(Type.Integer({ examples: [20] })),
         },
         { title: 'Api Job Count' }
       )

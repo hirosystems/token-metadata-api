@@ -2,7 +2,7 @@ import { logger, resolveOrTimeout, stopwatch } from '@hirosystems/api-toolkit';
 import { ENV } from '../../../env';
 import { PgStore } from '../../../pg/pg-store';
 import { DbJob, DbJobInvalidReason, DbJobStatus } from '../../../pg/types';
-import { getUserErrorInvalidReason, UserError } from '../../util/errors';
+import { getUserErrorInvalidReason, TooManyRequestsHttpError, UserError } from '../../util/errors';
 import { RetryableJobError } from '../errors';
 import { getJobQueueProcessingMode, JobQueueProcessingMode } from '../helpers';
 
@@ -52,7 +52,16 @@ export abstract class Job {
       }
     } catch (error) {
       if (error instanceof RetryableJobError) {
-        const retries = await this.db.increaseJobRetryCount({ id: this.job.id });
+        let retry_after = ENV.JOB_QUEUE_RETRY_AFTER_MS;
+        // If we got rate limited, save this host so we can skip further calls even from jobs for
+        // other tokens.
+        if (error.cause instanceof TooManyRequestsHttpError) {
+          await this.saveRateLimitedHost(error.cause);
+          if (error.cause.retryAfter) {
+            retry_after = error.cause.retryAfter * 1_000;
+          }
+        }
+        const retries = await this.db.increaseJobRetryCount({ id: this.job.id, retry_after });
         if (
           getJobQueueProcessingMode() === JobQueueProcessingMode.strict ||
           retries <= ENV.JOB_QUEUE_MAX_RETRIES
@@ -94,5 +103,12 @@ export abstract class Job {
       logger.error(`Job ${this.description()} could not update status to ${status}: ${error}`);
       return false;
     }
+  }
+
+  private async saveRateLimitedHost(error: TooManyRequestsHttpError) {
+    const hostname = error.url.hostname;
+    const retryAfter = error.retryAfter ?? ENV.METADATA_RATE_LIMITED_HOST_RETRY_AFTER;
+    logger.info(`Job saving rate limited host ${hostname}, retry after ${retryAfter}s`);
+    await this.db.insertRateLimitedHost({ values: { hostname, retry_after: retryAfter } });
   }
 }
