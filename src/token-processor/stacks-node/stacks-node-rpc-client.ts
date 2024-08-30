@@ -138,7 +138,7 @@ export class StacksNodeRpcClient {
           `Runtime error while calling read-only function ${functionName}`
         );
       } else if (result.cause.includes('NoSuchContract')) {
-        throw new SmartContractClarityError(
+        throw new RetryableJobError(
           `Contract not available yet when calling read-only function ${functionName}`
         );
       }
