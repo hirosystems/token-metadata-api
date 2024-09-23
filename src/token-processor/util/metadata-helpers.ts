@@ -318,6 +318,9 @@ function parseJsonMetadata(url: string, content?: string): RawMetadata {
   try {
     const result = JSON5.parse(content);
     if (RawMetadataCType.Check(result)) {
+      if (result.name === undefined) {
+        throw new MetadataParseError(`Metadata does not contain a 'name' value: ${url}`);
+      }
       return result;
     } else {
       throw new MetadataParseError(`Invalid raw metadata JSON schema: ${url}`);
@@ -354,15 +357,6 @@ export function getFetchableDecentralizedStorageUrl(uri: string): URL {
     throw new MetadataParseError(`Invalid uri: ${uri}`);
   }
   throw new MetadataParseError(`Unsupported uri protocol: ${uri}`);
-}
-
-function isUriFromDecentralizedStorage(uri: string): boolean {
-  return (
-    uri.startsWith('ipfs:') ||
-    uri.startsWith('ipns:') ||
-    uri.startsWith('ar:') ||
-    uri.startsWith('https://cloudflare-ipfs.com')
-  );
 }
 
 export function parseDataUrl(
