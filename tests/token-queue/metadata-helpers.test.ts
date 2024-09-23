@@ -60,7 +60,7 @@ describe('Metadata Helpers', () => {
     await expect(fetchMetadata(url, 'ABCD.test', 1n)).rejects.toThrow(MetadataHttpError);
   });
 
-  test('does not throw on raw metadata with null or stringable values', async () => {
+  test('does not throw on raw metadata with null, stringable, or boolean values', async () => {
     const crashPunks1 = {
       version: '1',
       name: 'Crash Punk 294',
@@ -74,6 +74,9 @@ describe('Metadata Helpers', () => {
         external_url:
           'https://thisisnumberone.com/nfts/SP3QSAJQ4EA8WXEDSRRKMZZ29NH91VZ6C5X88FGZQ.crashpunks-v2/294',
         animation_url: null,
+        allow_multiple_claims: true,
+        whitelisted: false,
+        minted: 160,
       },
       localization: {
         uri: null,
