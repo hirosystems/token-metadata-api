@@ -47,6 +47,7 @@ export class BlockCache {
   }
 
   transaction(tx: StacksTransaction) {
+    if (!tx.metadata.success) return;
     if (tx.metadata.kind.type === 'ContractDeployment' && tx.metadata.contract_abi) {
       const abi = tx.metadata.contract_abi as ClarityAbi;
       const sip = getSmartContractSip(abi);
