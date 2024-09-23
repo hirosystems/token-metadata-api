@@ -43,6 +43,23 @@ describe('contract deployments', () => {
     await expect(db.getPendingJobBatch({ limit: 1 })).resolves.toHaveLength(1);
   });
 
+  test('ignores token contract from a failed transaction', async () => {
+    await db.chainhook.processPayload(
+      new TestChainhookPayloadBuilder()
+        .apply()
+        .block({ height: 100 })
+        .transaction({
+          hash: '0x01',
+          sender: 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60',
+          success: false, // Failed
+        })
+        .contractDeploy('SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60.friedger-pool-nft', SIP_009_ABI)
+        .build()
+    );
+    await expect(db.getSmartContract({ id: 1 })).resolves.toBeUndefined();
+    await expect(db.getPendingJobBatch({ limit: 1 })).resolves.toHaveLength(0);
+  });
+
   test('ignores non-token contract', async () => {
     await db.chainhook.processPayload(
       new TestChainhookPayloadBuilder()

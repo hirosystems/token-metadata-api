@@ -1341,7 +1341,7 @@ export class TestChainhookPayloadBuilder {
     return this;
   }
 
-  transaction(args: { hash: string; sender?: string }): this {
+  transaction(args: { hash: string; sender?: string; success?: boolean }): this {
     this.lastBlock.transactions.push({
       metadata: {
         contract_abi: null,
@@ -1367,7 +1367,7 @@ export class TestChainhookPayloadBuilder {
         },
         result: '(ok true)',
         sender: args.sender ?? 'SP3HXJJMJQ06GNAZ8XWDN1QM48JEDC6PP6W3YZPZJ',
-        success: true,
+        success: args.success ?? true,
       },
       operations: [],
       transaction_identifier: {
