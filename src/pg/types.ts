@@ -69,16 +69,6 @@ export type DbSmartContract = {
   non_fungible_token_name?: string;
 };
 
-export type DbTokenInsert = {
-  smart_contract_id: number | PgSqlQuery;
-  type: DbTokenType;
-  token_number: PgNumeric;
-  block_height: number;
-  index_block_hash: string;
-  tx_id: string;
-  tx_index: number;
-};
-
 export type DbToken = {
   id: number;
   smart_contract_id: number;
