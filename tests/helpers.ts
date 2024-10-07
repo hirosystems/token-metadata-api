@@ -1436,7 +1436,7 @@ export async function insertAndEnqueueTestContractWithTokens(
   return await db.sqlWriteTransaction(async sql => {
     await insertAndEnqueueTestContract(db, principal, sip, tx_id);
     const smart_contract = (await db.getSmartContract({ principal })) as DbSmartContract;
-    await db.chainhook.insertAndEnqueueSequentialTokens({
+    await db.chainhook.insertAndEnqueueSequentialTokens(sql, {
       smart_contract,
       token_count,
     });
