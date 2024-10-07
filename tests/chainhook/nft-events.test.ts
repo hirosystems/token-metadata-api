@@ -92,6 +92,32 @@ describe('NFT events', () => {
     await expect(db.getToken({ id: 1 })).resolves.not.toBeUndefined();
   });
 
+  test('NFT mint is ignored if contract does not exist', async () => {
+    const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
+    const contractId = `${address}.friedger-pool-nft`;
+
+    await db.chainhook.processPayload(
+      new TestChainhookPayloadBuilder()
+        .apply()
+        .block({ height: 100 })
+        .transaction({ hash: '0x01', sender: address })
+        .event({
+          type: 'NFTMintEvent',
+          position: { index: 0 },
+          data: {
+            asset_identifier: `${contractId}::crashpunks-v2`,
+            recipient: address,
+            raw_value: cvToHex(uintCV(1)),
+          },
+        })
+        .build()
+    );
+
+    const jobs = await db.getPendingJobBatch({ limit: 1 });
+    expect(jobs).toHaveLength(0);
+    await expect(db.getToken({ id: 1 })).resolves.toBeUndefined();
+  });
+
   test('NFT mint roll back removes token', async () => {
     const address = 'SP1K1A1PMGW2ZJCNF46NWZWHG8TS1D23EGH1KNK60';
     const contractId = `${address}.friedger-pool-nft`;

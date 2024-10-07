@@ -164,8 +164,8 @@ export class ChainhookPgStore extends BasePgStoreModule {
       await this.applyContractDeployment(sql, contract, cache);
     for (const notification of cache.notifications)
       await this.applyNotification(sql, notification, cache);
-    await this.insertAndEnqueueMints(sql, cache.nftMints, DbTokenType.nft, cache);
-    await this.insertAndEnqueueMints(sql, cache.sftMints, DbTokenType.sft, cache);
+    await this.applyTokenMints(sql, cache.nftMints, DbTokenType.nft, cache);
+    await this.applyTokenMints(sql, cache.sftMints, DbTokenType.sft, cache);
     for (const [contract, delta] of cache.ftSupplyDelta)
       await this.applyFtSupplyChange(sql, contract, delta, cache);
   }
@@ -175,8 +175,8 @@ export class ChainhookPgStore extends BasePgStoreModule {
       await this.rollBackContractDeployment(sql, contract, cache);
     for (const notification of cache.notifications)
       await this.rollBackNotification(sql, notification, cache);
-    for (const mint of cache.nftMints) await this.rollBackNftMint(sql, mint, cache);
-    for (const mint of cache.sftMints) await this.rollBackSftMint(sql, mint, cache);
+    await this.rollBackTokenMints(sql, cache.nftMints, DbTokenType.nft, cache);
+    await this.rollBackTokenMints(sql, cache.sftMints, DbTokenType.sft, cache);
     for (const [contract, delta] of cache.ftSupplyDelta)
       await this.applyFtSupplyChange(sql, contract, delta.negated(), cache);
   }
@@ -285,64 +285,6 @@ export class ChainhookPgStore extends BasePgStoreModule {
     );
   }
 
-  private async rollBackNftMint(
-    sql: PgSqlClient,
-    mint: CachedEvent<NftMintEvent>,
-    cache: BlockCache
-  ): Promise<void> {
-    try {
-      const smart_contract_id = await this.findSmartContractId(
-        mint.event.contractId,
-        DbSipNumber.sip009
-      );
-      await sql`
-        DELETE FROM tokens
-        WHERE smart_contract_id = ${smart_contract_id} AND token_number = ${mint.event.tokenId}
-      `;
-      logger.info(
-        `ChainhookPgStore rollback NFT mint ${mint.event.contractId} (${mint.event.tokenId}) at block ${cache.block.index}`
-      );
-    } catch (error) {
-      if (error instanceof ContractNotFoundError)
-        logger.warn(error, `ChainhookPgStore found NFT mint for nonexisting contract`);
-      else throw error;
-    }
-  }
-
-  private async rollBackSftMint(
-    sql: PgSqlClient,
-    mint: CachedEvent<SftMintEvent>,
-    cache: BlockCache
-  ): Promise<void> {
-    try {
-      const smart_contract_id = await this.findSmartContractId(
-        mint.event.contractId,
-        DbSipNumber.sip013
-      );
-      await sql`
-        DELETE FROM tokens
-        WHERE smart_contract_id = ${smart_contract_id} AND token_number = ${mint.event.tokenId}
-      `;
-      logger.info(
-        `ChainhookPgStore rollback SFT mint ${mint.event.contractId} (${mint.event.tokenId}) at block ${cache.block.index}`
-      );
-    } catch (error) {
-      if (error instanceof ContractNotFoundError)
-        logger.warn(error, `ChainhookPgStore found SFT mint for nonexisting contract`);
-      else throw error;
-    }
-  }
-
-  private async findSmartContractId(principal: string, sip: DbSipNumber): Promise<number> {
-    const result = await this.sql<{ id: number }[]>`
-      SELECT id
-      FROM smart_contracts
-      WHERE principal = ${principal} AND sip = ${sip}
-    `;
-    if (result.count) return result[0].id;
-    throw new ContractNotFoundError();
-  }
-
   private async enqueueDynamicTokensDueForRefresh(): Promise<void> {
     const interval = ENV.METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL.toString();
     await this.sql`
@@ -372,7 +314,7 @@ export class ChainhookPgStore extends BasePgStoreModule {
     `;
   }
 
-  private async insertAndEnqueueMints(
+  private async applyTokenMints(
     sql: PgSqlClient,
     mints: CachedEvent<NftMintEvent>[],
     tokenType: DbTokenType,
@@ -421,6 +363,35 @@ export class ChainhookPgStore extends BasePgStoreModule {
         INSERT INTO jobs (token_id) (SELECT id AS token_id FROM token_inserts)
         ON CONFLICT (token_id) WHERE smart_contract_id IS NULL DO
           UPDATE SET updated_at = NOW(), status = 'pending'
+      `;
+    }
+  }
+
+  private async rollBackTokenMints(
+    sql: PgSqlClient,
+    mints: CachedEvent<NftMintEvent>[],
+    tokenType: DbTokenType,
+    cache: BlockCache
+  ): Promise<void> {
+    if (mints.length == 0) return;
+    for await (const batch of batchIterate(mints, 500)) {
+      const values = batch.map(m => {
+        logger.info(
+          `ChainhookPgStore rollback ${tokenType.toUpperCase()} mint ${m.event.contractId} (${
+            m.event.tokenId
+          }) at block ${cache.block.index}`
+        );
+        return [m.event.contractId, m.event.tokenId.toString()];
+      });
+      await sql`
+        WITH delete_values (principal, token_number) AS (VALUES ${sql(values)})
+        DELETE FROM tokens WHERE id IN (
+          SELECT t.id
+          FROM delete_values AS d
+          INNER JOIN smart_contracts AS s ON s.principal = d.principal::text
+          INNER JOIN tokens AS t
+            ON t.smart_contract_id = s.id AND t.token_number = d.token_number::bigint
+        )
       `;
     }
   }
