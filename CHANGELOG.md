@@ -1,3 +1,10 @@
+## [1.1.5-beta.1](https://github.com/hirosystems/token-metadata-api/compare/v1.1.4...v1.1.5-beta.1) (2024-10-07)
+
+
+### Bug Fixes
+
+* process nft and sft mints in batches ([#271](https://github.com/hirosystems/token-metadata-api/issues/271)) ([c98f0cd](https://github.com/hirosystems/token-metadata-api/commit/c98f0cd6a1001933764ab2fbb4026f8824127f35))
+
 ## [1.1.4](https://github.com/hirosystems/token-metadata-api/compare/v1.1.3...v1.1.4) (2024-09-23)
 
 
