@@ -150,8 +150,8 @@ export class ChainhookPgStore extends BasePgStoreModule {
       await this.applyContractDeployment(sql, contract, cache);
     for (const notification of cache.notifications)
       await this.applyNotification(sql, notification, cache);
-    for (const mint of cache.nftMints) await this.applyNftMint(sql, mint, cache);
-    for (const mint of cache.sftMints) await this.applySftMint(sql, mint, cache);
+    await this.applyNftMints(sql, cache.nftMints, cache);
+    await this.applySftMints(sql, cache.sftMints, cache);
     for (const [contract, delta] of cache.ftSupplyDelta)
       await this.applyFtSupplyChange(sql, contract, delta, cache);
   }
@@ -223,66 +223,48 @@ export class ChainhookPgStore extends BasePgStoreModule {
     );
   }
 
-  private async applyNftMint(
+  private async applyNftMints(
     sql: PgSqlClient,
-    mint: CachedEvent<NftMintEvent>,
+    mints: CachedEvent<NftMintEvent>[],
     cache: BlockCache
   ): Promise<void> {
-    try {
-      await this.insertAndEnqueueTokens([
-        {
-          smart_contract_id: await this.findSmartContractId(
-            mint.event.contractId,
-            DbSipNumber.sip009
-          ),
-          type: DbTokenType.nft,
-          token_number: mint.event.tokenId.toString(),
-          block_height: cache.block.index,
-          index_block_hash: cache.block.hash,
-          tx_id: mint.tx_id,
-          tx_index: mint.tx_index,
-        },
-      ]);
+    const data = mints.map(m => {
       logger.info(
-        `ChainhookPgStore apply NFT mint ${mint.event.contractId} (${mint.event.tokenId}) at block ${cache.block.index}`
+        `ChainhookPgStore apply NFT mint ${m.event.contractId} (${m.event.tokenId}) at block ${cache.block.index}`
       );
-    } catch (error) {
-      if (error instanceof ContractNotFoundError)
-        logger.warn(
-          `ChainhookPgStore found NFT mint for nonexisting contract ${mint.event.contractId}`
-        );
-      else throw error;
-    }
+      return {
+        smart_contract_id: sql`(SELECT id FROM smart_contracts WHERE principal = ${m.event.contractId} AND sip = ${DbSipNumber.sip009})`,
+        type: DbTokenType.nft,
+        token_number: m.event.tokenId.toString(),
+        block_height: cache.block.index,
+        index_block_hash: cache.block.hash,
+        tx_id: m.tx_id,
+        tx_index: m.tx_index,
+      };
+    });
+    return await this.insertAndEnqueueTokens(data);
   }
 
-  private async applySftMint(
+  private async applySftMints(
     sql: PgSqlClient,
-    mint: CachedEvent<SftMintEvent>,
+    mints: CachedEvent<SftMintEvent>[],
     cache: BlockCache
   ): Promise<void> {
-    try {
-      await this.insertAndEnqueueTokens([
-        {
-          smart_contract_id: await this.findSmartContractId(
-            mint.event.contractId,
-            DbSipNumber.sip013
-          ),
-          type: DbTokenType.sft,
-          token_number: mint.event.tokenId.toString(),
-          block_height: cache.block.index,
-          index_block_hash: cache.block.hash,
-          tx_id: mint.tx_id,
-          tx_index: mint.tx_index,
-        },
-      ]);
+    const data = mints.map(m => {
       logger.info(
-        `ChainhookPgStore apply SFT mint ${mint.event.contractId} (${mint.event.tokenId}) at block ${cache.block.index}`
+        `ChainhookPgStore apply SFT mint ${m.event.contractId} (${m.event.tokenId}) at block ${cache.block.index}`
       );
-    } catch (error) {
-      if (error instanceof ContractNotFoundError)
-        logger.warn(error, `ChainhookPgStore found SFT mint for nonexisting contract`);
-      else throw error;
-    }
+      return {
+        smart_contract_id: sql`(SELECT id FROM smart_contracts WHERE principal = ${m.event.contractId} AND sip = ${DbSipNumber.sip013})`,
+        type: DbTokenType.sft,
+        token_number: m.event.tokenId.toString(),
+        block_height: cache.block.index,
+        index_block_hash: cache.block.hash,
+        tx_id: m.tx_id,
+        tx_index: m.tx_index,
+      };
+    });
+    return await this.insertAndEnqueueTokens(data);
   }
 
   private async applyFtSupplyChange(

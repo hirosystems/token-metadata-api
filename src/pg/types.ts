@@ -1,4 +1,4 @@
-import { PgJsonb, PgNumeric } from '@hirosystems/api-toolkit';
+import { PgJsonb, PgNumeric, PgSqlQuery } from '@hirosystems/api-toolkit';
 import { FtOrderBy, Order } from '../api/schemas';
 
 export enum DbSipNumber {
@@ -70,7 +70,7 @@ export type DbSmartContract = {
 };
 
 export type DbTokenInsert = {
-  smart_contract_id: number;
+  smart_contract_id: number | PgSqlQuery;
   type: DbTokenType;
   token_number: PgNumeric;
   block_height: number;
