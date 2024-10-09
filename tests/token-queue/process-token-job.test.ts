@@ -17,6 +17,7 @@ import { RetryableJobError } from '../../src/token-processor/queue/errors';
 import { TooManyRequestsHttpError } from '../../src/token-processor/util/errors';
 import { cycleMigrations } from '@hirosystems/api-toolkit';
 import { insertAndEnqueueTestContractWithTokens } from '../helpers';
+import { InvalidTokenError } from '../../src/pg/errors';
 
 describe('ProcessTokenJob', () => {
   let db: PgStore;
@@ -683,7 +684,7 @@ describe('ProcessTokenJob', () => {
       );
     });
 
-    test('SIP-016 non-compliant metadata is ignored', async () => {
+    test('SIP-016 non-compliant metadata throws error', async () => {
       const metadata = {
         id: '62624cc0065e986192fb9f33',
         media: 'https://sf-stage-s3.s3.us-west-1.amazonaws.com/riyasen_suit.png',
@@ -718,11 +719,12 @@ describe('ProcessTokenJob', () => {
 
       await new ProcessTokenJob({ db, job: tokenJob }).work();
 
-      const bundle = await db.getTokenMetadataBundle({
-        contractPrincipal: 'ABCD.test-nft',
-        tokenNumber: 1,
-      });
-      expect(bundle?.metadataLocale).toBeUndefined();
+      await expect(
+        db.getTokenMetadataBundle({
+          contractPrincipal: 'ABCD.test-nft',
+          tokenNumber: 1,
+        })
+      ).rejects.toThrow(InvalidTokenError);
     });
   });
 

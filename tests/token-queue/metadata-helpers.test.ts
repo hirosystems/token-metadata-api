@@ -1,6 +1,6 @@
 import { MockAgent, setGlobalDispatcher } from 'undici';
 import { ENV } from '../../src/env';
-import { MetadataHttpError } from '../../src/token-processor/util/errors';
+import { MetadataHttpError, MetadataParseError } from '../../src/token-processor/util/errors';
 import {
   getFetchableDecentralizedStorageUrl,
   getMetadataFromUri,
@@ -98,6 +98,27 @@ describe('Metadata Helpers', () => {
     await expect(
       getMetadataFromUri('http://test.io/1.json', 'ABCD.test', 1n)
     ).resolves.not.toThrow();
+  });
+
+  test('throws when metadata does not contain a name', async () => {
+    const crashPunks1 = {
+      sip: 16,
+      image: 'ipfs://Qmb84UcaMr1MUwNbYBnXWHM3kEaDcYrKuPWwyRLVTNKELC/294.png',
+    };
+    const agent = new MockAgent();
+    agent.disableNetConnect();
+    agent
+      .get('http://test.io')
+      .intercept({
+        path: '/1.json',
+        method: 'GET',
+      })
+      .reply(200, crashPunks1);
+    setGlobalDispatcher(agent);
+
+    await expect(getMetadataFromUri('http://test.io/1.json', 'ABCD.test', 1n)).rejects.toThrow(
+      MetadataParseError
+    );
   });
 
   test('fetches typed raw metadata', async () => {

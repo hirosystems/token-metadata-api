@@ -1,3 +1,17 @@
+## [1.1.4](https://github.com/hirosystems/token-metadata-api/compare/v1.1.3...v1.1.4) (2024-09-23)
+
+
+### Bug Fixes
+
+* treat non-compliant SIP-016 metadata as invalid ([#266](https://github.com/hirosystems/token-metadata-api/issues/266)) ([288723d](https://github.com/hirosystems/token-metadata-api/commit/288723d577d35ecd38c75c26d572a28f548388fc))
+
+## [1.1.3](https://github.com/hirosystems/token-metadata-api/compare/v1.1.2...v1.1.3) (2024-09-23)
+
+
+### Bug Fixes
+
+* ignore events from failed transactions ([#264](https://github.com/hirosystems/token-metadata-api/issues/264)) ([84252a7](https://github.com/hirosystems/token-metadata-api/commit/84252a7d218de39f5c9379f933af99d49186c9fe))
+
 ## [1.1.2](https://github.com/hirosystems/token-metadata-api/compare/v1.1.1...v1.1.2) (2024-08-30)
 
 
