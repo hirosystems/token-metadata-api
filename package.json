@@ -7,6 +7,7 @@
   "license": "GPL-3.0",
   "scripts": {
     "build": "rimraf ./dist && tsc --project tsconfig.build.json",
+    "build:client": "npm run generate:git-info && npm run generate:openapi && npm run generate:client",
     "start": "node ./dist/src/index.js",
     "start-ts": "ts-node ./src/index.ts",
     "test": "jest --runInBand",
@@ -24,7 +25,7 @@
     "generate:docs": "redoc-cli build --output ./tmp/index.html ./tmp/openapi.yaml",
     "generate:git-info": "rimraf .git-info && node_modules/.bin/api-toolkit-git-info",
     "generate:vercel": "npm run generate:git-info && npm run generate:openapi && npm run generate:docs",
-    "generate:client:typescript": "swagger-codegen generate -i ./tmp/openapi.yaml -l typescript-fetch -o ./client/typescript -c ./client/typescript.json"
+    "generate:client": "openapi-typescript ./tmp/openapi.yaml -o ./client/src/generated/schema.d.ts"
   },
   "prettier": "@stacks/prettier-config",
   "devDependencies": {
@@ -43,12 +44,13 @@
     "eslint-plugin-tsdoc": "^0.2.17",
     "husky": "^8.0.3",
     "jest": "^29.7.0",
+    "openapi-typescript": "^7.4.1",
     "prettier": "^2.7.1",
     "redoc-cli": "^0.13.20",
     "rimraf": "^3.0.2",
     "ts-jest": "^29.1.1",
     "ts-node": "^10.9.1",
-    "typescript": "^4.8.4"
+    "typescript": "^5.6.3"
   },
   "dependencies": {
     "@fastify/cors": "^8.2.0",

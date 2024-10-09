@@ -1,0 +1,34 @@
+{
+  "name": "@hirosystems/token-metadata-api-client",
+  "version": "2.0.0",
+  "description": "Client for @hirosystems/token-metadata-api",
+  "author": "Hiro Systems PBC <engineering@hiro.so> (https://hiro.so)",
+  "keywords": [
+    "fetch",
+    "typescript",
+    "swagger-client",
+    "@hirosystems/token-metadata-api-client"
+  ],
+  "license": "GPL-3.0",
+  "main": "./lib/index.js",
+  "typings": "./lib/index.d.ts",
+  "unpkg": "lib/index.umd.js",
+  "files": [
+    "lib"
+  ],
+  "scripts": {
+    "prepublishOnly": "npm run build",
+    "build": "rimraf ./lib && npm run build:client --prefix .. && npm run build:node && npm run build:browser",
+    "build:node": "tsc && cp -R src/generated lib/generated",
+    "build:browser": "microbundle -i src/index.ts -o lib/index.umd.js --no-pkg-main -f umd --external none --globals none --no-compress --tsconfig tsconfig.browser.json --name TokenMetadataApiClient"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.11",
+    "microbundle": "^0.15.1",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.12.2"
+  }
+}
