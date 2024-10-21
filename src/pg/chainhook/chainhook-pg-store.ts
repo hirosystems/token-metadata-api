@@ -321,11 +321,11 @@ export class ChainhookPgStore extends BasePgStoreModule {
     if (mints.length == 0) return;
     for await (const batch of batchIterate(mints, 500)) {
       const tokenValues = new Map<string, (string | number)[]>();
-      batch.forEach(m => {
+      for (const m of batch) {
         // SFT tokens may mint one single token more than once given that it's an FT within an NFT.
         // This makes sure we only keep the first occurrence.
         const tokenKey = `${m.event.contractId}-${m.event.tokenId}`;
-        if (tokenValues.has(tokenKey)) return;
+        if (tokenValues.has(tokenKey)) continue;
         logger.info(
           `ChainhookPgStore apply ${tokenType.toUpperCase()} mint ${m.event.contractId} (${
             m.event.tokenId
@@ -340,7 +340,7 @@ export class ChainhookPgStore extends BasePgStoreModule {
           m.tx_id,
           m.tx_index,
         ]);
-      });
+      }
       await sql`
         WITH insert_values (principal, type, token_number, block_height, index_block_hash, tx_id,
           tx_index) AS (VALUES ${sql([...tokenValues.values()])}),
