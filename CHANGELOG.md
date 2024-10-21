@@ -1,3 +1,10 @@
+## [1.1.5-beta.2](https://github.com/hirosystems/token-metadata-api/compare/v1.1.5-beta.1...v1.1.5-beta.2) (2024-10-21)
+
+
+### Bug Fixes
+
+* allow multiple sft mints for the same token per transaction ([#279](https://github.com/hirosystems/token-metadata-api/issues/279)) ([9b28880](https://github.com/hirosystems/token-metadata-api/commit/9b28880815a75f93f218fae69dc6e7147c908514))
+
 ## [1.1.5-beta.1](https://github.com/hirosystems/token-metadata-api/compare/v1.1.4...v1.1.5-beta.1) (2024-10-07)
 
 
