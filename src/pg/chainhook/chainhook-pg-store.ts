@@ -9,12 +9,10 @@ import { StacksEvent, StacksPayload } from '@hirosystems/chainhook-client';
 import { ENV } from '../../env';
 import {
   NftMintEvent,
-  SftMintEvent,
   SmartContractDeployment,
   TokenMetadataUpdateNotification,
 } from '../../token-processor/util/sip-validation';
-import { ContractNotFoundError } from '../errors';
-import { DbJob, DbSipNumber, DbSmartContractInsert, DbTokenType, DbSmartContract } from '../types';
+import { DbSmartContractInsert, DbTokenType, DbSmartContract } from '../types';
 import { BlockCache, CachedEvent } from './block-cache';
 import { dbSipNumberToDbTokenType } from '../../token-processor/util/helpers';
 import BigNumber from 'bignumber.js';
@@ -322,13 +320,18 @@ export class ChainhookPgStore extends BasePgStoreModule {
   ): Promise<void> {
     if (mints.length == 0) return;
     for await (const batch of batchIterate(mints, 500)) {
-      const values = batch.map(m => {
+      const tokenValues = new Map<string, (string | number)[]>();
+      for (const m of batch) {
+        // SFT tokens may mint one single token more than once given that it's an FT within an NFT.
+        // This makes sure we only keep the first occurrence.
+        const tokenKey = `${m.event.contractId}-${m.event.tokenId}`;
+        if (tokenValues.has(tokenKey)) continue;
         logger.info(
           `ChainhookPgStore apply ${tokenType.toUpperCase()} mint ${m.event.contractId} (${
             m.event.tokenId
           }) at block ${cache.block.index}`
         );
-        return [
+        tokenValues.set(tokenKey, [
           m.event.contractId,
           tokenType,
           m.event.tokenId.toString(),
@@ -336,11 +339,11 @@ export class ChainhookPgStore extends BasePgStoreModule {
           cache.block.hash,
           m.tx_id,
           m.tx_index,
-        ];
-      });
+        ]);
+      }
       await sql`
         WITH insert_values (principal, type, token_number, block_height, index_block_hash, tx_id,
-          tx_index) AS (VALUES ${sql(values)}),
+          tx_index) AS (VALUES ${sql([...tokenValues.values()])}),
         filtered_values AS (
           SELECT s.id AS smart_contract_id, i.type::token_type, i.token_number::bigint,
             i.block_height::bigint, i.index_block_hash::text, i.tx_id::text, i.tx_index::int
