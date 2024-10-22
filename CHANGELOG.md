@@ -1,3 +1,10 @@
+## [1.1.5-beta.3](https://github.com/hirosystems/token-metadata-api/compare/v1.1.5-beta.2...v1.1.5-beta.3) (2024-10-22)
+
+
+### Bug Fixes
+
+* upgrade to new chainhook ts client ([#280](https://github.com/hirosystems/token-metadata-api/issues/280)) ([b67dc8c](https://github.com/hirosystems/token-metadata-api/commit/b67dc8cd4e21f91a50a1c0c85880d2f265ab1d51))
+
 ## [1.1.5-beta.2](https://github.com/hirosystems/token-metadata-api/compare/v1.1.5-beta.1...v1.1.5-beta.2) (2024-10-21)
 
 
