@@ -4,12 +4,8 @@ import { buildApiServer, buildPromServer } from './api/init';
 import { TokenProcessorMetrics } from './token-processor/token-processor-metrics';
 import { ENV } from './env';
 import { buildAdminRpcServer } from './admin-rpc/init';
-import {
-  buildProfilerServer,
-  isProdEnv,
-  logger,
-  registerShutdownConfig,
-} from '@hirosystems/api-toolkit';
+import { isProdEnv } from './api/util/helpers';
+import { buildProfilerServer, logger, registerShutdownConfig } from '@hirosystems/api-toolkit';
 import { closeChainhookServer, startChainhookServer } from './chainhook/server';
 
 /**

@@ -19,7 +19,6 @@ import {
 import { handleChainTipCache, handleTokenCache } from '../util/cache';
 import { generateTokenErrorResponse, TokenErrorResponseSchema } from '../util/errors';
 import { parseMetadataLocaleBundle } from '../util/helpers';
-import BigNumber from 'bignumber.js';
 
 const IndexRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTypeProvider> = (
   fastify,
@@ -122,16 +121,11 @@ const ShowRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTyp
           locale: request.query.locale,
         });
         const contract = metadataBundle?.smartContract;
-        const decimals = metadataBundle?.token?.decimals ?? undefined;
-        const total_supply = metadataBundle?.token?.total_supply ?? undefined;
         await reply.send({
           name: metadataBundle?.token?.name ?? undefined,
           symbol: metadataBundle?.token?.symbol ?? undefined,
-          decimals,
-          total_supply:
-            decimals != undefined && total_supply != undefined
-              ? BigNumber(total_supply).shiftedBy(-decimals).toString()
-              : undefined,
+          decimals: metadataBundle?.token?.decimals ?? undefined,
+          total_supply: metadataBundle?.token?.total_supply ?? undefined,
           token_uri: metadataBundle?.token?.uri ?? undefined,
           description: metadataBundle?.metadataLocale?.metadata?.description ?? undefined,
           tx_id: contract.tx_id,
