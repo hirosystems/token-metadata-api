@@ -156,16 +156,19 @@ const TokenDescription = Type.String({
   examples: [
     'Heavy hitters, all-stars and legends of the game join forces to create a collection of unique varsity jackets',
   ],
+  description: 'Description',
 });
 
 const TokenImage = Type.String({
   format: 'uri',
   examples: ['ipfs://ipfs/QmZMqhh2ztwuZ3Y8PyEp2z5auyH3TCm3nnr5ZfjjgDjd5q/12199.png'],
+  description: 'Original image URL',
 });
 
 const TokenCachedImage = Type.String({
   format: 'uri',
   examples: ['https://ipfs.io/ipfs/QmZMqhh2ztwuZ3Y8PyEp2z5auyH3TCm3nnr5ZfjjgDjd5q/12199.png'],
+  description: 'Cached image URL',
 });
 
 export const Metadata = Type.Object(
@@ -187,6 +190,7 @@ export type MetadataType = Static<typeof Metadata>;
 export const TokenUri = Type.String({
   format: 'uri',
   examples: ['ipfs://ipfs/Qmf9yDYuPTrp8NRUFf8xxDd5Ud24Dx9uYMwMn8o8G2cWPW/12200.json'],
+  description: "URI for this token's metadata JSON",
 });
 
 export const TokenNotFoundResponse = Type.Object(
@@ -245,10 +249,21 @@ export const PaginatedResponse = <T extends TSchema>(type: T, title: string) =>
 
 export const FtMetadataResponse = Type.Object(
   {
-    name: Type.Optional(Type.String({ examples: ['Wrapped USD'] })),
-    symbol: Type.Optional(Type.String({ examples: ['xUSD'] })),
-    decimals: Type.Optional(Type.Integer({ examples: [8] })),
-    total_supply: Type.Optional(Type.String({ examples: ['9999980000000'] })),
+    name: Type.Optional(Type.String({ examples: ['Wrapped USD'], description: 'Token name' })),
+    symbol: Type.Optional(Type.String({ examples: ['xUSD'], description: 'Token symbol' })),
+    decimals: Type.Optional(
+      Type.Integer({
+        examples: [8],
+        description: "Number of decimal places clients should use to format this token's amounts",
+      })
+    ),
+    total_supply: Type.Optional(
+      Type.String({
+        examples: ['9999980000000'],
+        description:
+          'Current circulating supply as reported by its contract. Clients should format this amount with the correct number of `decimals` before displaying to users',
+      })
+    ),
     token_uri: Type.Optional(TokenUri),
     description: Type.Optional(TokenDescription),
     image_uri: Type.Optional(TokenCachedImage),
@@ -256,10 +271,15 @@ export const FtMetadataResponse = Type.Object(
     image_canonical_uri: Type.Optional(TokenImage),
     tx_id: Type.String({
       examples: ['0x5642ca7d68976b6b2a2055689d9a57de26d67f0dd8b016d1b0d94cb634454cdd'],
+      description: 'ID for the transaction that deployed this token',
     }),
-    sender_address: Type.String({ examples: ['SPZA22A4D15RKH5G8XDGQ7BPC20Q5JNMH0VQKSR6'] }),
+    sender_address: Type.String({
+      examples: ['SPZA22A4D15RKH5G8XDGQ7BPC20Q5JNMH0VQKSR6'],
+      description: 'Deployer address',
+    }),
     asset_identifier: Type.String({
       examples: ['SPZA22A4D15RKH5G8XDGQ7BPC20Q5JNMH0VQKSR6.token-ststx-earn-v1::stSTXearn'],
+      description: 'Clarity asset identifier',
     }),
     metadata: Type.Optional(Metadata),
   },
