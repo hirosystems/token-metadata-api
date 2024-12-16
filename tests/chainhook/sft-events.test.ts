@@ -52,6 +52,23 @@ describe('SFT events', () => {
             ),
           },
         })
+        // Try a duplicate of the same token but different amount
+        .event({
+          type: 'SmartContractEvent',
+          position: { index: 1 },
+          data: {
+            contract_identifier: contractId,
+            topic: 'print',
+            raw_value: cvToHex(
+              tupleCV({
+                type: bufferCV(Buffer.from('sft_mint')),
+                recipient: bufferCV(Buffer.from(address)),
+                'token-id': uintCV(3),
+                amount: uintCV(200),
+              })
+            ),
+          },
+        })
         .build()
     );
 

@@ -375,9 +375,7 @@ export type NftMintEvent = {
   tokenId: bigint;
 };
 
-export type SftMintEvent = {
-  contractId: string;
-  tokenId: bigint;
+export type SftMintEvent = NftMintEvent & {
   amount: bigint;
   recipient: string;
 };
