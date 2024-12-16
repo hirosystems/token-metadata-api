@@ -8,8 +8,7 @@ import FastifyCors from '@fastify/cors';
 import { StatusRoutes } from './routes/status';
 import FastifyMetrics, { IFastifyMetrics } from 'fastify-metrics';
 import { Server } from 'http';
-import { isProdEnv } from './util/helpers';
-import { PINO_LOGGER_CONFIG } from '@hirosystems/api-toolkit';
+import { isProdEnv, PINO_LOGGER_CONFIG } from '@hirosystems/api-toolkit';
 
 export const Api: FastifyPluginAsync<Record<never, never>, Server, TypeBoxTypeProvider> = async (
   fastify,
