@@ -130,9 +130,7 @@ const ShowRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTyp
           decimals,
           total_supply:
             decimals != undefined && total_supply != undefined
-              ? BigNumber(total_supply)
-                  .shiftedBy(-1 * decimals)
-                  .toString()
+              ? BigNumber(total_supply).shiftedBy(-decimals).toString()
               : undefined,
           token_uri: metadataBundle?.token?.uri ?? undefined,
           description: metadataBundle?.metadataLocale?.metadata?.description ?? undefined,
