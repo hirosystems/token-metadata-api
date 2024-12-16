@@ -1,3 +1,12 @@
+## [1.1.5](https://github.com/hirosystems/token-metadata-api/compare/v1.1.4...v1.1.5) (2024-12-16)
+
+
+### Bug Fixes
+
+* allow multiple sft mints for the same token per transaction ([#279](https://github.com/hirosystems/token-metadata-api/issues/279)) ([9b28880](https://github.com/hirosystems/token-metadata-api/commit/9b28880815a75f93f218fae69dc6e7147c908514))
+* process nft and sft mints in batches ([#271](https://github.com/hirosystems/token-metadata-api/issues/271)) ([c98f0cd](https://github.com/hirosystems/token-metadata-api/commit/c98f0cd6a1001933764ab2fbb4026f8824127f35))
+* upgrade to new chainhook ts client ([#280](https://github.com/hirosystems/token-metadata-api/issues/280)) ([b67dc8c](https://github.com/hirosystems/token-metadata-api/commit/b67dc8cd4e21f91a50a1c0c85880d2f265ab1d51))
+
 ## [1.1.5-beta.3](https://github.com/hirosystems/token-metadata-api/compare/v1.1.5-beta.2...v1.1.5-beta.3) (2024-10-22)
 
 
