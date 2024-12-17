@@ -1,3 +1,12 @@
+## [1.1.6](https://github.com/hirosystems/token-metadata-api/compare/v1.1.5...v1.1.6) (2024-12-17)
+
+
+### Bug Fixes
+
+* display token supply with correct decimals ([#287](https://github.com/hirosystems/token-metadata-api/issues/287)) ([94c7b4a](https://github.com/hirosystems/token-metadata-api/commit/94c7b4a2ae68697e35e87c73d7f7e132bf1afad6))
+* roll back FT supply display, update docs instead ([#288](https://github.com/hirosystems/token-metadata-api/issues/288)) ([080176e](https://github.com/hirosystems/token-metadata-api/commit/080176e036bbb85bba82c1d619a69a60d7df21c3)), closes [#287](https://github.com/hirosystems/token-metadata-api/issues/287)
+* update ft date on supply change ([#289](https://github.com/hirosystems/token-metadata-api/issues/289)) ([94b9486](https://github.com/hirosystems/token-metadata-api/commit/94b94868a3808324a0f6c23d0e423886dd143fa4))
+
 ## [1.1.5](https://github.com/hirosystems/token-metadata-api/compare/v1.1.4...v1.1.5) (2024-12-16)
 
 
