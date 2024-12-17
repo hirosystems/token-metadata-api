@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "declaration": true,
+    "sourceMap": true,
+    "strict": true,
+    "strictNullChecks": false,
+    "outDir": "lib",
+    "baseUrl": ".",
+    "noUncheckedIndexedAccess": true,
+  },
+  "include": ["src/**/*.ts"],
+}

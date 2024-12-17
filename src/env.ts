@@ -28,7 +28,7 @@ const schema = Type.Object({
   /** Hostname that will be reported to the chainhook node so it can call us back with events */
   EXTERNAL_HOSTNAME: Type.String({ default: '127.0.0.1' }),
   /** Port in which to serve prometheus metrics */
-  PROMETHEUS_PORT: Type.Number({ default: 9154 }),
+  PROMETHEUS_PORT: Type.Number({ default: 9153 }),
   /** Port in which to serve the profiler */
   PROFILER_PORT: Type.Number({ default: 9119 }),
 

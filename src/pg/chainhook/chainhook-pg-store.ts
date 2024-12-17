@@ -243,7 +243,7 @@ export class ChainhookPgStore extends BasePgStoreModule {
   ): Promise<void> {
     await sql`
       UPDATE tokens
-      SET total_supply = total_supply + ${delta}
+      SET total_supply = total_supply + ${delta}, updated_at = NOW()
       WHERE smart_contract_id = (SELECT id FROM smart_contracts WHERE principal = ${contract})
         AND token_number = 1
     `;
