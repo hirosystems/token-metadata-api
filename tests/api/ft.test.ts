@@ -441,14 +441,17 @@ describe('FT routes', () => {
       expect(json3.results[0].symbol).toBe('MIA');
 
       // Test a token without SIP-16 metadata
-      await insertFt({
-        name: 'Scam token',
-        symbol: 'rstSTX',
-        decimals: 5,
-        tx_id: '0xbdc41843d5e0cd4a70611f6badeb5c87b07b12309e77c4fbaf2334c7b4cee89b',
-        principal: 'SP22PCWZ9EJMHV4PHVS0C8H3B3E4Q079ZHY6CXDS1.meme-token',
-        total_supply: '200000',
-      });
+      await insertFt(
+        {
+          name: 'Scam token',
+          symbol: 'rstSTX',
+          decimals: 5,
+          tx_id: '0xbdc41843d5e0cd4a70611f6badeb5c87b07b12309e77c4fbaf2334c7b4cee89b',
+          principal: 'SP22PCWZ9EJMHV4PHVS0C8H3B3E4Q079ZHY6CXDS1.meme-token',
+          total_supply: '200000',
+        },
+        true
+      );
       const response4 = await fastify.inject({
         method: 'GET',
         url: '/metadata/ft?name=scam',
