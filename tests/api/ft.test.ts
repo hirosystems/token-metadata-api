@@ -283,7 +283,7 @@ describe('FT routes', () => {
   });
 
   describe('index', () => {
-    const insertFt = async (item: DbFungibleTokenMetadataItem) => {
+    const insertFt = async (item: DbFungibleTokenMetadataItem, skipMetadata: boolean = false) => {
       const [tokenJob] = await insertAndEnqueueTestContractWithTokens(
         db,
         item.principal,
@@ -301,22 +301,24 @@ describe('FT routes', () => {
             total_supply: item.total_supply?.toString(),
             uri: item.uri ?? null,
           },
-          metadataLocales: [
-            {
-              metadata: {
-                sip: 16,
-                token_id: tokenJob.token_id ?? 0,
-                name: item.name ?? '',
-                l10n_locale: 'en',
-                l10n_uri: null,
-                l10n_default: true,
-                description: item.description ?? '',
-                image: item.image ?? '',
-                cached_image: item.cached_image ?? '',
-                cached_thumbnail_image: item.cached_thumbnail_image ?? '',
-              },
-            },
-          ],
+          metadataLocales: skipMetadata
+            ? []
+            : [
+                {
+                  metadata: {
+                    sip: 16,
+                    token_id: tokenJob.token_id ?? 0,
+                    name: item.name ?? '',
+                    l10n_locale: 'en',
+                    l10n_uri: null,
+                    l10n_default: true,
+                    description: item.description ?? '',
+                    image: item.image ?? '',
+                    cached_image: item.cached_image ?? '',
+                    cached_thumbnail_image: item.cached_thumbnail_image ?? '',
+                  },
+                },
+              ],
         },
       });
     };
@@ -437,6 +439,27 @@ describe('FT routes', () => {
       const json3 = response3.json();
       expect(json3.total).toBe(1);
       expect(json3.results[0].symbol).toBe('MIA');
+
+      // Test a token without SIP-16 metadata
+      await insertFt(
+        {
+          name: 'Scam token',
+          symbol: 'rstSTX',
+          decimals: 5,
+          tx_id: '0xbdc41843d5e0cd4a70611f6badeb5c87b07b12309e77c4fbaf2334c7b4cee89b',
+          principal: 'SP22PCWZ9EJMHV4PHVS0C8H3B3E4Q079ZHY6CXDS1.meme-token',
+          total_supply: '200000',
+        },
+        true
+      );
+      const response4 = await fastify.inject({
+        method: 'GET',
+        url: '/metadata/ft?name=scam',
+      });
+      expect(response4.statusCode).toBe(200);
+      const json4 = response4.json();
+      expect(json4.total).toBe(1);
+      expect(json4.results[0].symbol).toBe('rstSTX');
     });
 
     test('filters by symbol', async () => {
