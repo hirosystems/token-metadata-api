@@ -1,3 +1,10 @@
+## [1.1.7](https://github.com/hirosystems/token-metadata-api/compare/v1.1.6...v1.1.7) (2025-04-04)
+
+
+### Bug Fixes
+
+* return fts without sip16 metadata in search results ([#293](https://github.com/hirosystems/token-metadata-api/issues/293)) ([24028ae](https://github.com/hirosystems/token-metadata-api/commit/24028aeba6e7676456351e1e04e6b72668ecc44b))
+
 ## [1.1.6](https://github.com/hirosystems/token-metadata-api/compare/v1.1.5...v1.1.6) (2024-12-17)
 
 
