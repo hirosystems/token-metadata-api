@@ -374,10 +374,10 @@ export class PgStore extends BasePgStore {
       let orderBy: PgSqlQuery;
       switch (args.order?.order_by) {
         case FtOrderBy.symbol:
-          orderBy = sql`t.symbol`;
+          orderBy = sql`LOWER(t.symbol)`;
           break;
         default:
-          orderBy = sql`t.name`;
+          orderBy = sql`LOWER(t.name)`;
           break;
       }
       // `ORDER` statement
@@ -392,6 +392,7 @@ export class PgStore extends BasePgStore {
           m.description,
           s.principal,
           s.tx_id,
+          s.fungible_token_name,
           m.image,
           m.cached_image,
           COUNT(*) OVER() as total

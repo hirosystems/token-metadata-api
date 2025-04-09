@@ -78,6 +78,7 @@ const IndexRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTy
           description: t.description,
           tx_id: t.tx_id,
           sender_address: t.principal?.split('.')[0],
+          asset_identifier: `${t.principal}::${t.fungible_token_name}`,
           image_uri: t.cached_image,
           image_canonical_uri: t.image,
           image_thumbnail_uri: t.cached_thumbnail_image,

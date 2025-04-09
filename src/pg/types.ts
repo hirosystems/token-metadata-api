@@ -250,6 +250,7 @@ export type DbFungibleTokenMetadataItem = {
   tx_id: string;
   principal: string;
   image?: string;
+  fungible_token_name?: string;
   cached_image?: string;
   cached_thumbnail_image?: string;
 };
