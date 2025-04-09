@@ -374,10 +374,10 @@ export class PgStore extends BasePgStore {
       let orderBy: PgSqlQuery;
       switch (args.order?.order_by) {
         case FtOrderBy.symbol:
-          orderBy = sql`LOWER(t.symbol)`;
+          orderBy = sql`t.symbol`;
           break;
         default:
-          orderBy = sql`LOWER(t.name)`;
+          orderBy = sql`t.name`;
           break;
       }
       // `ORDER` statement
