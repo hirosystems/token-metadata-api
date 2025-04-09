@@ -228,6 +228,7 @@ export type DbFungibleTokenFilters = {
   name?: string;
   symbol?: string;
   address?: string;
+  valid_metadata_only?: boolean;
 };
 
 export type DbFungibleTokenOrder = {

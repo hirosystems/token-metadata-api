@@ -38,6 +38,11 @@ const IndexRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTy
           name: Type.Optional(Type.String()),
           symbol: Type.Optional(Type.String()),
           address: Type.Optional(StacksAddressParam),
+          valid_metadata_only: Type.Optional(
+            Type.Boolean({
+              description: 'If enabled, only tokens with valid SIP-016 metadata will be returned',
+            })
+          ),
           // Pagination
           offset: Type.Optional(OffsetParam),
           limit: Type.Optional(LimitParam),
@@ -59,6 +64,7 @@ const IndexRoutes: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTy
           name: request.query.name,
           symbol: request.query.symbol,
           address: request.query.address,
+          valid_metadata_only: request.query.valid_metadata_only,
         },
         order: {
           order_by: request.query.order_by ?? FtOrderBy.name,
