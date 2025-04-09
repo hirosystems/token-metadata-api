@@ -228,6 +228,7 @@ export type DbFungibleTokenFilters = {
   name?: string;
   symbol?: string;
   address?: string;
+  valid_metadata_only?: boolean;
 };
 
 export type DbFungibleTokenOrder = {
@@ -250,6 +251,7 @@ export type DbFungibleTokenMetadataItem = {
   tx_id: string;
   principal: string;
   image?: string;
+  fungible_token_name?: string;
   cached_image?: string;
   cached_thumbnail_image?: string;
 };

@@ -370,14 +370,15 @@ export class PgStore extends BasePgStore {
     order?: DbFungibleTokenOrder;
   }): Promise<DbPaginatedResult<DbFungibleTokenMetadataItem>> {
     return await this.sqlTransaction(async sql => {
+      const validMetadataOnly = args.filters?.valid_metadata_only ?? false;
       // `ORDER BY` statement
       let orderBy: PgSqlQuery;
       switch (args.order?.order_by) {
         case FtOrderBy.symbol:
-          orderBy = sql`t.symbol`;
+          orderBy = sql`LOWER(t.symbol)`;
           break;
         default:
-          orderBy = sql`t.name`;
+          orderBy = sql`LOWER(t.name)`;
           break;
       }
       // `ORDER` statement
@@ -392,11 +393,12 @@ export class PgStore extends BasePgStore {
           m.description,
           s.principal,
           s.tx_id,
+          s.fungible_token_name,
           m.image,
           m.cached_image,
           COUNT(*) OVER() as total
         FROM tokens AS t
-        LEFT JOIN metadata AS m ON t.id = m.token_id
+        ${validMetadataOnly ? sql`INNER` : sql`LEFT`} JOIN metadata AS m ON t.id = m.token_id
         INNER JOIN smart_contracts AS s ON t.smart_contract_id = s.id
         WHERE t.type = 'ft'
           ${
