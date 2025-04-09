@@ -6,7 +6,7 @@ export const shorthands: ColumnDefinitions | undefined = undefined;
 export function up(pgm: MigrationBuilder): void {
   pgm.createIndex('jobs', ['token_id']);
   pgm.createIndex('jobs', ['smart_contract_id']);
-  pgm.createIndex('jobs', ['status']);
+  pgm.createIndex('jobs', ['status'], { name: 'jobs_status_all_index' });
   pgm.createIndex('jobs', ['status', { name: 'updated_at', sort: 'ASC' }], {
     where: "status = 'queued'",
   });
