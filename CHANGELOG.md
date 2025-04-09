@@ -1,3 +1,19 @@
+## [1.1.7](https://github.com/hirosystems/token-metadata-api/compare/v1.1.6...v1.1.7) (2025-04-04)
+
+
+### Bug Fixes
+
+* return fts without sip16 metadata in search results ([#293](https://github.com/hirosystems/token-metadata-api/issues/293)) ([24028ae](https://github.com/hirosystems/token-metadata-api/commit/24028aeba6e7676456351e1e04e6b72668ecc44b))
+
+## [1.1.6](https://github.com/hirosystems/token-metadata-api/compare/v1.1.5...v1.1.6) (2024-12-17)
+
+
+### Bug Fixes
+
+* display token supply with correct decimals ([#287](https://github.com/hirosystems/token-metadata-api/issues/287)) ([94c7b4a](https://github.com/hirosystems/token-metadata-api/commit/94c7b4a2ae68697e35e87c73d7f7e132bf1afad6))
+* roll back FT supply display, update docs instead ([#288](https://github.com/hirosystems/token-metadata-api/issues/288)) ([080176e](https://github.com/hirosystems/token-metadata-api/commit/080176e036bbb85bba82c1d619a69a60d7df21c3)), closes [#287](https://github.com/hirosystems/token-metadata-api/issues/287)
+* update ft date on supply change ([#289](https://github.com/hirosystems/token-metadata-api/issues/289)) ([94b9486](https://github.com/hirosystems/token-metadata-api/commit/94b94868a3808324a0f6c23d0e423886dd143fa4))
+
 ## [1.1.5](https://github.com/hirosystems/token-metadata-api/compare/v1.1.4...v1.1.5) (2024-12-16)
 
 
