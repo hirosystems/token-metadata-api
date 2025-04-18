@@ -378,6 +378,7 @@ describe('FT routes', () => {
         image_uri: 'http://img.com/meme.jpg',
         name: 'Meme token',
         sender_address: 'SP22PCWZ9EJMHV4PHVS0C8H3B3E4Q079ZHY6CXDS1',
+        asset_identifier: 'SP22PCWZ9EJMHV4PHVS0C8H3B3E4Q079ZHY6CXDS1.meme-token::ft-token',
         symbol: 'MEME',
         token_uri: 'https://ipfs.io/abcd.json',
         total_supply: '200000',
@@ -391,6 +392,7 @@ describe('FT routes', () => {
         image_uri: 'https://cdn.citycoins.co/logos/miamicoin.png',
         name: 'miamicoin',
         sender_address: 'SP1H1733V5MZ3SZ9XRW9FKYGEZT0JDGEB8Y634C7R',
+        asset_identifier: 'SP1H1733V5MZ3SZ9XRW9FKYGEZT0JDGEB8Y634C7R.miamicoin-token-v2::ft-token',
         symbol: 'MIA',
         token_uri: 'https://cdn.citycoins.co/metadata/miamicoin.json',
         total_supply: '5586789829000000',
@@ -404,6 +406,7 @@ describe('FT routes', () => {
         image_uri: 'https://app.stackswap.org/icon/stsw.svg',
         name: 'STACKSWAP',
         sender_address: 'SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275',
+        asset_identifier: 'SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275.stsw-token-v4a::ft-token',
         symbol: 'STSW',
         token_uri: 'https://app.stackswap.org/token/stsw.json',
         total_supply: '1000000000000000',
@@ -447,7 +450,7 @@ describe('FT routes', () => {
           symbol: 'rstSTX',
           decimals: 5,
           tx_id: '0xbdc41843d5e0cd4a70611f6badeb5c87b07b12309e77c4fbaf2334c7b4cee89b',
-          principal: 'SP22PCWZ9EJMHV4PHVS0C8H3B3E4Q079ZHY6CXDS1.meme-token',
+          principal: 'SP22PCWZ9EJMHV4PHVS0C8H3B3E4Q079ZHY6CXDS1.scam-token',
           total_supply: '200000',
         },
         true
@@ -460,6 +463,37 @@ describe('FT routes', () => {
       const json4 = response4.json();
       expect(json4.total).toBe(1);
       expect(json4.results[0].symbol).toBe('rstSTX');
+    });
+
+    test('filters by valid metadata', async () => {
+      await insertFtList();
+      await insertFt(
+        {
+          name: 'Scam token',
+          symbol: 'rstSTX',
+          decimals: 5,
+          tx_id: '0xbdc41843d5e0cd4a70611f6badeb5c87b07b12309e77c4fbaf2334c7b4cee89b',
+          principal: 'SP22PCWZ9EJMHV4PHVS0C8H3B3E4Q079ZHY6CXDS1.scam-token',
+          total_supply: '200000',
+        },
+        true
+      );
+
+      const response = await fastify.inject({
+        method: 'GET',
+        url: '/metadata/ft',
+      });
+      expect(response.statusCode).toBe(200);
+      const json = response.json();
+      expect(json.total).toBe(4);
+
+      const response2 = await fastify.inject({
+        method: 'GET',
+        url: '/metadata/ft?valid_metadata_only=true',
+      });
+      expect(response2.statusCode).toBe(200);
+      const json2 = response2.json();
+      expect(json2.total).toBe(3);
     });
 
     test('filters by symbol', async () => {

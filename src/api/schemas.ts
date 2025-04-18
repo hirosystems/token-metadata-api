@@ -301,6 +301,10 @@ export const FtBasicMetadataResponse = Type.Object(
       examples: ['0xef2ac1126e16f46843228b1dk4830e19eb7599129e4jf392cab9e65ae83a45c0'],
     }),
     sender_address: Type.String({ examples: ['ST399W7Z9WS0GMSNQGJGME5JAENKN56D65VGMGKGA'] }),
+    asset_identifier: Type.String({
+      examples: ['SPZA22A4D15RKH5G8XDGQ7BPC20Q5JNMH0VQKSR6.token-ststx-earn-v1::stSTXearn'],
+      description: 'Clarity asset identifier',
+    }),
     contract_principal: Type.String({
       examples: ['SP1H1733V5MZ3SZ9XRW9FKYGEZT0JDGEB8Y634C7R.miamicoin-token-v2'],
     }),
