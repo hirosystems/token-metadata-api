@@ -58,7 +58,7 @@
     "@fastify/type-provider-typebox": "^3.2.0",
     "@google-cloud/storage": "^7.12.1",
     "@hirosystems/api-toolkit": "^1.7.1",
-    "@hirosystems/chainhook-client": "^2.0.0",
+    "@hirosystems/chainhook-client": "^2.4.0",
     "@sinclair/typebox": "^0.28.17",
     "@stacks/transactions": "^6.1.0",
     "@types/node": "^20.16.1",
