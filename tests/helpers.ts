@@ -1290,6 +1290,7 @@ export class TestChainhookPayloadBuilder {
       },
       is_streaming_blocks: true,
     },
+    events: [],
   };
   private action: 'apply' | 'rollback' = 'apply';
   private get lastBlock(): StacksEvent {
@@ -1330,6 +1331,13 @@ export class TestChainhookPayloadBuilder {
         pox_cycle_length: 2100,
         pox_cycle_position: 1722,
         stacks_block_hash: '0xbccf63ec2438cf497786ce617ec7e64e2b27ee023a28a0927ee36b81870115d2',
+        tenure_height: null,
+        block_time: null,
+        signer_bitvec: null,
+        signer_signature: null,
+        signer_public_keys: null,
+        cycle_number: null,
+        reward_set: null,
       },
       parent_block_identifier: {
         hash: '0xca71af03f9a3012491af2f59f3244ecb241551803d641f8c8306ffa1187938b4',
