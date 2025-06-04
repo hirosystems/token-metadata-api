@@ -1,3 +1,10 @@
+## [1.2.1-beta.1](https://github.com/hirosystems/token-metadata-api/compare/v1.2.0...v1.2.1-beta.1) (2025-06-04)
+
+
+### Bug Fixes
+
+* update chainhook predicate start_block upon re-registration ([#308](https://github.com/hirosystems/token-metadata-api/issues/308)) ([929f08e](https://github.com/hirosystems/token-metadata-api/commit/929f08e33dedd4b7499799c468483692312d839f))
+
 ## [1.2.0](https://github.com/hirosystems/token-metadata-api/compare/v1.1.7...v1.2.0) (2025-04-18)
 
 
