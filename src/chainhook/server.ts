@@ -4,6 +4,7 @@ import {
   EventObserverOptions,
   EventObserverPredicate,
   Payload,
+  Predicate,
   StacksPayload,
 } from '@hirosystems/chainhook-client';
 import { PgStore } from '../pg/pg-store';
@@ -66,6 +67,18 @@ export async function startChainhookServer(args: { db: PgStore }): Promise<Chain
     predicate_disk_file_path: ENV.CHAINHOOK_PREDICATE_PATH,
     predicate_health_check_interval_ms: 300_000,
     node_type: 'chainhook',
+    predicate_re_register_callback: async predicate => {
+      const blockHeight = await args.db.getChainTipBlockHeight();
+      switch (ENV.NETWORK) {
+        case 'mainnet':
+          if (predicate.networks.mainnet) predicate.networks.mainnet.start_block = blockHeight;
+          break;
+        case 'testnet':
+          if (predicate.networks.testnet) predicate.networks.testnet.start_block = blockHeight;
+          break;
+      }
+      return predicate as Predicate;
+    },
   };
   const chainhook: ChainhookNodeOptions = {
     base_url: `http://${ENV.CHAINHOOK_NODE_RPC_HOST}:${ENV.CHAINHOOK_NODE_RPC_PORT}`,
