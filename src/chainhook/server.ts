@@ -69,11 +69,13 @@ export async function startChainhookServer(args: { db: PgStore }): Promise<Chain
     node_type: 'chainhook',
     predicate_re_register_callback: async predicate => {
       const blockHeight = await args.db.getChainTipBlockHeight();
-      if (predicate.networks.mainnet) {
-        predicate.networks.mainnet.start_block = blockHeight;
-      }
-      if (predicate.networks.testnet) {
-        predicate.networks.testnet.start_block = blockHeight;
+      switch (ENV.NETWORK) {
+        case 'mainnet':
+          if (predicate.networks.mainnet) predicate.networks.mainnet.start_block = blockHeight;
+          break;
+        case 'testnet':
+          if (predicate.networks.testnet) predicate.networks.testnet.start_block = blockHeight;
+          break;
       }
       return predicate as Predicate;
     },
