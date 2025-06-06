@@ -12,7 +12,7 @@ import {
   SmartContractDeployment,
   TokenMetadataUpdateNotification,
 } from '../../token-processor/util/sip-validation';
-import { DbSmartContractInsert, DbTokenType, DbSmartContract } from '../types';
+import { DbSmartContractInsert, DbTokenType, DbSmartContract, DbSipNumber } from '../types';
 import { BlockCache, CachedEvent } from './block-cache';
 import { dbSipNumberToDbTokenType } from '../../token-processor/util/helpers';
 import BigNumber from 'bignumber.js';
@@ -103,7 +103,7 @@ export class ChainhookPgStore extends BasePgStoreModule {
     contract: CachedEvent<SmartContractDeployment>,
     cache: BlockCache
   ) {
-    const values: DbSmartContractInsert = {
+    await this.enqueueContract(sql, {
       principal: contract.event.principal,
       sip: contract.event.sip,
       block_height: cache.block.index,
@@ -112,6 +112,31 @@ export class ChainhookPgStore extends BasePgStoreModule {
       tx_index: contract.tx_index,
       fungible_token_name: contract.event.fungible_token_name ?? null,
       non_fungible_token_name: contract.event.non_fungible_token_name ?? null,
+    });
+  }
+
+  async enqueueContract(
+    sql: PgSqlClient,
+    contract: {
+      block_height: number;
+      index_block_hash: string;
+      principal: string;
+      sip: DbSipNumber;
+      tx_id: string;
+      tx_index: number;
+      fungible_token_name: string | null;
+      non_fungible_token_name: string | null;
+    }
+  ) {
+    const values: DbSmartContractInsert = {
+      principal: contract.principal,
+      sip: contract.sip,
+      block_height: contract.block_height,
+      index_block_hash: contract.index_block_hash,
+      tx_id: contract.tx_id,
+      tx_index: contract.tx_index,
+      fungible_token_name: contract.fungible_token_name,
+      non_fungible_token_name: contract.non_fungible_token_name,
     };
     await sql`
       WITH smart_contract_inserts AS (
@@ -125,7 +150,7 @@ export class ChainhookPgStore extends BasePgStoreModule {
         UPDATE SET updated_at = NOW(), status = 'pending'
     `;
     logger.info(
-      `ChainhookPgStore apply contract deploy ${contract.event.principal} (${contract.event.sip}) at block ${cache.block.index}`
+      `ChainhookPgStore apply contract deploy ${contract.principal} (${contract.sip}) at block ${contract.block_height}`
     );
   }
 
