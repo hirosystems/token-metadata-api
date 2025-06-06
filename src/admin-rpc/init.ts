@@ -142,7 +142,7 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
     },
     async (request, reply) => {
       // Look for the contract in the Stacks Blockchain API.
-      const api = createClient({ baseUrl: 'https://api.mainnet.hiro.so' });
+      const api = createClient({ baseUrl: ENV.STACKS_API_BASE_URL });
       const { data: contract } = await api.GET('/extended/v1/contract/{contract_id}', {
         params: { path: { contract_id: request.body.contractId } },
       });
