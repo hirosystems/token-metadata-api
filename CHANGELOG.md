@@ -1,3 +1,10 @@
+## [1.3.0-beta.1](https://github.com/hirosystems/token-metadata-api/compare/v1.2.1-beta.1...v1.3.0-beta.1) (2025-06-10)
+
+
+### Features
+
+* add `/import-contract` admin rpc endpoint ([#309](https://github.com/hirosystems/token-metadata-api/issues/309)) ([3aef505](https://github.com/hirosystems/token-metadata-api/commit/3aef5055cdb0afa3b682a23aff124a8ae91960ec))
+
 ## [1.2.1-beta.1](https://github.com/hirosystems/token-metadata-api/compare/v1.2.0...v1.2.1-beta.1) (2025-06-04)
 
 
