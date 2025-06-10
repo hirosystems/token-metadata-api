@@ -7,9 +7,11 @@ import { DbJobStatus, DbSipNumber } from '../../src/pg/types';
 import {
   insertAndEnqueueTestContractWithTokens,
   markAllJobsAsDone,
+  SIP_010_ABI,
   TestFastifyServer,
 } from '../helpers';
 import { JobQueue } from '../../src/token-processor/queue/job-queue';
+import * as nock from 'nock';
 
 describe('Admin RPC', () => {
   let db: PgStore;
@@ -213,6 +215,235 @@ describe('Admin RPC', () => {
         headers: { 'content-type': 'application/json' },
       });
       expect(response.statusCode).toBe(422);
+    });
+  });
+
+  describe('/import-contract', () => {
+    beforeAll(() => {
+      nock.disableNetConnect();
+    });
+
+    beforeEach(() => {
+      nock.cleanAll();
+    });
+
+    afterAll(() => {
+      nock.cleanAll();
+      nock.enableNetConnect();
+    });
+
+    test('fails if contract not found', async () => {
+      const principal = 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world';
+      await fastify.listen({ host: ENV.API_HOST, port: ENV.API_PORT });
+
+      nock('https://api.mainnet.hiro.so')
+        .get(`/extended/v1/contract/${principal}`)
+        .reply(404, { error: 'Not found' }, { 'content-type': 'application/json' });
+      const response = await fastify.inject({
+        url: '/metadata/admin/import-contract',
+        method: 'POST',
+        payload: JSON.stringify({
+          contractId: principal,
+        }),
+        headers: { 'content-type': 'application/json' },
+      });
+
+      expect(response.statusCode).toBe(422);
+      expect(response.json().error).toBe('Contract not found');
+    });
+
+    test('fails if contract is not a token contract', async () => {
+      const principal = 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world';
+      await fastify.listen({ host: ENV.API_HOST, port: ENV.API_PORT });
+
+      nock('https://api.mainnet.hiro.so').get(`/extended/v1/contract/${principal}`).reply(
+        200,
+        {
+          tx_id: '0x0101',
+          canonical: true,
+          contract_id: principal,
+          block_height: 5,
+          clarity_version: 2,
+          source_code: 'test',
+          abi: '{}',
+        },
+        { 'content-type': 'application/json' }
+      );
+      const response = await fastify.inject({
+        url: '/metadata/admin/import-contract',
+        method: 'POST',
+        payload: JSON.stringify({
+          contractId: principal,
+        }),
+        headers: { 'content-type': 'application/json' },
+      });
+
+      expect(response.statusCode).toBe(422);
+      expect(response.json().error).toBe('Not a token contract');
+    });
+
+    test('fails if contract does not have abi', async () => {
+      const principal = 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world';
+      await fastify.listen({ host: ENV.API_HOST, port: ENV.API_PORT });
+
+      nock('https://api.mainnet.hiro.so').get(`/extended/v1/contract/${principal}`).reply(
+        200,
+        {
+          tx_id: '0x0101',
+          canonical: true,
+          contract_id: principal,
+          block_height: 5,
+          clarity_version: 2,
+          source_code: 'test',
+          abi: null,
+        },
+        { 'content-type': 'application/json' }
+      );
+      const response = await fastify.inject({
+        url: '/metadata/admin/import-contract',
+        method: 'POST',
+        payload: JSON.stringify({
+          contractId: principal,
+        }),
+        headers: { 'content-type': 'application/json' },
+      });
+
+      expect(response.statusCode).toBe(422);
+      expect(response.json().error).toBe('Contract does not have an interface');
+    });
+
+    test('fails if transaction is not found', async () => {
+      const principal = 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world';
+      await fastify.listen({ host: ENV.API_HOST, port: ENV.API_PORT });
+
+      nock('https://api.mainnet.hiro.so')
+        .get(`/extended/v1/contract/${principal}`)
+        .reply(
+          200,
+          {
+            tx_id: '0x0101',
+            canonical: true,
+            contract_id: principal,
+            block_height: 5,
+            clarity_version: 2,
+            source_code: 'test',
+            abi: JSON.stringify(SIP_010_ABI),
+          },
+          { 'content-type': 'application/json' }
+        );
+      nock('https://api.mainnet.hiro.so').get(`/extended/v1/tx/0x0101`).reply(
+        404,
+        {
+          error: 'Not found',
+        },
+        { 'content-type': 'application/json' }
+      );
+      const response = await fastify.inject({
+        url: '/metadata/admin/import-contract',
+        method: 'POST',
+        payload: JSON.stringify({
+          contractId: principal,
+        }),
+        headers: { 'content-type': 'application/json' },
+      });
+
+      expect(response.statusCode).toBe(422);
+      expect(response.json().error).toBe('Contract deploy transaction not found');
+    });
+
+    test('fails if block is not found', async () => {
+      const principal = 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world';
+      await fastify.listen({ host: ENV.API_HOST, port: ENV.API_PORT });
+
+      nock('https://api.mainnet.hiro.so')
+        .get(`/extended/v1/contract/${principal}`)
+        .reply(
+          200,
+          {
+            tx_id: '0x0101',
+            canonical: true,
+            contract_id: principal,
+            block_height: 5,
+            clarity_version: 2,
+            source_code: 'test',
+            abi: JSON.stringify(SIP_010_ABI),
+          },
+          { 'content-type': 'application/json' }
+        );
+      nock('https://api.mainnet.hiro.so').get(`/extended/v1/tx/0x0101`).reply(
+        200,
+        {
+          tx_index: 5,
+        },
+        { 'content-type': 'application/json' }
+      );
+      nock('https://api.mainnet.hiro.so').get(`/extended/v2/blocks/5`).reply(
+        404,
+        {
+          error: 'Not found',
+        },
+        { 'content-type': 'application/json' }
+      );
+      const response = await fastify.inject({
+        url: '/metadata/admin/import-contract',
+        method: 'POST',
+        payload: JSON.stringify({
+          contractId: principal,
+        }),
+        headers: { 'content-type': 'application/json' },
+      });
+
+      expect(response.statusCode).toBe(422);
+      expect(response.json().error).toBe('Contract deploy block not found');
+    });
+
+    test('successfully enqueues contract', async () => {
+      const principal = 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world';
+      await fastify.listen({ host: ENV.API_HOST, port: ENV.API_PORT });
+
+      nock('https://api.mainnet.hiro.so')
+        .get(`/extended/v1/contract/${principal}`)
+        .reply(
+          200,
+          {
+            tx_id: '0x0101',
+            canonical: true,
+            contract_id: principal,
+            block_height: 5,
+            clarity_version: 2,
+            source_code: 'test',
+            abi: JSON.stringify(SIP_010_ABI),
+          },
+          { 'content-type': 'application/json' }
+        );
+      nock('https://api.mainnet.hiro.so').get(`/extended/v1/tx/0x0101`).reply(
+        200,
+        {
+          tx_index: 5,
+        },
+        { 'content-type': 'application/json' }
+      );
+      nock('https://api.mainnet.hiro.so').get(`/extended/v2/blocks/5`).reply(
+        200,
+        {
+          index_block_hash: '0x242424',
+        },
+        { 'content-type': 'application/json' }
+      );
+      const response = await fastify.inject({
+        url: '/metadata/admin/import-contract',
+        method: 'POST',
+        payload: JSON.stringify({
+          contractId: principal,
+        }),
+        headers: { 'content-type': 'application/json' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const dbContract = await db.getSmartContract({ id: 1 });
+      expect(dbContract?.sip).toBe(DbSipNumber.sip010);
+      expect(dbContract?.principal).toBe(principal);
+      await expect(db.getPendingJobBatch({ limit: 1 })).resolves.toHaveLength(1);
     });
   });
 });
