@@ -136,7 +136,6 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
           'Imports a smart contract from the Stacks API and refreshes its token metadata',
         body: Type.Object({
           contractId: Type.RegEx(SmartContractRegEx),
-          tokenIds: Type.Optional(Type.Array(Type.Integer())),
         }),
       },
     },
