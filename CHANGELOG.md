@@ -1,3 +1,17 @@
+## [1.3.0-beta.1](https://github.com/hirosystems/token-metadata-api/compare/v1.2.1-beta.1...v1.3.0-beta.1) (2025-06-10)
+
+
+### Features
+
+* add `/import-contract` admin rpc endpoint ([#309](https://github.com/hirosystems/token-metadata-api/issues/309)) ([3aef505](https://github.com/hirosystems/token-metadata-api/commit/3aef5055cdb0afa3b682a23aff124a8ae91960ec))
+
+## [1.2.1-beta.1](https://github.com/hirosystems/token-metadata-api/compare/v1.2.0...v1.2.1-beta.1) (2025-06-04)
+
+
+### Bug Fixes
+
+* update chainhook predicate start_block upon re-registration ([#308](https://github.com/hirosystems/token-metadata-api/issues/308)) ([929f08e](https://github.com/hirosystems/token-metadata-api/commit/929f08e33dedd4b7499799c468483692312d839f))
+
 ## [1.2.0](https://github.com/hirosystems/token-metadata-api/compare/v1.1.7...v1.2.0) (2025-04-18)
 
 
