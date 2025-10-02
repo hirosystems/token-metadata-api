@@ -132,12 +132,18 @@ const schema = Type.Object({
    */
   PUBLIC_GATEWAY_IPFS: Type.String({ default: 'https://cloudflare-ipfs.com' }),
   /**
+   * Extra header key to add to the request when fetching metadata from the configured IPFS gateway,
+   * for example if authentication is required. Must be in the form 'Header: Value'.
+   */
+  PUBLIC_GATEWAY_IPFS_EXTRA_HEADER: Type.Optional(Type.String()),
+  /**
    * List of public IPFS gateways that will be replaced with the value of `PUBLIC_GATEWAY_IPFS`
    * whenever a metadata URL has these gateways hard coded in `http:` or `https:` URLs.
    */
   PUBLIC_GATEWAY_IPFS_REPLACED: Type.String({
     default: 'ipfs.io,dweb.link,gateway.pinata.cloud,cloudflare-ipfs.com,infura-ipfs.io',
   }),
+
   /**
    * Base URL for a public gateway which will provide access to all Arweave resources when metadata
    * URLs use the `ar:` protocol scheme. Defaults to

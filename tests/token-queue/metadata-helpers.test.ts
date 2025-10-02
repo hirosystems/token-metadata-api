@@ -2,7 +2,7 @@ import { MockAgent, setGlobalDispatcher } from 'undici';
 import { ENV } from '../../src/env';
 import { MetadataHttpError, MetadataParseError } from '../../src/token-processor/util/errors';
 import {
-  getFetchableDecentralizedStorageUrl,
+  getFetchableMetadataUrl,
   getMetadataFromUri,
   getTokenSpecificUri,
   fetchMetadata,
@@ -209,23 +209,46 @@ describe('Metadata Helpers', () => {
   test('get fetchable URLs', () => {
     ENV.PUBLIC_GATEWAY_IPFS = 'https://cloudflare-ipfs.com';
     ENV.PUBLIC_GATEWAY_ARWEAVE = 'https://arweave.net';
+    ENV.PUBLIC_GATEWAY_IPFS_EXTRA_HEADER = 'Authorization: Bearer 1234567890';
+
     const arweave = 'ar://II4z2ziYyqG7-kWDa98lWGfjxRdYOx9Zdld9P_I_kzE/9731.json';
-    expect(getFetchableDecentralizedStorageUrl(arweave).toString()).toBe(
+    const fetch1 = getFetchableMetadataUrl(arweave);
+    expect(fetch1.url.toString()).toBe(
       'https://arweave.net/II4z2ziYyqG7-kWDa98lWGfjxRdYOx9Zdld9P_I_kzE/9731.json'
     );
+    expect(fetch1.gateway).toBe('arweave');
+    expect(fetch1.fetchHeaders).toBeUndefined();
+
     const ipfs =
       'ipfs://ipfs/bafybeifwoqwdhs5djtx6vopvuwfcdrqeuecayp5wzpzjylxycejnhtrhgu/vague_art_paintings/vague_art_paintings_6_metadata.json';
-    expect(getFetchableDecentralizedStorageUrl(ipfs).toString()).toBe(
+    const fetch2 = getFetchableMetadataUrl(ipfs);
+    expect(fetch2.url.toString()).toBe(
       'https://cloudflare-ipfs.com/ipfs/bafybeifwoqwdhs5djtx6vopvuwfcdrqeuecayp5wzpzjylxycejnhtrhgu/vague_art_paintings/vague_art_paintings_6_metadata.json'
     );
+    expect(fetch2.gateway).toBe('ipfs');
+    expect(fetch2.fetchHeaders).toEqual({ Authorization: 'Bearer 1234567890' });
+
     const ipfs2 = 'ipfs://QmYCnfeseno5cLpC75rmy6LQhsNYQCJabiuwqNUXMaA3Fo/1145.png';
-    expect(getFetchableDecentralizedStorageUrl(ipfs2).toString()).toBe(
+    const fetch3 = getFetchableMetadataUrl(ipfs2);
+    expect(fetch3.url.toString()).toBe(
       'https://cloudflare-ipfs.com/ipfs/QmYCnfeseno5cLpC75rmy6LQhsNYQCJabiuwqNUXMaA3Fo/1145.png'
     );
+    expect(fetch3.gateway).toBe('ipfs');
+    expect(fetch3.fetchHeaders).toEqual({ Authorization: 'Bearer 1234567890' });
+
     const ipfs3 = 'https://ipfs.io/ipfs/QmYCnfeseno5cLpC75rmy6LQhsNYQCJabiuwqNUXMaA3Fo/1145.png';
-    expect(getFetchableDecentralizedStorageUrl(ipfs3).toString()).toBe(
+    const fetch4 = getFetchableMetadataUrl(ipfs3);
+    expect(fetch4.url.toString()).toBe(
       'https://cloudflare-ipfs.com/ipfs/QmYCnfeseno5cLpC75rmy6LQhsNYQCJabiuwqNUXMaA3Fo/1145.png'
     );
+    expect(fetch4.gateway).toBe('ipfs');
+    expect(fetch4.fetchHeaders).toEqual({ Authorization: 'Bearer 1234567890' });
+
+    const http = 'https://test.io/1.json';
+    const fetch5 = getFetchableMetadataUrl(http);
+    expect(fetch5.url.toString()).toBe(http);
+    expect(fetch5.gateway).toBeNull();
+    expect(fetch5.fetchHeaders).toBeUndefined();
   });
 
   test('replace URI string tokens', () => {

@@ -1,5 +1,5 @@
 import { ENV } from '../../env';
-import { parseDataUrl, getFetchableDecentralizedStorageUrl } from '../util/metadata-helpers';
+import { parseDataUrl, getFetchableMetadataUrl } from '../util/metadata-helpers';
 import { logger } from '@hirosystems/api-toolkit';
 import { PgStore } from '../../pg/pg-store';
 import { Readable } from 'node:stream';
@@ -16,7 +16,6 @@ import {
 } from '../util/errors';
 import { pipeline } from 'node:stream/promises';
 import { Storage } from '@google-cloud/storage';
-import { RetryableJobError } from '../queue/errors';
 
 /** Saves an image provided via a `data:` uri string to disk for processing. */
 function convertDataImage(uri: string, tmpPath: string): string {
@@ -33,10 +32,15 @@ function convertDataImage(uri: string, tmpPath: string): string {
   return filePath;
 }
 
-async function downloadImage(imgUrl: string, tmpPath: string): Promise<string> {
+async function downloadImage(
+  imgUrl: string,
+  tmpPath: string,
+  headers?: Record<string, string>
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const filePath = `${tmpPath}/image`;
     fetch(imgUrl, {
+      headers,
       dispatcher: new Agent({
         headersTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
         bodyTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
@@ -109,11 +113,11 @@ async function transformImage(filePath: string, resize: boolean = false): Promis
  * For a list of configuration options, see `env.ts`.
  */
 export async function processImageCache(
-  imgUrl: string,
+  rawImgUrl: string,
   contractPrincipal: string,
   tokenNumber: bigint
 ): Promise<string[]> {
-  logger.info(`ImageCache processing token ${contractPrincipal} (${tokenNumber}) at ${imgUrl}`);
+  logger.info(`ImageCache processing token ${contractPrincipal} (${tokenNumber}) at ${rawImgUrl}`);
   try {
     const gcs = new Storage();
     const gcsBucket = ENV.IMAGE_CACHE_GCS_BUCKET_NAME as string;
@@ -121,10 +125,11 @@ export async function processImageCache(
     const tmpPath = `tmp/${contractPrincipal}_${tokenNumber}`;
     fs.mkdirSync(tmpPath, { recursive: true });
     let original: string;
-    if (imgUrl.startsWith('data:')) {
-      original = convertDataImage(imgUrl, tmpPath);
+    if (rawImgUrl.startsWith('data:')) {
+      original = convertDataImage(rawImgUrl, tmpPath);
     } else {
-      original = await downloadImage(imgUrl, tmpPath);
+      const { url: httpUrl, fetchHeaders } = getFetchableMetadataUrl(rawImgUrl);
+      original = await downloadImage(httpUrl.toString(), tmpPath, fetchHeaders);
     }
 
     const image1 = await transformImage(original);
@@ -152,10 +157,10 @@ export async function processImageCache(
         typeError.cause instanceof errors.BodyTimeoutError ||
         typeError.cause instanceof errors.ConnectTimeoutError
       ) {
-        throw new ImageTimeoutError(new URL(imgUrl));
+        throw new ImageTimeoutError(new URL(rawImgUrl));
       }
       if (typeError.cause instanceof errors.ResponseExceededMaxSizeError) {
-        throw new ImageSizeExceededError(`ImageCache image too large: ${imgUrl}`);
+        throw new ImageSizeExceededError(`ImageCache image too large: ${rawImgUrl}`);
       }
       if ((typeError.cause as any).toString().includes('ECONNRESET')) {
         throw new ImageHttpError(`ImageCache server connection interrupted`, typeError);
@@ -163,17 +168,6 @@ export async function processImageCache(
     }
     throw error;
   }
-}
-
-/**
- * Converts a raw image URI from metadata into a fetchable URL.
- * @param uri - Original image URI
- * @returns Normalized URL string
- */
-export function normalizeImageUri(uri: string): string {
-  if (uri.startsWith('data:')) return uri;
-  const fetchableUrl = getFetchableDecentralizedStorageUrl(uri);
-  return fetchableUrl.toString();
 }
 
 export async function reprocessTokenImageCache(
@@ -186,7 +180,7 @@ export async function reprocessTokenImageCache(
     for (const token of imageUris) {
       try {
         const [cached, thumbnail] = await processImageCache(
-          getFetchableDecentralizedStorageUrl(token.image).toString(),
+          getFetchableMetadataUrl(token.image).toString(),
           contractPrincipal,
           BigInt(token.token_number)
         );
