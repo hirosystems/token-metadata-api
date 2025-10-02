@@ -40,13 +40,21 @@ const METADATA_FETCH_HTTP_AGENT = new Agent({
   },
 });
 
-const PUBLIC_GATEWAY_IPFS_REPLACED = ENV.PUBLIC_GATEWAY_IPFS_REPLACED.split(',');
-
+/**
+ * A metadata URL that was analyzed and normalized into a fetchable URL. Specifies the URL, the
+ * gateway type, and any extra headers that may be required to fetch the metadata.
+ */
 export type FetchableMetadataUrl = {
   url: URL;
   gateway: 'ipfs' | 'arweave' | null;
   fetchHeaders?: Record<string, string>;
 };
+
+/**
+ * List of public IPFS gateways that will be replaced with the value of `ENV.PUBLIC_GATEWAY_IPFS`
+ * whenever a metadata URL has these gateways hard coded in `http:` or `https:` URLs.
+ */
+const PUBLIC_GATEWAY_IPFS_REPLACED = ENV.PUBLIC_GATEWAY_IPFS_REPLACED.split(',');
 
 /**
  * Fetches all the localized metadata JSONs for a token. First, it downloads the default metadata
@@ -358,7 +366,7 @@ export function getFetchableMetadataUrl(uri: string): FetchableMetadataUrl {
     const result: FetchableMetadataUrl = {
       url: parsedUri,
       gateway: null,
-      fetchHeaders: {},
+      fetchHeaders: undefined,
     };
     if (parsedUri.protocol === 'http:' || parsedUri.protocol === 'https:') {
       // If this is a known public IPFS gateway, replace it with `ENV.PUBLIC_GATEWAY_IPFS`.
