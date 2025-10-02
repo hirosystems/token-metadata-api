@@ -1,3 +1,41 @@
+## [1.3.0](https://github.com/hirosystems/token-metadata-api/compare/v1.2.0...v1.3.0) (2025-06-16)
+
+
+### Features
+
+* add `/import-contract` admin rpc endpoint ([#309](https://github.com/hirosystems/token-metadata-api/issues/309)) ([3aef505](https://github.com/hirosystems/token-metadata-api/commit/3aef5055cdb0afa3b682a23aff124a8ae91960ec))
+
+
+### Bug Fixes
+
+* update chainhook predicate start_block upon re-registration ([#308](https://github.com/hirosystems/token-metadata-api/issues/308)) ([929f08e](https://github.com/hirosystems/token-metadata-api/commit/929f08e33dedd4b7499799c468483692312d839f))
+
+## [1.3.0-beta.1](https://github.com/hirosystems/token-metadata-api/compare/v1.2.1-beta.1...v1.3.0-beta.1) (2025-06-10)
+
+
+### Features
+
+* add `/import-contract` admin rpc endpoint ([#309](https://github.com/hirosystems/token-metadata-api/issues/309)) ([3aef505](https://github.com/hirosystems/token-metadata-api/commit/3aef5055cdb0afa3b682a23aff124a8ae91960ec))
+
+## [1.2.1-beta.1](https://github.com/hirosystems/token-metadata-api/compare/v1.2.0...v1.2.1-beta.1) (2025-06-04)
+
+
+### Bug Fixes
+
+* update chainhook predicate start_block upon re-registration ([#308](https://github.com/hirosystems/token-metadata-api/issues/308)) ([929f08e](https://github.com/hirosystems/token-metadata-api/commit/929f08e33dedd4b7499799c468483692312d839f))
+
+## [1.2.0](https://github.com/hirosystems/token-metadata-api/compare/v1.1.7...v1.2.0) (2025-04-18)
+
+
+### Features
+
+* show asset_identifier in ft list response, add filter by valid metadata ([#298](https://github.com/hirosystems/token-metadata-api/issues/298)) ([aae897a](https://github.com/hirosystems/token-metadata-api/commit/aae897ad862ed8489f7f36c8083240c1e1677214))
+
+
+### Bug Fixes
+
+* add db indexes to optimize endpoint queries ([#296](https://github.com/hirosystems/token-metadata-api/issues/296)) ([50c75e6](https://github.com/hirosystems/token-metadata-api/commit/50c75e639c5527d6127692f21d3e72f1c56461c2))
+
 ## [1.1.7](https://github.com/hirosystems/token-metadata-api/compare/v1.1.6...v1.1.7) (2025-04-04)
 
 

@@ -66,6 +66,9 @@ const schema = Type.Object({
   STACKS_NODE_RPC_HOST: Type.String(),
   STACKS_NODE_RPC_PORT: Type.Number({ minimum: 0, maximum: 65535 }),
 
+  /// Base url for the Stacks API. Used only through AdminRPC requests for maintenance operations.
+  STACKS_API_BASE_URL: Type.String({ default: 'https://api.mainnet.hiro.so' }),
+
   /** Whether or not the job queue should start processing jobs immediately after bootup. */
   JOB_QUEUE_AUTO_START: Type.Boolean({ default: true }),
   /** Whether or not the `JobQueue` will continue to try retryable failed jobs indefinitely. */

@@ -8,6 +8,9 @@ import { logger, PINO_LOGGER_CONFIG } from '@hirosystems/api-toolkit';
 import { reprocessTokenImageCache } from '../token-processor/images/image-cache';
 import { ENV } from '../env';
 import { JobQueue } from '../token-processor/queue/job-queue';
+import { createClient } from '@stacks/blockchain-api-client';
+import { ClarityAbi } from '@stacks/transactions';
+import { getSmartContractSip } from '../token-processor/util/sip-validation';
 
 export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeBoxTypeProvider> = (
   fastify,
@@ -122,6 +125,75 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
       }
       void jobQueue.stop();
       return reply.code(200).send();
+    }
+  );
+
+  fastify.post(
+    '/import-contract',
+    {
+      schema: {
+        description:
+          'Imports a smart contract from the Stacks API and refreshes its token metadata',
+        body: Type.Object({
+          contractId: Type.RegEx(SmartContractRegEx),
+        }),
+      },
+    },
+    async (request, reply) => {
+      // Look for the contract in the Stacks Blockchain API.
+      const api = createClient({ baseUrl: ENV.STACKS_API_BASE_URL });
+      const { data: contract } = await api.GET('/extended/v1/contract/{contract_id}', {
+        params: { path: { contract_id: request.body.contractId } },
+      });
+      if (!contract) {
+        await reply.code(422).send({ error: 'Contract not found' });
+        return;
+      }
+      if (!contract.abi) {
+        await reply.code(422).send({ error: 'Contract does not have an interface' });
+        return;
+      }
+
+      // Make sure it's a token contract.
+      const abi = JSON.parse(contract.abi) as ClarityAbi;
+      const sip = getSmartContractSip(abi);
+      if (!sip) {
+        await reply.code(422).send({ error: 'Not a token contract' });
+        return;
+      }
+
+      // Get transaction and block data.
+      const { data: transaction } = await api.GET('/extended/v1/tx/{tx_id}', {
+        params: { path: { tx_id: contract.tx_id } },
+      });
+      if (!transaction) {
+        await reply.code(422).send({ error: 'Contract deploy transaction not found' });
+        return;
+      }
+      const { data: block } = await api.GET('/extended/v2/blocks/{height_or_hash}', {
+        params: { path: { height_or_hash: contract.block_height } },
+      });
+      if (!block) {
+        await reply.code(422).send({ error: 'Contract deploy block not found' });
+        return;
+      }
+
+      // Enqueue contract for processing.
+      await fastify.db.sqlWriteTransaction(async sql => {
+        await fastify.db.chainhook.enqueueContract(sql, {
+          block_height: contract.block_height,
+          index_block_hash: block.index_block_hash,
+          principal: contract.contract_id,
+          sip,
+          tx_id: contract.tx_id,
+          // We need to convert to `any` first because there's a bug in the Stacks API types
+          // library that causes TS to incorrectly think `tx_index` is not available in the
+          // transaction response.
+          tx_index: (transaction as any).tx_index,
+          fungible_token_name: abi.fungible_tokens[0]?.name ?? null,
+          non_fungible_token_name: abi.non_fungible_tokens[0]?.name ?? null,
+        });
+      });
     }
   );
 
