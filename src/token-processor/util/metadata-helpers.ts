@@ -40,6 +40,8 @@ const METADATA_FETCH_HTTP_AGENT = new Agent({
   },
 });
 
+const PUBLIC_GATEWAY_IPFS_REPLACED = ENV.PUBLIC_GATEWAY_IPFS_REPLACED.split(',');
+
 /**
  * Fetches all the localized metadata JSONs for a token. First, it downloads the default metadata
  * JSON and parses it looking for other localizations. If those are found, each of them is then
@@ -344,15 +346,8 @@ export function getFetchableDecentralizedStorageUrl(uri: string): URL {
   try {
     const parsedUri = new URL(uri);
     if (parsedUri.protocol === 'http:' || parsedUri.protocol === 'https:') {
-      // Check if this is a public IPFS gateway and replace with ENV.PUBLIC_GATEWAY_IPFS
-      const publicIpfsGateways = [
-        'ipfs.io',
-        'dweb.link',
-        'gateway.pinata.cloud',
-        'cloudflare-ipfs.com',
-        'infura-ipfs.io',
-      ];
-      if (publicIpfsGateways.includes(parsedUri.hostname)) {
+      // If this is a known public IPFS gateway, replace it with `ENV.PUBLIC_GATEWAY_IPFS`.
+      if (PUBLIC_GATEWAY_IPFS_REPLACED.includes(parsedUri.hostname)) {
         return new URL(`${ENV.PUBLIC_GATEWAY_IPFS}${parsedUri.pathname}`);
       }
       return parsedUri;
