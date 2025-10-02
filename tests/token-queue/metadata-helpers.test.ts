@@ -222,6 +222,10 @@ describe('Metadata Helpers', () => {
     expect(getFetchableDecentralizedStorageUrl(ipfs2).toString()).toBe(
       'https://cloudflare-ipfs.com/ipfs/QmYCnfeseno5cLpC75rmy6LQhsNYQCJabiuwqNUXMaA3Fo/1145.png'
     );
+    const ipfs3 = 'https://ipfs.io/ipfs/QmYCnfeseno5cLpC75rmy6LQhsNYQCJabiuwqNUXMaA3Fo/1145.png';
+    expect(getFetchableDecentralizedStorageUrl(ipfs3).toString()).toBe(
+      'https://cloudflare-ipfs.com/ipfs/QmYCnfeseno5cLpC75rmy6LQhsNYQCJabiuwqNUXMaA3Fo/1145.png'
+    );
   });
 
   test('replace URI string tokens', () => {

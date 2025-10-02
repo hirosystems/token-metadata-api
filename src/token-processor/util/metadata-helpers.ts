@@ -332,7 +332,8 @@ function parseJsonMetadata(url: string, content?: string): RawMetadata {
 
 /**
  * Helper method for creating http/s url for supported protocols.
- * * URLs with `http` or `https` protocols are returned as-is.
+ * * URLs with `http` or `https` protocols are returned as-is. But if they are public IPFS gateways,
+ *   they are replaced with `ENV.PUBLIC_GATEWAY_IPFS`.
  * * URLs with `ipfs` or `ipns` protocols are returned with as an `https` url using a public IPFS
  *   gateway.
  * * URLs with `ar` protocols are returned as `https` using a public Arweave gateway.
@@ -342,7 +343,20 @@ function parseJsonMetadata(url: string, content?: string): RawMetadata {
 export function getFetchableDecentralizedStorageUrl(uri: string): URL {
   try {
     const parsedUri = new URL(uri);
-    if (parsedUri.protocol === 'http:' || parsedUri.protocol === 'https:') return parsedUri;
+    if (parsedUri.protocol === 'http:' || parsedUri.protocol === 'https:') {
+      // Check if this is a public IPFS gateway and replace with ENV.PUBLIC_GATEWAY_IPFS
+      const publicIpfsGateways = [
+        'ipfs.io',
+        'dweb.link',
+        'gateway.pinata.cloud',
+        'cloudflare-ipfs.com',
+        'infura-ipfs.io',
+      ];
+      if (publicIpfsGateways.includes(parsedUri.hostname)) {
+        return new URL(`${ENV.PUBLIC_GATEWAY_IPFS}${parsedUri.pathname}`);
+      }
+      return parsedUri;
+    }
     if (parsedUri.protocol === 'ipfs:') {
       const host = parsedUri.host === 'ipfs' ? 'ipfs' : `ipfs/${parsedUri.host}`;
       return new URL(`${ENV.PUBLIC_GATEWAY_IPFS}/${host}${parsedUri.pathname}`);
