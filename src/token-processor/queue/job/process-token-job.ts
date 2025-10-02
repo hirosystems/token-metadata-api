@@ -12,7 +12,7 @@ import { StacksNodeRpcClient } from '../../stacks-node/stacks-node-rpc-client';
 import { SmartContractClarityError, TooManyRequestsHttpError } from '../../util/errors';
 import {
   fetchAllMetadataLocalesFromBaseUri,
-  getFetchableDecentralizedStorageUrl,
+  getFetchableMetadataUrl,
   getTokenSpecificUri,
 } from '../../util/metadata-helpers';
 import { RetryableJobError } from '../errors';
@@ -194,7 +194,7 @@ export class ProcessTokenJob extends Job {
       return;
     }
     // Before we return the uri, check if its fetchable hostname is not already rate limited.
-    const fetchable = getFetchableDecentralizedStorageUrl(uri);
+    const fetchable = getFetchableMetadataUrl(uri).url;
     const rateLimitedHost = await this.db.getRateLimitedHost({ hostname: fetchable.hostname });
     if (rateLimitedHost) {
       const retryAfter = Date.parse(rateLimitedHost.retry_after);
