@@ -19,7 +19,7 @@ import {
   UndiciCauseTypeError,
 } from './errors';
 import { RetryableJobError } from '../queue/errors';
-import { normalizeImageUri, processImageCache } from '../images/image-cache';
+import { processImageCache } from '../images/image-cache';
 import {
   RawMetadataLocale,
   RawMetadataLocalizationCType,
@@ -39,6 +39,22 @@ const METADATA_FETCH_HTTP_AGENT = new Agent({
     rejectUnauthorized: false, // Ignore SSL cert errors.
   },
 });
+
+/**
+ * A metadata URL that was analyzed and normalized into a fetchable URL. Specifies the URL, the
+ * gateway type, and any extra headers that may be required to fetch the metadata.
+ */
+export type FetchableMetadataUrl = {
+  url: URL;
+  gateway: 'ipfs' | 'arweave' | null;
+  fetchHeaders?: Record<string, string>;
+};
+
+/**
+ * List of public IPFS gateways that will be replaced with the value of `ENV.PUBLIC_GATEWAY_IPFS`
+ * whenever a metadata URL has these gateways hard coded in `http:` or `https:` URLs.
+ */
+const PUBLIC_GATEWAY_IPFS_REPLACED = ENV.PUBLIC_GATEWAY_IPFS_REPLACED.split(',');
 
 /**
  * Fetches all the localized metadata JSONs for a token. First, it downloads the default metadata
@@ -172,9 +188,8 @@ async function parseMetadataForInsertion(
     let cachedImage: string | undefined;
     let cachedThumbnailImage: string | undefined;
     if (image && typeof image === 'string' && ENV.IMAGE_CACHE_PROCESSOR_ENABLED) {
-      const normalizedUrl = normalizeImageUri(image);
       [cachedImage, cachedThumbnailImage] = await processImageCache(
-        normalizedUrl,
+        image,
         contract.principal,
         token.token_number
       );
@@ -243,7 +258,8 @@ async function parseMetadataForInsertion(
 export async function fetchMetadata(
   httpUrl: URL,
   contract_principal: string,
-  token_number: bigint
+  token_number: bigint,
+  headers?: Record<string, string>
 ): Promise<string | undefined> {
   const url = httpUrl.toString();
   try {
@@ -251,6 +267,7 @@ export async function fetchMetadata(
     const result = await request(url, {
       method: 'GET',
       throwOnError: true,
+      headers,
       dispatcher:
         // Disable during tests so we can inject a global mock agent.
         process.env.NODE_ENV === 'test' ? undefined : METADATA_FETCH_HTTP_AGENT,
@@ -304,10 +321,13 @@ export async function getMetadataFromUri(
     return parseJsonMetadata(token_uri, content);
   }
 
-  // Support HTTP/S URLs otherwise
-  const httpUrl = getFetchableDecentralizedStorageUrl(token_uri);
+  // Support HTTP/S URLs otherwise.
+  // Transform the URL to use a public gateway if necessary.
+  const { url: httpUrl, fetchHeaders } = getFetchableMetadataUrl(token_uri);
   const urlStr = httpUrl.toString();
-  const content = await fetchMetadata(httpUrl, contract_principal, token_number);
+
+  // Fetch the metadata.
+  const content = await fetchMetadata(httpUrl, contract_principal, token_number, fetchHeaders);
   return parseJsonMetadata(urlStr, content);
 }
 
@@ -332,31 +352,55 @@ function parseJsonMetadata(url: string, content?: string): RawMetadata {
 
 /**
  * Helper method for creating http/s url for supported protocols.
- * * URLs with `http` or `https` protocols are returned as-is.
+ * * URLs with `http` or `https` protocols are returned as-is. But if they are public IPFS gateways,
+ *   they are replaced with `ENV.PUBLIC_GATEWAY_IPFS`.
  * * URLs with `ipfs` or `ipns` protocols are returned with as an `https` url using a public IPFS
  *   gateway.
  * * URLs with `ar` protocols are returned as `https` using a public Arweave gateway.
  * @param uri - URL to convert
  * @returns Fetchable URL
  */
-export function getFetchableDecentralizedStorageUrl(uri: string): URL {
+export function getFetchableMetadataUrl(uri: string): FetchableMetadataUrl {
   try {
     const parsedUri = new URL(uri);
-    if (parsedUri.protocol === 'http:' || parsedUri.protocol === 'https:') return parsedUri;
-    if (parsedUri.protocol === 'ipfs:') {
+    const result: FetchableMetadataUrl = {
+      url: parsedUri,
+      gateway: null,
+      fetchHeaders: undefined,
+    };
+    if (parsedUri.protocol === 'http:' || parsedUri.protocol === 'https:') {
+      // If this is a known public IPFS gateway, replace it with `ENV.PUBLIC_GATEWAY_IPFS`.
+      if (PUBLIC_GATEWAY_IPFS_REPLACED.includes(parsedUri.hostname)) {
+        result.url = new URL(`${ENV.PUBLIC_GATEWAY_IPFS}${parsedUri.pathname}`);
+        result.gateway = 'ipfs';
+      } else {
+        result.url = parsedUri;
+      }
+    } else if (parsedUri.protocol === 'ipfs:') {
       const host = parsedUri.host === 'ipfs' ? 'ipfs' : `ipfs/${parsedUri.host}`;
-      return new URL(`${ENV.PUBLIC_GATEWAY_IPFS}/${host}${parsedUri.pathname}`);
+      result.url = new URL(`${ENV.PUBLIC_GATEWAY_IPFS}/${host}${parsedUri.pathname}`);
+      result.gateway = 'ipfs';
+    } else if (parsedUri.protocol === 'ipns:') {
+      result.url = new URL(`${ENV.PUBLIC_GATEWAY_IPFS}/${parsedUri.host}${parsedUri.pathname}`);
+      result.gateway = 'ipfs';
+    } else if (parsedUri.protocol === 'ar:') {
+      result.url = new URL(`${ENV.PUBLIC_GATEWAY_ARWEAVE}/${parsedUri.host}${parsedUri.pathname}`);
+      result.gateway = 'arweave';
+    } else {
+      throw new MetadataParseError(`Unsupported uri protocol: ${uri}`);
     }
-    if (parsedUri.protocol === 'ipns:') {
-      return new URL(`${ENV.PUBLIC_GATEWAY_IPFS}/${parsedUri.host}${parsedUri.pathname}`);
+
+    if (result.gateway === 'ipfs' && ENV.PUBLIC_GATEWAY_IPFS_EXTRA_HEADER) {
+      const [key, value] = ENV.PUBLIC_GATEWAY_IPFS_EXTRA_HEADER.split(':');
+      result.fetchHeaders = {
+        [key.trim()]: value.trim(),
+      };
     }
-    if (parsedUri.protocol === 'ar:') {
-      return new URL(`${ENV.PUBLIC_GATEWAY_ARWEAVE}/${parsedUri.host}${parsedUri.pathname}`);
-    }
+
+    return result;
   } catch (error) {
     throw new MetadataParseError(`Invalid uri: ${uri}`);
   }
-  throw new MetadataParseError(`Unsupported uri protocol: ${uri}`);
 }
 
 export function parseDataUrl(
