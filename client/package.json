@@ -31,12 +31,12 @@
     "build:browser": "microbundle -i src/index.ts -o lib/index.umd.js --no-pkg-main -f umd --external none --globals none --no-compress --tsconfig tsconfig.browser.json --name TokenMetadataApiClient"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0",
-    "microbundle": "^0.15.1",
-    "rimraf": "^6.1.3",
-    "typescript": "^5.9.3"
+    "@types/node": "25.5.0",
+    "microbundle": "0.15.1",
+    "rimraf": "6.1.3",
+    "typescript": "5.9.3"
   },
   "dependencies": {
-    "openapi-fetch": "^0.12.2"
+    "openapi-fetch": "0.12.2"
   }
 }
