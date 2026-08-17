@@ -420,7 +420,7 @@ export const SearchResponse = Type.Array(SearchResultItem, {
 
 export const ApiStatusResponse = Type.Object(
   {
-    server_version: Type.String({ examples: ['token-metadata-api v0.0.1 (master:a1b2c3)'] }),
+    server_version: Type.String({ examples: ['token-metadata-api v0.0.1 (main:a1b2c3)'] }),
     status: Type.String({ examples: ['ready'] }),
     chain_tip: Nullable(
       Type.Object({

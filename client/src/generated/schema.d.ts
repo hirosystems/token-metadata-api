@@ -821,7 +821,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @example token-metadata-api v0.0.1 (master:a1b2c3) */
+                        /** @example token-metadata-api v0.0.1 (main:a1b2c3) */
                         server_version: string;
                         /** @example ready */
                         status: string;

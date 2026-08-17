@@ -49,7 +49,7 @@ Check if the API is ready and which chain tip it has indexed.
 const { data, error } = await client.GET('/metadata/v1/');
 
 if (data) {
-  console.log(data.server_version); // e.g. "token-metadata-api v0.0.1 (master:a1b2c3)"
+  console.log(data.server_version); // e.g. "token-metadata-api v0.0.1 (main:a1b2c3)"
   console.log(data.status);         // e.g. "ready"
   console.log(data.chain_tip);      // { block_height: 150000, index_block_hash: "0x..." } | null
 }

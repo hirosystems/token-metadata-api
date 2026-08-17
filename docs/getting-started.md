@@ -16,7 +16,7 @@ This section helps you to initiate the service by following the steps below.
 
     `git clone https://github.com/hirosystems/token-metadata-api.git`
 
-1. Create a `.env` file and specify the appropriate values to configure access to the Stacks API database, the Token metadata API local database, and the Stacks node RPC interface. See [`env.ts`](https://github.com/hirosystems/token-metadata-api/tree/master/src/env.ts) for all available configuration options.
+1. Create a `.env` file and specify the appropriate values to configure access to the Stacks API database, the Token metadata API local database, and the Stacks node RPC interface. See [`env.ts`](https://github.com/hirosystems/token-metadata-api/tree/main/src/env.ts) for all available configuration options.
 
 2. Build the app (NodeJS v18+ is required)
 

@@ -11,5 +11,5 @@ The Token metadata API allows you to specify the path to a custom script that ca
 * Protects original image hosts from [DDoS attacks](https://wikipedia.org/wiki/Denial-of-service_attack)
 * Increases user privacy
 
-An example IMGIX processor script is included in [`config/image-cache.js`](https://github.com/hirosystems/token-metadata-api/blob/master/config/image-cache.js).
+An example IMGIX processor script is included in [`config/image-cache.js`](https://github.com/hirosystems/token-metadata-api/blob/main/config/image-cache.js).
 You can customize the script path by altering the `METADATA_IMAGE_CACHE_PROCESSOR` environment variable.
