@@ -87,6 +87,26 @@ describe('Job', () => {
     assert.strictEqual(dbJob1?.status, 'invalid');
   });
 
+  test('user error backs off a job that gets re-enqueued before retry_after', async () => {
+    ENV.JOB_QUEUE_INVALID_RETRY_AFTER_MS = 200;
+    const job = new TestUserErrorJob({ db, job: dbJob, network: 'mainnet' });
+
+    await assert.doesNotReject(job.work());
+    const dbJob1 = await db.getJob({ id: dbJob.id });
+    assert.strictEqual(dbJob1?.status, 'invalid');
+    assert.notStrictEqual(dbJob1?.retry_after, undefined);
+
+    // A token re-mint re-enqueues the job as `pending` without touching `retry_after`, so the queue
+    // should still skip it until the backoff elapses.
+    await db.sql`UPDATE jobs SET status = 'pending', updated_at = NOW() WHERE id = ${dbJob.id}`;
+    const jobs1 = await db.getPendingJobBatch({ limit: 1 });
+    assert.strictEqual(jobs1.length, 0);
+
+    await timeout(300);
+    const jobs2 = await db.getPendingJobBatch({ limit: 1 });
+    assert.strictEqual(jobs2.length, 1);
+  });
+
   test('retry_count limit reached marks entry as failed', async () => {
     ENV.JOB_QUEUE_STRICT_MODE = false;
     ENV.JOB_QUEUE_MAX_RETRIES = 0;
