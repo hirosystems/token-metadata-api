@@ -188,6 +188,7 @@ All configuration is done via environment variables. Defaults are shown in paren
 | `JOB_QUEUE_MAX_RETRIES` | Max retry attempts for a failed job | `10` |
 | `JOB_QUEUE_TIMEOUT_MS` | Timeout per job (ms) | `60000` |
 | `JOB_QUEUE_RETRY_AFTER_MS` | Delay before retrying a failed job (ms) | `5000` |
+| `JOB_QUEUE_INVALID_RETRY_AFTER_MS` | Delay before re-processing a job marked `invalid` (ms). Tokens are re-enqueued on every re-mint, so this keeps a contract with unparseable metadata from being re-fetched on each mint | `3600000` |
 
 ### Metadata fetching
 
