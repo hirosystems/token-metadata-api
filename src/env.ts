@@ -70,6 +70,13 @@ const schema = Type.Object({
   JOB_QUEUE_TIMEOUT_MS: Type.Number({ default: 60_000 }),
   /** Minimum time we will wait to retry a job after it's been executed. */
   JOB_QUEUE_RETRY_AFTER_MS: Type.Number({ default: 5_000 }),
+  /**
+   * Minimum time we will wait before processing a job again after it was marked as `invalid`. A
+   * token's job row is re-enqueued as `pending` every time that token is re-minted, so without this
+   * backoff a contract whose metadata never parses (but which mints constantly, e.g. an AMM pool
+   * minting one SFT per price bin) would be re-fetched and re-written on every single mint.
+   */
+  JOB_QUEUE_INVALID_RETRY_AFTER_MS: Type.Number({ default: 3_600_000 }),
 
   /**
    * The max number of immediate attempts that will be made to retrieve metadata from external URIs

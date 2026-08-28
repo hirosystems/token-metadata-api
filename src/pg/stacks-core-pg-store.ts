@@ -497,13 +497,13 @@ export class StacksCorePgStore extends BasePgStoreModule {
           INSERT INTO tokens (smart_contract_id, type, token_number, block_height, index_block_hash,
             tx_id, tx_index) (SELECT * FROM filtered_values)
           ON CONFLICT ON CONSTRAINT tokens_smart_contract_id_token_number_unique DO
-            UPDATE SET
-              uri = EXCLUDED.uri,
-              name = EXCLUDED.name,
-              symbol = EXCLUDED.symbol,
-              decimals = EXCLUDED.decimals,
-              total_supply = EXCLUDED.total_supply,
-              updated_at = NOW()
+            -- Deliberately a no-op write, only here so RETURNING gives us the existing row's id.
+            -- This INSERT doesn't carry the metadata columns, so assigning them from EXCLUDED would
+            -- blank out metadata we already fetched. updated_at must not move either: a null
+            -- updated_at on a pending/queued job is how getTokenMetadataBundleInternal recognizes a
+            -- token that hasn't been processed yet, and a re-mint can land before the first job
+            -- runs. The metadata write and updateTokenSupply both set updated_at themselves.
+            UPDATE SET smart_contract_id = EXCLUDED.smart_contract_id
           RETURNING id
         )
         INSERT INTO jobs (token_id) (SELECT id AS token_id FROM token_inserts)
@@ -593,7 +593,18 @@ export class StacksCorePgStore extends BasePgStoreModule {
     id: number;
     status: DbJobStatus;
     invalidReason?: DbJobInvalidReason;
+    retryAfterMs?: number;
   }): Promise<void> {
+    let retryFragment;
+    if (args.retryAfterMs !== undefined) {
+      const retryAfter = args.retryAfterMs.toString();
+      retryFragment = this.sql`retry_count = 0,
+        retry_after = NOW() + INTERVAL '${this.sql(retryAfter)} ms',`;
+    } else if (args.status != DbJobStatus.pending) {
+      retryFragment = this.sql`retry_count = 0, retry_after = NULL,`;
+    } else {
+      retryFragment = this.sql``;
+    }
     await this.sql`
       UPDATE jobs
       SET status = ${args.status},
@@ -602,11 +613,7 @@ export class StacksCorePgStore extends BasePgStoreModule {
             ? args.invalidReason
             : this.sql`NULL`
         },
-        ${
-          args.status != DbJobStatus.pending
-            ? this.sql`retry_count = 0, retry_after = NULL,`
-            : this.sql``
-        }
+        ${retryFragment}
         updated_at = NOW()
       WHERE id = ${args.id}
     `;

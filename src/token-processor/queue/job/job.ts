@@ -43,6 +43,7 @@ export abstract class Job {
   async work(): Promise<void> {
     let status: DbJobStatus | undefined;
     let invalidReason: DbJobInvalidReason | undefined;
+    let retryAfterMs: number | undefined;
     const sw = stopwatch();
 
     // This block will catch any and all errors that are generated while processing the job. Each of
@@ -86,13 +87,18 @@ export abstract class Job {
         logger.warn(error, `User error on Job ${this.description()}`);
         status = DbJobStatus.invalid;
         invalidReason = getUserErrorInvalidReason(error);
+        // Hold off on re-processing this job for a while. The metadata behind a token's URI can be
+        // fixed without the contract ever changing, so re-mints legitimately re-enqueue this job as
+        // `pending`, but a token that mints constantly would otherwise have us re-fetch a URI we
+        // already know is bad on every single mint.
+        retryAfterMs = ENV.JOB_QUEUE_INVALID_RETRY_AFTER_MS;
       } else {
         logger.error(error, `Job ${this.description()}`);
         status = DbJobStatus.failed;
       }
     } finally {
       if (status) {
-        if (await this.updateStatus(status, invalidReason)) {
+        if (await this.updateStatus(status, invalidReason, retryAfterMs)) {
           logger.info(`Job ${this.description()} ${status} in ${sw.getElapsed()}ms`);
         }
       }
@@ -101,10 +107,11 @@ export abstract class Job {
 
   private async updateStatus(
     status: DbJobStatus,
-    invalidReason?: DbJobInvalidReason
+    invalidReason?: DbJobInvalidReason,
+    retryAfterMs?: number
   ): Promise<boolean> {
     try {
-      await this.db.core.updateJobStatus({ id: this.job.id, status, invalidReason });
+      await this.db.core.updateJobStatus({ id: this.job.id, status, invalidReason, retryAfterMs });
       return true;
     } catch (error) {
       logger.error(`Job ${this.description()} could not update status to ${status}: ${error}`);
