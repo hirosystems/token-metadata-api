@@ -45,6 +45,7 @@ const BLOCKED_IPV6_SUBNETS: [address: string, prefix: number][] = [
   ['2002::', 16], // 6to4
   ['fc00::', 7], // Unique local, includes the fd00:ec2::254 cloud metadata endpoint
   ['fe80::', 10], // Link-local
+  ['fec0::', 10], // Site-local, deprecated by RFC 3879 but still routed on some networks
   ['ff00::', 8], // Multicast
 ];
 

@@ -11,6 +11,7 @@ import {
 } from '../../pg/types.js';
 import { ENV } from '../../env.js';
 import {
+  BlockedFetchDestinationError,
   findBlockedFetchDestinationError,
   MetadataHttpError,
   MetadataParseError,
@@ -128,6 +129,10 @@ export async function fetchAllMetadataLocalesFromBaseUri(
         throw new RetryableJobError(`Too many requests for ${error.url}`, error);
       }
       if (
+        // A blocked destination can never succeed, and retrying is not just wasted work: a blocked
+        // *image* URL throws out of `parseMetadataForInsertion` below, so every attempt re-fetches
+        // the default metadata and all of its localizations again.
+        error instanceof BlockedFetchDestinationError ||
         error instanceof MetadataSizeExceededError ||
         error instanceof MetadataHttpError ||
         error instanceof MetadataParseError ||

@@ -14,8 +14,17 @@ import {
   isBlockedIpAddress,
   setLoopbackAllowedForTesting,
 } from '../../src/token-processor/util/fetch-destination-policy.js';
-import { fetchMetadata } from '../../src/token-processor/util/metadata-helpers.js';
-import { DbJobInvalidReason } from '../../src/pg/types.js';
+import {
+  fetchAllMetadataLocalesFromBaseUri,
+  fetchMetadata,
+} from '../../src/token-processor/util/metadata-helpers.js';
+import {
+  DbJobInvalidReason,
+  DbSipNumber,
+  DbSmartContract,
+  DbToken,
+  DbTokenType,
+} from '../../src/pg/types.js';
 import { waiter } from '@stacks/api-toolkit';
 
 /** An address in a blocked range that is never routable, used as a redirect target. */
@@ -74,6 +83,9 @@ describe('Fetch destination policy', () => {
       ['IPv6 unique local', 'fc00::1'],
       ['IPv6 cloud metadata', 'fd00:ec2::254'],
       ['IPv6 link-local', 'fe80::1'],
+      ['IPv6 link-local, top of range', 'febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff'],
+      ['IPv6 site-local', 'fec0::1'],
+      ['IPv6 site-local, top of range', 'feff:ffff:ffff:ffff:ffff:ffff:ffff:ffff'],
       ['IPv6 multicast', 'ff02::1'],
       ['NAT64', '64:ff9b::7f00:1'],
       ['Teredo', '2001:0:1234::1'],
@@ -93,6 +105,7 @@ describe('Fetch destination policy', () => {
       ['public IPv4, adjacent to a blocked range', '169.253.255.255'],
       ['public IPv6', '2606:4700:4700::1111'],
       ['IPv4-mapped public IPv6', '::ffff:8.8.8.8'],
+      ['public IPv6, just below the link-local range', 'fe7f:ffff::1'],
     ] as const;
     for (const [name, address] of allowed) {
       test(`allows ${name} (${address})`, () => {
@@ -285,6 +298,68 @@ describe('Fetch destination policy', () => {
       } finally {
         await server.close();
       }
+    });
+  });
+
+  describe('immediate retry loop', () => {
+    const contract = {
+      id: 1,
+      principal: 'ABCD.test',
+      sip: DbSipNumber.sip009,
+      block_height: 1,
+      index_block_hash: '0x00',
+      tx_id: '0x00',
+      tx_index: 0,
+      created_at: '2026-01-01',
+    } as DbSmartContract;
+    const token = {
+      id: 1,
+      smart_contract_id: 1,
+      type: DbTokenType.nft,
+      token_number: 1n,
+      uri: null,
+      name: null,
+      decimals: null,
+      total_supply: null,
+      symbol: null,
+      created_at: '2026-01-01',
+      updated_at: null,
+    } as DbToken;
+
+    let previousDispatcher: ReturnType<typeof getGlobalDispatcher>;
+    let previousLoopbackAllowed: boolean;
+    let connectAttempts = 0;
+    before(() => {
+      previousLoopbackAllowed = setLoopbackAllowedForTesting(false);
+      previousDispatcher = getGlobalDispatcher();
+      const connect = createFetchDestinationConnector({});
+      setGlobalDispatcher(
+        new Agent({
+          connect: (options, callback) => {
+            connectAttempts++;
+            connect(options, callback);
+          },
+        })
+      );
+    });
+    after(() => {
+      setGlobalDispatcher(previousDispatcher);
+      setLoopbackAllowedForTesting(previousLoopbackAllowed);
+    });
+
+    test('does not immediately retry a blocked destination', async () => {
+      assert.ok(
+        ENV.METADATA_MAX_IMMEDIATE_URI_RETRIES > 1,
+        'this test is only meaningful when immediate retries are enabled'
+      );
+      connectAttempts = 0;
+      await assert.rejects(
+        fetchAllMetadataLocalesFromBaseUri(CLOUD_METADATA_URL, contract, token),
+        BlockedFetchDestinationError
+      );
+      // A blocked destination is terminal, so the loop must give up after the first attempt rather
+      // than burning all `METADATA_MAX_IMMEDIATE_URI_RETRIES` on a fetch that can never succeed.
+      assert.equal(connectAttempts, 1);
     });
   });
 
