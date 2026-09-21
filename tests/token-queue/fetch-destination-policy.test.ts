@@ -89,6 +89,13 @@ describe('Fetch destination policy', () => {
       ['IPv6 multicast', 'ff02::1'],
       ['NAT64', '64:ff9b::7f00:1'],
       ['Teredo', '2001:0:1234::1'],
+      ['IPv6 benchmarking', '2001:2::1'],
+      ['IPv6 ORCHIDv2', '2001:20::1'],
+      ['IPv6 documentation (RFC 9637)', '3fff::1'],
+      ['IPv6 AS112 direct delegation', '2620:4f:8000::1'],
+      ['IPv6 unallocated space above global unicast', '4000::1'],
+      ['IPv6 unallocated space below global unicast', '1fff:ffff::1'],
+      ['IPv6 unallocated space, adjacent to link-local', 'fe7f:ffff::1'],
       ['6to4', '2002:7f00:1::1'],
       ['multicast', '224.0.0.1'],
       ['broadcast', '255.255.255.255'],
@@ -105,7 +112,8 @@ describe('Fetch destination policy', () => {
       ['public IPv4, adjacent to a blocked range', '169.253.255.255'],
       ['public IPv6', '2606:4700:4700::1111'],
       ['IPv4-mapped public IPv6', '::ffff:8.8.8.8'],
-      ['public IPv6, just below the link-local range', 'fe7f:ffff::1'],
+      ['public IPv6, bottom of global unicast', '2000::1'],
+      ['public IPv6, above the documentation range', '3ffe:ffff::1'],
     ] as const;
     for (const [name, address] of allowed) {
       test(`allows ${name} (${address})`, () => {

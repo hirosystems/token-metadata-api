@@ -27,27 +27,37 @@ const BLOCKED_IPV4_SUBNETS: [address: string, prefix: number][] = [
 ];
 
 /**
- * IPv6 equivalents of {@link BLOCKED_IPV4_SUBNETS}. Ranges that embed an arbitrary IPv4 address
- * (NAT64, Teredo, 6to4) are blocked wholesale rather than decoded, since none of them are
- * legitimate destinations for token metadata.
- *
- * IPv4-mapped addresses such as `::ffff:127.0.0.1` are deliberately absent: `net.BlockList` unmaps
- * them and evaluates them against the IPv4 rules above.
+ * IPv6 is handled the other way round, as an allowlist. Only `2000::/3` has ever been allocated for
+ * global unicast, so enumerating what to block would mean enumerating the seven eighths of the
+ * address space that is unallocated or special-purpose, and missing any of it (`4000::/2`, say)
+ * leaves it reachable. Requiring global unicast blocks all of that by default, including loopback,
+ * unique local, link-local, site-local, multicast, NAT64 and the discard prefix.
+ */
+const GLOBAL_UNICAST_IPV6_SUBNET: [address: string, prefix: number] = ['2000::', 3];
+
+/**
+ * The IANA special-purpose ranges that fall *inside* `2000::/3` and so have to be subtracted from
+ * it. Ranges that embed an arbitrary IPv4 address (Teredo, 6to4) are blocked wholesale rather than
+ * decoded, since neither is a legitimate destination for token metadata.
  */
 const BLOCKED_IPV6_SUBNETS: [address: string, prefix: number][] = [
-  ['::', 128], // Unspecified
-  ['::1', 128], // Loopback
-  ['64:ff9b::', 96], // NAT64
-  ['64:ff9b:1::', 48], // Local-use NAT64
-  ['100::', 64], // Discard-only
-  ['2001::', 32], // Teredo
+  ['2001::', 23], // IETF protocol assignments: Teredo, benchmarking, ORCHIDv2, AMT, AS112-v6
   ['2001:db8::', 32], // Documentation
   ['2002::', 16], // 6to4
-  ['fc00::', 7], // Unique local, includes the fd00:ec2::254 cloud metadata endpoint
-  ['fe80::', 10], // Link-local
-  ['fec0::', 10], // Site-local, deprecated by RFC 3879 but still routed on some networks
-  ['ff00::', 8], // Multicast
+  ['3fff::', 20], // Documentation (RFC 9637)
+  ['2620:4f:8000::', 48], // Direct delegation AS112 service
 ];
+
+/**
+ * `::ffff:0:0/96`. An IPv4-mapped address is an IPv4 destination wearing an IPv6 spelling, so it is
+ * judged by the IPv4 rules rather than the global-unicast requirement — which it would always fail,
+ * taking legitimate addresses like `::ffff:8.8.8.8` down with it.
+ */
+const IPV4_MAPPED_ADDRESSES = new net.BlockList();
+IPV4_MAPPED_ADDRESSES.addSubnet('::ffff:0:0', 96, 'ipv6');
+
+const GLOBAL_UNICAST_IPV6 = new net.BlockList();
+GLOBAL_UNICAST_IPV6.addSubnet(...GLOBAL_UNICAST_IPV6_SUBNET, 'ipv6');
 
 const BLOCKED_ADDRESSES = new net.BlockList();
 for (const [address, prefix] of BLOCKED_IPV4_SUBNETS) {
@@ -83,6 +93,11 @@ export function setLoopbackAllowedForTesting(allowed: boolean): boolean {
 /**
  * Determines if an IP address is off limits for metadata and image fetches. Anything that isn't a
  * parseable IP address is refused, since we can't prove it's public.
+ *
+ * IPv4 is judged against a denylist and IPv6 against an allowlist, because their address spaces are
+ * shaped differently: IPv4's special-purpose ranges are a short, closed list carved out of an
+ * otherwise allocated space, while almost all of IPv6 is unallocated. See
+ * {@link GLOBAL_UNICAST_IPV6_SUBNET}.
  * @param address - IPv4 or IPv6 address
  * @returns true if the worker must not connect to this address
  */
@@ -91,6 +106,12 @@ export function isBlockedIpAddress(address: string): boolean {
   if (family === 0) return true;
   const type = family === 4 ? 'ipv4' : 'ipv6';
   if (loopbackAllowed && LOOPBACK_ADDRESSES.check(address, type)) return false;
+  // `net.BlockList` unmaps IPv4-mapped addresses on its own, so the IPv4 rules apply to them here
+  // without any further conversion.
+  if (family === 4 || IPV4_MAPPED_ADDRESSES.check(address, type)) {
+    return BLOCKED_ADDRESSES.check(address, type);
+  }
+  if (!GLOBAL_UNICAST_IPV6.check(address, type)) return true;
   return BLOCKED_ADDRESSES.check(address, type);
 }
 
