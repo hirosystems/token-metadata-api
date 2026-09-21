@@ -64,6 +64,9 @@ export async function generateTokenErrorResponse(error: unknown, reply: FastifyR
       case DbJobInvalidReason.tokenContractClarityError:
         message = 'The token contract produced a Clarity error when trying to fetch metadata';
         break;
+      case DbJobInvalidReason.fetchDestinationBlocked:
+        message = 'Metadata or image URL points to an address that is not publicly routable';
+        break;
     }
     await reply.code(422).send({ error: 'Token error', message });
   } else {

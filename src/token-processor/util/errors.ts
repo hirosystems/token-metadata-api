@@ -44,6 +44,39 @@ export class MetadataParseError extends UserError {
 
 export class ImageParseError extends MetadataParseError {}
 
+/**
+ * Thrown when a token metadata or image URL points at an address the worker is not allowed to
+ * contact (loopback, private, link-local, cloud metadata, etc). This is a `UserError` because the
+ * fault is in the token's own URI, so retrying can never succeed.
+ */
+export class BlockedFetchDestinationError extends UserError {
+  constructor(destination: string) {
+    super();
+    this.message = `Fetch destination is not a permitted public address: ${destination}`;
+    this.name = this.constructor.name;
+  }
+}
+
+/**
+ * Digs a `BlockedFetchDestinationError` out of an error chain. The policy is enforced inside the
+ * undici connector, so by the time the error surfaces it has been wrapped: `request` reports it as
+ * the `cause` of a socket error and `fetch` buries it under a `TypeError: fetch failed`.
+ * @param error - error thrown by a metadata or image fetch
+ * @returns the blocked destination error, if this chain contains one
+ */
+export function findBlockedFetchDestinationError(
+  error: unknown
+): BlockedFetchDestinationError | undefined {
+  const seen = new Set<unknown>();
+  let current: unknown = error;
+  while (current != null && !seen.has(current)) {
+    if (current instanceof BlockedFetchDestinationError) return current;
+    seen.add(current);
+    current = (current as { cause?: unknown }).cause;
+  }
+  return undefined;
+}
+
 export class SmartContractClarityError extends UserError {
   constructor(message: string) {
     super();
@@ -95,6 +128,8 @@ export class StacksNodeHttpError extends Error {
 
 export function getUserErrorInvalidReason(error: UserError): DbJobInvalidReason {
   switch (true) {
+    case error instanceof BlockedFetchDestinationError:
+      return DbJobInvalidReason.fetchDestinationBlocked;
     case error instanceof ImageSizeExceededError:
       return DbJobInvalidReason.imageSizeExceeded;
     case error instanceof MetadataSizeExceededError:

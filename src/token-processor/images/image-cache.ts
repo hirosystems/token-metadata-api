@@ -7,6 +7,7 @@ import sharp from 'sharp';
 import fs from 'fs';
 import { Agent, fetch, errors } from 'undici';
 import {
+  findBlockedFetchDestinationError,
   ImageSizeExceededError,
   ImageTimeoutError,
   TooManyRequestsHttpError,
@@ -14,6 +15,7 @@ import {
   ImageHttpError,
   ImageParseError,
 } from '../util/errors.js';
+import { createFetchDestinationConnector } from '../util/fetch-destination-policy.js';
 import { pipeline } from 'node:stream/promises';
 import { Storage } from '@google-cloud/storage';
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
@@ -47,9 +49,9 @@ async function downloadImage(
         headersTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
         bodyTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
         maxResponseSize: ENV.IMAGE_CACHE_MAX_BYTE_SIZE,
-        connect: {
+        connect: createFetchDestinationConnector({
           rejectUnauthorized: false, // Ignore SSL cert errors.
-        },
+        }),
       }),
     })
       .then(response => {
@@ -193,6 +195,10 @@ export async function processImageCache(
       `${ENV.IMAGE_CACHE_CDN_BASE_PATH}${remoteName2}`,
     ];
   } catch (error) {
+    const blockedDestination = findBlockedFetchDestinationError(error);
+    if (blockedDestination) {
+      throw blockedDestination;
+    }
     if (error instanceof DOMException) {
       if (error.name === 'TimeoutError' || error.name === 'AbortError') {
         throw new ImageTimeoutError(new URL(rawImgUrl));

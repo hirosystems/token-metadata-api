@@ -11,6 +11,7 @@ import {
 } from '../../pg/types.js';
 import { ENV } from '../../env.js';
 import {
+  findBlockedFetchDestinationError,
   MetadataHttpError,
   MetadataParseError,
   MetadataSizeExceededError,
@@ -18,6 +19,7 @@ import {
   TooManyRequestsHttpError,
   UndiciCauseTypeError,
 } from './errors.js';
+import { createFetchDestinationConnector } from './fetch-destination-policy.js';
 import { RetryableJobError } from '../queue/errors.js';
 import { processImageCache } from '../images/image-cache.js';
 import {
@@ -34,9 +36,9 @@ const METADATA_FETCH_HTTP_AGENT = new Agent({
   headersTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
   bodyTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
   maxResponseSize: ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE,
-  connect: {
+  connect: createFetchDestinationConnector({
     rejectUnauthorized: false, // Ignore SSL cert errors.
-  },
+  }),
 });
 
 /**
@@ -284,6 +286,10 @@ export async function fetchMetadata(
     }
     return await result.body.text();
   } catch (error) {
+    const blockedDestination = findBlockedFetchDestinationError(error);
+    if (blockedDestination) {
+      throw blockedDestination;
+    }
     if (error instanceof TooManyRequestsHttpError || error instanceof MetadataHttpError) {
       throw error;
     } else if (
