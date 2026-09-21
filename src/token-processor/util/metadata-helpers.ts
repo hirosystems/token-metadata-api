@@ -11,6 +11,8 @@ import {
 } from '../../pg/types.js';
 import { ENV } from '../../env.js';
 import {
+  BlockedFetchDestinationError,
+  findBlockedFetchDestinationError,
   MetadataHttpError,
   MetadataParseError,
   MetadataSizeExceededError,
@@ -18,6 +20,7 @@ import {
   TooManyRequestsHttpError,
   UndiciCauseTypeError,
 } from './errors.js';
+import { createFetchDestinationConnector } from './fetch-destination-policy.js';
 import { RetryableJobError } from '../queue/errors.js';
 import { processImageCache } from '../images/image-cache.js';
 import {
@@ -34,9 +37,9 @@ const METADATA_FETCH_HTTP_AGENT = new Agent({
   headersTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
   bodyTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
   maxResponseSize: ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE,
-  connect: {
+  connect: createFetchDestinationConnector({
     rejectUnauthorized: false, // Ignore SSL cert errors.
-  },
+  }),
 });
 
 /**
@@ -126,6 +129,10 @@ export async function fetchAllMetadataLocalesFromBaseUri(
         throw new RetryableJobError(`Too many requests for ${error.url}`, error);
       }
       if (
+        // A blocked destination can never succeed, and retrying is not just wasted work: a blocked
+        // *image* URL throws out of `parseMetadataForInsertion` below, so every attempt re-fetches
+        // the default metadata and all of its localizations again.
+        error instanceof BlockedFetchDestinationError ||
         error instanceof MetadataSizeExceededError ||
         error instanceof MetadataHttpError ||
         error instanceof MetadataParseError ||
@@ -284,6 +291,10 @@ export async function fetchMetadata(
     }
     return await result.body.text();
   } catch (error) {
+    const blockedDestination = findBlockedFetchDestinationError(error);
+    if (blockedDestination) {
+      throw blockedDestination;
+    }
     if (error instanceof TooManyRequestsHttpError || error instanceof MetadataHttpError) {
       throw error;
     } else if (

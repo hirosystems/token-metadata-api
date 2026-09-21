@@ -36,6 +36,7 @@ export enum DbJobInvalidReason {
   metadataHttpError = 107,
   imageHttpError = 108,
   tokenContractClarityError = 109,
+  fetchDestinationBlocked = 110,
 }
 
 export enum DbTokenType {
