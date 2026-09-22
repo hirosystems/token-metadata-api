@@ -1,6 +1,6 @@
 import * as querystring from 'querystring';
 import JSON5 from 'json5';
-import { Agent, errors, interceptors, request } from 'undici';
+import { Agent, Dispatcher, errors, interceptors, request } from 'undici';
 import {
   DbMetadataAttributeInsert,
   DbMetadataInsert,
@@ -33,20 +33,74 @@ import {
 } from './types.js';
 import { logger } from '@stacks/api-toolkit';
 
-export const METADATA_FETCH_HTTP_AGENT = new Agent({
+const METADATA_FETCH_BASE_AGENT = new Agent({
   headersTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
   bodyTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
   maxResponseSize: ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE,
   connect: createFetchDestinationConnector({
     rejectUnauthorized: false, // Ignore SSL cert errors.
   }),
-}).compose(
-  // The redirect interceptor is the only way to follow redirects here: `maxRedirections` throws
-  // when passed to `request()` and is ignored by the `Agent` constructor. Each hop is dispatched
-  // through the agent again, so `createFetchDestinationConnector` vets every one of them, not just
-  // the URL the token declared.
-  interceptors.redirect({ maxRedirections: ENV.METADATA_FETCH_MAX_REDIRECTIONS })
-);
+});
+
+// The redirect interceptor is the only way to follow redirects here: `maxRedirections` throws when
+// passed to `request()` and is ignored by the `Agent` constructor. Each hop is dispatched through
+// the agent again, so `createFetchDestinationConnector` vets every one of them, not just the URL
+// the token declared.
+const redirectInterceptor = () =>
+  interceptors.redirect({ maxRedirections: ENV.METADATA_FETCH_MAX_REDIRECTIONS });
+
+export const METADATA_FETCH_HTTP_AGENT = METADATA_FETCH_BASE_AGENT.compose(redirectInterceptor());
+
+/**
+ * Drops the named headers from a dispatch, whatever shape undici is carrying them in: the first
+ * dispatch gets the object `fetchMetadata` passed, while a redirected one gets the flat
+ * `[name, value, ...]` array the redirect handler rebuilds.
+ * @param headers - headers for this hop
+ * @param drop - lower cased header names to remove
+ * @returns the headers without the dropped entries
+ */
+function withoutHeaders(
+  headers: Dispatcher.DispatchOptions['headers'],
+  drop: Set<string>
+): Dispatcher.DispatchOptions['headers'] {
+  if (Array.isArray(headers)) {
+    const kept: string[] = [];
+    for (let i = 0; i < headers.length; i += 2) {
+      if (!drop.has(String(headers[i]).toLowerCase())) kept.push(headers[i], headers[i + 1]);
+    }
+    return kept;
+  }
+  if (headers && typeof headers === 'object') {
+    return Object.fromEntries(
+      Object.entries(headers).filter(([name]) => !drop.has(name.toLowerCase()))
+    );
+  }
+  return headers;
+}
+
+/**
+ * Strips the gateway headers once a redirect leaves the origin they were issued for.
+ *
+ * undici removes only `authorization`, `cookie` and `proxy-authorization` when a redirect crosses
+ * origins, but `PUBLIC_GATEWAY_IPFS_EXTRA_HEADER` may name any header at all, so a gateway API key
+ * would otherwise be handed to whatever origin that gateway points us at.
+ *
+ * This has to sit *under* the redirect interceptor so it runs for each hop: the redirect handler
+ * re-dispatches through the interceptor below it, not through the whole chain again.
+ * @param origin - the origin the headers belong to
+ * @param headerNames - names of the headers to strip elsewhere
+ * @returns an interceptor enforcing that
+ */
+function stripHeadersOffOrigin(
+  origin: string,
+  headerNames: string[]
+): Dispatcher.DispatcherComposeInterceptor {
+  const drop = new Set(headerNames.map(name => name.toLowerCase()));
+  return dispatch => (opts, handler) => {
+    if (String(opts.origin) === origin) return dispatch(opts, handler);
+    return dispatch({ ...opts, headers: withoutHeaders(opts.headers, drop) }, handler);
+  };
+}
 
 /**
  * A metadata URL that was analyzed and normalized into a fetchable URL. Specifies the URL, the
@@ -280,7 +334,15 @@ export async function fetchMetadata(
     const result = await request(url, {
       method: 'GET',
       headers,
-      dispatcher: METADATA_FETCH_HTTP_AGENT,
+      dispatcher:
+        headers && Object.keys(headers).length
+          ? METADATA_FETCH_BASE_AGENT.compose(
+              // Composing per request is what pins the headers to this URL's origin. It reuses the
+              // one base agent and its pool; only the interceptor chain is per request.
+              stripHeadersOffOrigin(httpUrl.origin, Object.keys(headers)),
+              redirectInterceptor()
+            )
+          : METADATA_FETCH_HTTP_AGENT,
     });
     if (result.statusCode >= 400) {
       const responseError = new errors.ResponseError(
@@ -294,12 +356,14 @@ export async function fetchMetadata(
       throw new MetadataHttpError(`${url}: ${result.statusCode}`, responseError);
     }
     if (result.statusCode >= 300) {
-      // Only reachable once the redirect budget is spent, since the interceptor resolves the hops
-      // it is allowed to. Without this the redirect body would be handed to the JSON parser and
-      // reported as unparseable metadata, which says nothing about the real problem.
+      // A 3xx that undici did not resolve: the redirect budget ran out, or the response is one that
+      // is never followed, such as a 304 or a redirect with no `Location`. Either way the body is
+      // not metadata, and without this it would reach the JSON parser and be reported as
+      // unparseable, which says nothing about the real problem.
       await result.body.dump();
       throw new MetadataHttpError(
-        `${url}: unresolved redirect after ${ENV.METADATA_FETCH_MAX_REDIRECTIONS} redirections`,
+        `${url}: unfollowed ${result.statusCode} response ` +
+          `(redirect limit ${ENV.METADATA_FETCH_MAX_REDIRECTIONS})`,
         new errors.ResponseError(
           result.statusText || `HTTP ${result.statusCode}`,
           result.statusCode,

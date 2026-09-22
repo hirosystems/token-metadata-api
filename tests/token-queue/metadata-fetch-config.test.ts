@@ -7,7 +7,36 @@ process.env.METADATA_MAX_PAYLOAD_BYTE_SIZE = '2000';
 process.env.METADATA_FETCH_MAX_REDIRECTIONS = '2';
 
 import { strict as assert } from 'node:assert';
+import http from 'node:http';
 import { after, before, describe, test } from 'node:test';
+
+/**
+ * A server that records the headers of every request it receives, which the harness server does not
+ * expose. Each one gets its own port, so two of them are two origins.
+ * @param respond - fills in the response for a request
+ * @returns the running server, the headers it saw, and a teardown
+ */
+async function startHeaderRecordingServer(
+  respond: (res: http.ServerResponse) => void
+): Promise<{ url: string; seen: http.IncomingHttpHeaders[]; close: () => Promise<void> }> {
+  const seen: http.IncomingHttpHeaders[] = [];
+  const server = http.createServer((req, res) => {
+    seen.push(req.headers);
+    respond(res);
+  });
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  if (!address || typeof address === 'string') throw new Error('Unable to resolve server port');
+  return {
+    url: `http://127.0.0.1:${address.port}/`,
+    seen,
+    close: () =>
+      new Promise<void>(resolve => {
+        server.closeAllConnections();
+        server.close(() => resolve());
+      }),
+  };
+}
 
 describe('Metadata fetch agent configuration', () => {
   let startTestHttpServer: typeof import('../helpers.js').startTestHttpServer;
@@ -84,10 +113,60 @@ describe('Metadata fetch agent configuration', () => {
       fetchMetadata(new URL(server.urlFor('/over-1.json')), 'ABCD.test', 1n),
       (error: unknown) => {
         assert.ok(error instanceof errors.MetadataHttpError);
-        assert.match(error.message, /unresolved redirect after 2 redirections/);
+        assert.match(error.message, /unfollowed 302 response \(redirect limit 2\)/);
         return true;
       }
     );
     assert.equal(server.requestCount('/unreached.json'), 0, 'the budget stops the last hop');
+  });
+
+  test('keeps gateway headers on a same-origin redirect', async () => {
+    const gateway = await startHeaderRecordingServer(res => {
+      if (res.req.url === '/moved') {
+        res.statusCode = 200;
+        res.end('{"name":"same-origin"}');
+        return;
+      }
+      res.statusCode = 302;
+      res.setHeader('location', '/moved');
+      res.end();
+    });
+    try {
+      const result = await fetchMetadata(new URL(gateway.url), 'ABCD.test', 1n, {
+        'X-Api-Key': 'gateway-secret',
+      });
+      assert.equal(result, '{"name":"same-origin"}');
+      assert.equal(gateway.seen.length, 2);
+      assert.equal(gateway.seen[1]['x-api-key'], 'gateway-secret');
+    } finally {
+      await gateway.close();
+    }
+  });
+
+  test('strips gateway headers when a redirect leaves the origin', async () => {
+    // undici only sheds `authorization`, `cookie` and `proxy-authorization` by itself, so without
+    // the interceptor a `PUBLIC_GATEWAY_IPFS_EXTRA_HEADER` API key would follow the gateway to
+    // whatever origin it points at.
+    const elsewhere = await startHeaderRecordingServer(res => {
+      res.statusCode = 200;
+      res.end('{"name":"elsewhere"}');
+    });
+    const gateway = await startHeaderRecordingServer(res => {
+      res.statusCode = 302;
+      res.setHeader('location', elsewhere.url);
+      res.end();
+    });
+    try {
+      const result = await fetchMetadata(new URL(gateway.url), 'ABCD.test', 1n, {
+        'X-Api-Key': 'gateway-secret',
+      });
+      assert.equal(result, '{"name":"elsewhere"}');
+      assert.equal(gateway.seen[0]['x-api-key'], 'gateway-secret', 'the gateway still gets it');
+      assert.equal(elsewhere.seen.length, 1);
+      assert.equal(elsewhere.seen[0]['x-api-key'], undefined, 'the next origin must not');
+    } finally {
+      await gateway.close();
+      await elsewhere.close();
+    }
   });
 });
