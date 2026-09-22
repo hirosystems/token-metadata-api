@@ -16,6 +16,7 @@ import {
   ImageParseError,
 } from '../util/errors.js';
 import { createFetchDestinationConnector } from '../util/fetch-destination-policy.js';
+import { stripHeadersOffOrigin } from '../util/fetch-header-policy.js';
 import { pipeline } from 'node:stream/promises';
 import { Storage } from '@google-cloud/storage';
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
@@ -62,7 +63,15 @@ async function downloadImage(
     fetch(imgUrl, {
       headers,
       signal: AbortSignal.timeout(ENV.METADATA_FETCH_TIMEOUT_MS),
-      dispatcher: IMAGE_FETCH_HTTP_AGENT,
+      dispatcher:
+        headers && Object.keys(headers).length
+          ? // `fetch` follows redirects itself and sheds only `authorization` when it crosses
+            // origins, so the gateway headers have to be pinned to the origin they were issued
+            // for. Composing reuses the one agent and its pool; only the chain is per call.
+            IMAGE_FETCH_HTTP_AGENT.compose(
+              stripHeadersOffOrigin(new URL(imgUrl).origin, Object.keys(headers))
+            )
+          : IMAGE_FETCH_HTTP_AGENT,
     })
       .then(response => {
         if (response.status == 429) {

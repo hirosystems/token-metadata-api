@@ -7,45 +7,17 @@ process.env.METADATA_MAX_PAYLOAD_BYTE_SIZE = '2000';
 process.env.METADATA_FETCH_MAX_REDIRECTIONS = '2';
 
 import { strict as assert } from 'node:assert';
-import http from 'node:http';
 import { after, before, describe, test } from 'node:test';
-
-/**
- * A server that records the headers of every request it receives, which the harness server does not
- * expose. Each one gets its own port, so two of them are two origins.
- * @param respond - fills in the response for a request
- * @returns the running server, the headers it saw, and a teardown
- */
-async function startHeaderRecordingServer(
-  respond: (res: http.ServerResponse) => void
-): Promise<{ url: string; seen: http.IncomingHttpHeaders[]; close: () => Promise<void> }> {
-  const seen: http.IncomingHttpHeaders[] = [];
-  const server = http.createServer((req, res) => {
-    seen.push(req.headers);
-    respond(res);
-  });
-  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
-  const address = server.address();
-  if (!address || typeof address === 'string') throw new Error('Unable to resolve server port');
-  return {
-    url: `http://127.0.0.1:${address.port}/`,
-    seen,
-    close: () =>
-      new Promise<void>(resolve => {
-        server.closeAllConnections();
-        server.close(() => resolve());
-      }),
-  };
-}
 
 describe('Metadata fetch agent configuration', () => {
   let startTestHttpServer: typeof import('../helpers.js').startTestHttpServer;
+  let startHeaderRecordingServer: typeof import('../helpers.js').startHeaderRecordingServer;
   let fetchMetadata: typeof import('../../src/token-processor/util/metadata-helpers.js').fetchMetadata;
   let errors: typeof import('../../src/token-processor/util/errors.js');
   let server: Awaited<ReturnType<typeof startTestHttpServer>>;
 
   before(async () => {
-    ({ startTestHttpServer } = await import('../helpers.js'));
+    ({ startTestHttpServer, startHeaderRecordingServer } = await import('../helpers.js'));
     ({ fetchMetadata } = await import('../../src/token-processor/util/metadata-helpers.js'));
     errors = await import('../../src/token-processor/util/errors.js');
     server = await startTestHttpServer();

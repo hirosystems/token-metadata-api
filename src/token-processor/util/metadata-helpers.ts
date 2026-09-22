@@ -1,6 +1,6 @@
 import * as querystring from 'querystring';
 import JSON5 from 'json5';
-import { Agent, Dispatcher, errors, interceptors, request } from 'undici';
+import { Agent, errors, interceptors, request } from 'undici';
 import {
   DbMetadataAttributeInsert,
   DbMetadataInsert,
@@ -21,6 +21,7 @@ import {
   UndiciCauseTypeError,
 } from './errors.js';
 import { createFetchDestinationConnector } from './fetch-destination-policy.js';
+import { stripHeadersOffOrigin } from './fetch-header-policy.js';
 import { RetryableJobError } from '../queue/errors.js';
 import { processImageCache } from '../images/image-cache.js';
 import {
@@ -50,57 +51,6 @@ const redirectInterceptor = () =>
   interceptors.redirect({ maxRedirections: ENV.METADATA_FETCH_MAX_REDIRECTIONS });
 
 export const METADATA_FETCH_HTTP_AGENT = METADATA_FETCH_BASE_AGENT.compose(redirectInterceptor());
-
-/**
- * Drops the named headers from a dispatch, whatever shape undici is carrying them in: the first
- * dispatch gets the object `fetchMetadata` passed, while a redirected one gets the flat
- * `[name, value, ...]` array the redirect handler rebuilds.
- * @param headers - headers for this hop
- * @param drop - lower cased header names to remove
- * @returns the headers without the dropped entries
- */
-function withoutHeaders(
-  headers: Dispatcher.DispatchOptions['headers'],
-  drop: Set<string>
-): Dispatcher.DispatchOptions['headers'] {
-  if (Array.isArray(headers)) {
-    const kept: string[] = [];
-    for (let i = 0; i < headers.length; i += 2) {
-      if (!drop.has(String(headers[i]).toLowerCase())) kept.push(headers[i], headers[i + 1]);
-    }
-    return kept;
-  }
-  if (headers && typeof headers === 'object') {
-    return Object.fromEntries(
-      Object.entries(headers).filter(([name]) => !drop.has(name.toLowerCase()))
-    );
-  }
-  return headers;
-}
-
-/**
- * Strips the gateway headers once a redirect leaves the origin they were issued for.
- *
- * undici removes only `authorization`, `cookie` and `proxy-authorization` when a redirect crosses
- * origins, but `PUBLIC_GATEWAY_IPFS_EXTRA_HEADER` may name any header at all, so a gateway API key
- * would otherwise be handed to whatever origin that gateway points us at.
- *
- * This has to sit *under* the redirect interceptor so it runs for each hop: the redirect handler
- * re-dispatches through the interceptor below it, not through the whole chain again.
- * @param origin - the origin the headers belong to
- * @param headerNames - names of the headers to strip elsewhere
- * @returns an interceptor enforcing that
- */
-function stripHeadersOffOrigin(
-  origin: string,
-  headerNames: string[]
-): Dispatcher.DispatcherComposeInterceptor {
-  const drop = new Set(headerNames.map(name => name.toLowerCase()));
-  return dispatch => (opts, handler) => {
-    if (String(opts.origin) === origin) return dispatch(opts, handler);
-    return dispatch({ ...opts, headers: withoutHeaders(opts.headers, drop) }, handler);
-  };
-}
 
 /**
  * A metadata URL that was analyzed and normalized into a fetchable URL. Specifies the URL, the
