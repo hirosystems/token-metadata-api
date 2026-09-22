@@ -1,11 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { ENV } from '../../src/env.js';
-import {
-  MetadataHttpError,
-  MetadataParseError,
-  MetadataSizeExceededError,
-  MetadataTimeoutError,
-} from '../../src/token-processor/util/errors.js';
+import { MetadataHttpError, MetadataParseError } from '../../src/token-processor/util/errors.js';
 import {
   getFetchableMetadataUrl,
   getMetadataFromUri,
@@ -234,9 +229,30 @@ describe('Metadata Helpers', () => {
 
   test('catches ECONNRESET errors', async () => {
     const url = new URL(server.urlFor('/1.json'));
-    // A real reset: the server drops the socket instead of answering.
+    // A real reset, not a hand-assembled error object: the server sends a TCP RST.
+    server.serve('/1.json', { resetSocket: true });
+
+    await assert.rejects(fetchMetadata(url, 'ABCD.test', 1n), (error: unknown) => {
+      assert.ok(error instanceof MetadataHttpError);
+      // Undici's `request` surfaces a reset as a plain `Error` carrying `code: 'ECONNRESET'`, so
+      // it lands in the generic wrapper rather than the dedicated `Server connection interrupted`
+      // branch, which only matches a `TypeError`. That branch is reachable from the image path,
+      // where `fetch` wraps every failure in a `TypeError`, but not from here. Asserting the real
+      // shape means this test notices if either side of that changes.
+      assert.equal((error.cause as NodeJS.ErrnoException)?.code, 'ECONNRESET');
+      assert.match(error.message, /ECONNRESET/);
+      return true;
+    });
+  });
+
+  test('catches a peer that closes without responding', async () => {
+    const url = new URL(server.urlFor('/1.json'));
     server.serve('/1.json', { destroySocket: true });
 
-    await assert.rejects(fetchMetadata(url, 'ABCD.test', 1n), MetadataHttpError);
+    await assert.rejects(fetchMetadata(url, 'ABCD.test', 1n), (error: unknown) => {
+      assert.ok(error instanceof MetadataHttpError);
+      assert.equal((error.cause as NodeJS.ErrnoException)?.code, 'UND_ERR_SOCKET');
+      return true;
+    });
   });
 });

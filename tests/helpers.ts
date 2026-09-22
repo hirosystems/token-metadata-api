@@ -57,10 +57,18 @@ export type TestHttpResponse = {
   headers?: Record<string, string>;
   /** Strings are sent verbatim, anything else is JSON encoded. */
   body?: unknown;
-  /** Hold the response open this long before replying, to exercise header and body timeouts. */
+  /** Wait this long before sending the status line and headers, to exercise `headersTimeout`. */
   delayMs?: number;
-  /** Destroy the socket instead of replying, to produce a real `ECONNRESET` on the client. */
+  /**
+   * Send the headers immediately, then wait this long before sending the body, to exercise
+   * `bodyTimeout`. `bodyTimeout` only starts once headers have arrived, so `delayMs` cannot reach
+   * it.
+   */
+  bodyDelayMs?: number;
+  /** Close the socket instead of replying, so the client sees the peer go away mid-request. */
   destroySocket?: boolean;
+  /** Reset the connection instead of replying (a TCP RST), so the client sees a real ECONNRESET. */
+  resetSocket?: boolean;
 };
 
 export type TestHttpServer = {
@@ -103,30 +111,41 @@ export async function startTestHttpServer(
       res.end(`No test route registered for ${path}`);
       return;
     }
+    if (response.resetSocket) {
+      req.socket.resetAndDestroy();
+      return;
+    }
     if (response.destroySocket) {
       req.socket.destroy();
       return;
     }
-    const reply = () => {
+    // Unreferenced timers so a pending delay can never hold the test runner open.
+    const later = (ms: number, fn: () => void) => void setTimeout(fn, ms).unref();
+    const body =
+      response.body === undefined || typeof response.body === 'string'
+        ? response.body
+        : JSON.stringify(response.body);
+    const sendHeaders = () => {
       res.statusCode = response.status ?? 200;
+      if (response.body !== undefined && typeof response.body !== 'string') {
+        res.setHeader('content-type', 'application/json');
+      }
       for (const [key, value] of Object.entries(response.headers ?? {})) {
         res.setHeader(key, value);
       }
-      const { body } = response;
-      if (body === undefined) {
-        res.end();
-      } else if (typeof body === 'string') {
-        res.end(body);
+      if (response.bodyDelayMs) {
+        // `flushHeaders` puts the headers on the wire on their own, which is what starts the
+        // client's body timeout while the body is still outstanding.
+        res.flushHeaders();
+        later(response.bodyDelayMs, () => res.end(body));
       } else {
-        res.setHeader('content-type', 'application/json');
-        res.end(JSON.stringify(body));
+        res.end(body);
       }
     };
     if (response.delayMs) {
-      // Unreferenced so a pending delay can never hold the test runner open.
-      setTimeout(reply, response.delayMs).unref();
+      later(response.delayMs, sendHeaders);
     } else {
-      reply();
+      sendHeaders();
     }
   });
   server.on('error', e => console.log(e));

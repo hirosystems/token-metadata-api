@@ -39,10 +39,20 @@ describe('Metadata fetch agent configuration', () => {
     assert.equal(result?.length, 500);
   });
 
-  test('applies METADATA_FETCH_TIMEOUT_MS to slow responses', async () => {
-    server.serve('/slow.json', { delayMs: 3000, body: 'too late' });
+  test('applies METADATA_FETCH_TIMEOUT_MS to slow response headers', async () => {
+    server.serve('/slow-headers.json', { delayMs: 3000, body: 'too late' });
     await assert.rejects(
-      fetchMetadata(new URL(server.urlFor('/slow.json')), 'ABCD.test', 1n),
+      fetchMetadata(new URL(server.urlFor('/slow-headers.json')), 'ABCD.test', 1n),
+      errors.MetadataTimeoutError
+    );
+  });
+
+  test('applies METADATA_FETCH_TIMEOUT_MS to slow response bodies', async () => {
+    // Headers arrive immediately here, so this can only be the agent's `bodyTimeout`: the header
+    // timeout has already been satisfied by the time the body stalls.
+    server.serve('/slow-body.json', { bodyDelayMs: 3000, body: 'too late' });
+    await assert.rejects(
+      fetchMetadata(new URL(server.urlFor('/slow-body.json')), 'ABCD.test', 1n),
       errors.MetadataTimeoutError
     );
   });
