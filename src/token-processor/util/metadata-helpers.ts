@@ -1,6 +1,6 @@
 import * as querystring from 'querystring';
 import JSON5 from 'json5';
-import { Agent, errors, request } from 'undici';
+import { Agent, errors, interceptors, request } from 'undici';
 import {
   DbMetadataAttributeInsert,
   DbMetadataInsert,
@@ -33,14 +33,20 @@ import {
 } from './types.js';
 import { logger } from '@stacks/api-toolkit';
 
-const METADATA_FETCH_HTTP_AGENT = new Agent({
+export const METADATA_FETCH_HTTP_AGENT = new Agent({
   headersTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
   bodyTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
   maxResponseSize: ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE,
   connect: createFetchDestinationConnector({
     rejectUnauthorized: false, // Ignore SSL cert errors.
   }),
-});
+}).compose(
+  // The redirect interceptor is the only way to follow redirects here: `maxRedirections` throws
+  // when passed to `request()` and is ignored by the `Agent` constructor. Each hop is dispatched
+  // through the agent again, so `createFetchDestinationConnector` vets every one of them, not just
+  // the URL the token declared.
+  interceptors.redirect({ maxRedirections: ENV.METADATA_FETCH_MAX_REDIRECTIONS })
+);
 
 /**
  * A metadata URL that was analyzed and normalized into a fetchable URL. Specifies the URL, the
@@ -286,6 +292,22 @@ export async function fetchMetadata(
         throw new TooManyRequestsHttpError(httpUrl, responseError);
       }
       throw new MetadataHttpError(`${url}: ${result.statusCode}`, responseError);
+    }
+    if (result.statusCode >= 300) {
+      // Only reachable once the redirect budget is spent, since the interceptor resolves the hops
+      // it is allowed to. Without this the redirect body would be handed to the JSON parser and
+      // reported as unparseable metadata, which says nothing about the real problem.
+      await result.body.dump();
+      throw new MetadataHttpError(
+        `${url}: unresolved redirect after ${ENV.METADATA_FETCH_MAX_REDIRECTIONS} redirections`,
+        new errors.ResponseError(
+          result.statusText || `HTTP ${result.statusCode}`,
+          result.statusCode,
+          {
+            headers: result.headers,
+          }
+        )
+      );
     }
     return await result.body.text();
   } catch (error) {
