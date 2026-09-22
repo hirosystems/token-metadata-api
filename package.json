@@ -64,7 +64,7 @@
     "@types/node": "24.12.2",
     "bignumber.js": "10.0.2",
     "env-schema": "7.0.0",
-    "fastify": "5.8.4",
+    "fastify": "5.12.5",
     "fastify-metrics": "12.1.0",
     "json5": "2.2.3",
     "node-pg-migrate": "7.9.1",
