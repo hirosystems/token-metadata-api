@@ -84,16 +84,6 @@ export type TestHttpServer = {
   close: () => Promise<void>;
 };
 
-/**
- * Starts a real HTTP server on loopback for tests that fetch metadata or images.
- *
- * Metadata fetches deliberately go through a real server rather than undici's `MockAgent`: a
- * `MockAgent` has to replace the global dispatcher, which swaps out the live `Agent` the token
- * processor is configured with and takes its timeouts, payload limits and destination policy out of
- * the test along with it.
- * @param routes - responses to serve, keyed by path
- * @returns the running server
- */
 export type HeaderRecordingServer = {
   url: string;
   /** Headers of every request this server received, in order. */
@@ -137,6 +127,16 @@ export async function startHeaderRecordingServer(
   };
 }
 
+/**
+ * Starts a real HTTP server on loopback for tests that fetch metadata or images.
+ *
+ * Metadata fetches deliberately go through a real server rather than undici's `MockAgent`: a
+ * `MockAgent` has to replace the global dispatcher, which swaps out the live `Agent` the token
+ * processor is configured with and takes its timeouts, payload limits and destination policy out of
+ * the test along with it.
+ * @param routes - responses to serve, keyed by path
+ * @returns the running server
+ */
 export async function startTestHttpServer(
   routes: Record<string, TestHttpResponse> = {}
 ): Promise<TestHttpServer> {
