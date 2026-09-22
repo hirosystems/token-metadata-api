@@ -274,9 +274,7 @@ export async function fetchMetadata(
     const result = await request(url, {
       method: 'GET',
       headers,
-      dispatcher:
-        // Disable during tests so we can inject a global mock agent.
-        process.env.NODE_ENV === 'test' ? undefined : METADATA_FETCH_HTTP_AGENT,
+      dispatcher: METADATA_FETCH_HTTP_AGENT,
     });
     if (result.statusCode >= 400) {
       const responseError = new errors.ResponseError(

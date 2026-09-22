@@ -15,20 +15,33 @@ import { ProcessTokenJob } from '../../src/token-processor/queue/job/process-tok
 import { parseRetryAfterResponseHeader } from '../../src/token-processor/util/helpers.js';
 import { RetryableJobError } from '../../src/token-processor/queue/errors.js';
 import { cycleMigrations } from '@stacks/api-toolkit';
-import { insertAndEnqueueTestContractWithTokens, setupEnv } from '../helpers.js';
+import {
+  insertAndEnqueueTestContractWithTokens,
+  setupEnv,
+  startTestHttpServer,
+  TestHttpServer,
+} from '../helpers.js';
 import { InvalidTokenError } from '../../src/pg/errors.js';
 import { afterEach, beforeEach, describe, test } from 'node:test';
 
 describe('ProcessTokenJob', () => {
   let db: PgStore;
+  // Metadata is served by real HTTP servers so the fetch exercises the live `Agent`. Only the
+  // stacks-node RPC stays on `MockAgent`, which the metadata fetch no longer routes through.
+  let server: TestHttpServer;
+  let localeServer: TestHttpServer;
 
   beforeEach(async () => {
     setupEnv();
     db = await PgStore.connect({ skipMigrations: true });
     await cycleMigrations(MIGRATIONS_DIR);
+    server = await startTestHttpServer();
+    localeServer = await startTestHttpServer();
   });
 
   afterEach(async () => {
+    await server.close();
+    await localeServer.close();
     await db.close();
   });
 
@@ -130,7 +143,7 @@ describe('ProcessTokenJob', () => {
         })
         .reply(200, {
           okay: true,
-          result: cvToHex(stringUtf8CV('http://m.io/{id}.json')),
+          result: cvToHex(stringUtf8CV(`${server.url}{id}.json`)),
         });
       interceptor
         .intercept({
@@ -159,14 +172,7 @@ describe('ProcessTokenJob', () => {
           okay: true,
           result: cvToHex(uintCV(1997500000000)),
         });
-      agent
-        .get('http://m.io')
-        .intercept({
-          path: '/1.json',
-          method: 'GET',
-        })
-        .reply(500, { message: 'server error' })
-        .persist();
+      server.serve('/1.json', { status: 500, body: { message: 'server error' } });
       setGlobalDispatcher(agent);
 
       const processor = new ProcessTokenJob({ db, job: tokenJob, network: 'mainnet' });
@@ -272,13 +278,7 @@ describe('ProcessTokenJob', () => {
       }`;
       const agent = new MockAgent();
       agent.disableNetConnect();
-      agent
-        .get('https://www.100x.fi')
-        .intercept({
-          path: '/meme1.json',
-          method: 'GET',
-        })
-        .reply(200, json);
+      server.serve('/meme1.json', { body: json });
       const interceptor = agent.get(
         `http://${ENV.STACKS_NODE_RPC_HOST}:${ENV.STACKS_NODE_RPC_PORT}`
       );
@@ -298,7 +298,7 @@ describe('ProcessTokenJob', () => {
         })
         .reply(200, {
           okay: true,
-          result: cvToHex(stringUtf8CV('https://www.100x.fi/meme1.json')),
+          result: cvToHex(stringUtf8CV(`${server.url}meme1.json`)),
         });
       interceptor
         .intercept({
@@ -397,15 +397,9 @@ describe('ProcessTokenJob', () => {
         })
         .reply(200, {
           okay: true,
-          result: cvToHex(stringUtf8CV('http://m.io/{id}.json')),
+          result: cvToHex(stringUtf8CV(`${server.url}{id}.json`)),
         });
-      agent
-        .get(`http://m.io`)
-        .intercept({
-          path: '/1.json',
-          method: 'GET',
-        })
-        .reply(200, metadata);
+      server.serve('/1.json', { body: metadata });
       setGlobalDispatcher(agent);
 
       await new ProcessTokenJob({ db, job: tokenJob, network: 'mainnet' }).work();
@@ -415,7 +409,7 @@ describe('ProcessTokenJob', () => {
         tokenNumber: 1,
       });
       assert.notStrictEqual(bundle, undefined);
-      assert.strictEqual(bundle?.token.uri, 'http://m.io/1.json');
+      assert.strictEqual(bundle?.token.uri, `${server.url}1.json`);
       assert.strictEqual(bundle?.metadataLocale?.metadata.name, 'Mutant Monkeys #1');
       assert.strictEqual(
         bundle?.metadataLocale?.metadata.image,
@@ -479,7 +473,7 @@ describe('ProcessTokenJob', () => {
           artist: 'Bitcoin Monkeys',
         },
         localization: {
-          uri: 'http://m-locale.io/{id}-{locale}.json',
+          uri: `${localeServer.url}{id}-{locale}.json`,
           default: 'en',
           locales: ['en', 'es-MX'],
         },
@@ -507,22 +501,10 @@ describe('ProcessTokenJob', () => {
         })
         .reply(200, {
           okay: true,
-          result: cvToHex(stringUtf8CV('http://m.io/{id}.json')),
+          result: cvToHex(stringUtf8CV(`${server.url}{id}.json`)),
         });
-      agent
-        .get(`http://m.io`)
-        .intercept({
-          path: '/1.json',
-          method: 'GET',
-        })
-        .reply(200, metadata);
-      agent
-        .get(`http://m-locale.io`)
-        .intercept({
-          path: '/1-es-MX.json',
-          method: 'GET',
-        })
-        .reply(200, metadataSpanish);
+      server.serve('/1.json', { body: metadata });
+      localeServer.serve('/1-es-MX.json', { body: metadataSpanish });
       setGlobalDispatcher(agent);
 
       await new ProcessTokenJob({ db, job: tokenJob, network: 'mainnet' }).work();
@@ -532,10 +514,10 @@ describe('ProcessTokenJob', () => {
         tokenNumber: 1,
       });
       assert.notStrictEqual(bundle, undefined);
-      assert.strictEqual(bundle?.token.uri, 'http://m.io/1.json');
+      assert.strictEqual(bundle?.token.uri, `${server.url}1.json`);
       assert.strictEqual(bundle?.metadataLocale?.metadata.l10n_locale, 'en');
       assert.strictEqual(bundle?.metadataLocale?.metadata.l10n_default, true);
-      assert.strictEqual(bundle?.metadataLocale?.metadata.l10n_uri, 'http://m.io/1.json');
+      assert.strictEqual(bundle?.metadataLocale?.metadata.l10n_uri, `${server.url}1.json`);
 
       // Make sure localization overrides work correctly
       const mexicanBundle = await db.getTokenMetadataBundle({
@@ -544,12 +526,12 @@ describe('ProcessTokenJob', () => {
         locale: 'es-MX',
       });
       assert.notStrictEqual(mexicanBundle, undefined);
-      assert.strictEqual(mexicanBundle?.token.uri, 'http://m.io/1.json');
+      assert.strictEqual(mexicanBundle?.token.uri, `${server.url}1.json`);
       assert.strictEqual(mexicanBundle?.metadataLocale?.metadata.l10n_locale, 'es-MX');
       assert.strictEqual(mexicanBundle?.metadataLocale?.metadata.l10n_default, false);
       assert.strictEqual(
         mexicanBundle?.metadataLocale?.metadata.l10n_uri,
-        'http://m-locale.io/1-es-MX.json'
+        `${localeServer.url}1-es-MX.json`
       );
       assert.strictEqual(mexicanBundle?.metadataLocale?.metadata.name, 'Changos Mutantes #1');
       assert.strictEqual(
@@ -611,15 +593,9 @@ describe('ProcessTokenJob', () => {
         })
         .reply(200, {
           okay: true,
-          result: cvToHex(stringUtf8CV('http://m.io/{id}.json')),
+          result: cvToHex(stringUtf8CV(`${server.url}{id}.json`)),
         });
-      agent
-        .get(`http://m.io`)
-        .intercept({
-          path: '/1.json',
-          method: 'GET',
-        })
-        .reply(200, metadata1);
+      server.serve('/1.json', { body: metadata1 });
       setGlobalDispatcher(agent);
 
       // Process once
@@ -630,7 +606,7 @@ describe('ProcessTokenJob', () => {
         tokenNumber: 1,
       });
       assert.notStrictEqual(bundle1, undefined);
-      assert.strictEqual(bundle1?.token.uri, 'http://m.io/1.json');
+      assert.strictEqual(bundle1?.token.uri, `${server.url}1.json`);
       assert.strictEqual(bundle1?.metadataLocale?.metadata.name, 'Mutant Monkeys #1');
       assert.strictEqual(
         bundle1?.metadataLocale?.metadata.image,
@@ -657,15 +633,9 @@ describe('ProcessTokenJob', () => {
         })
         .reply(200, {
           okay: true,
-          result: cvToHex(stringUtf8CV('http://m.io/{id}.json')),
+          result: cvToHex(stringUtf8CV(`${server.url}{id}.json`)),
         });
-      agent
-        .get(`http://m.io`)
-        .intercept({
-          path: '/1.json',
-          method: 'GET',
-        })
-        .reply(200, metadata2);
+      server.serve('/1.json', { body: metadata2 });
       await db.core.updateJobStatus({ id: tokenJob.id, status: DbJobStatus.pending });
       await new ProcessTokenJob({ db, job: tokenJob, network: 'mainnet' }).work();
 
@@ -674,7 +644,7 @@ describe('ProcessTokenJob', () => {
         tokenNumber: 1,
       });
       assert.notStrictEqual(bundle2, undefined);
-      assert.strictEqual(bundle2?.token.uri, 'http://m.io/1.json');
+      assert.strictEqual(bundle2?.token.uri, `${server.url}1.json`);
       assert.strictEqual(bundle2?.metadataLocale?.metadata.name, 'Mutant Monkeys #1 NEW');
       assert.strictEqual(
         bundle2?.metadataLocale?.metadata.image,
@@ -713,15 +683,9 @@ describe('ProcessTokenJob', () => {
         })
         .reply(200, {
           okay: true,
-          result: cvToHex(stringUtf8CV('http://m.io/{id}.json')),
+          result: cvToHex(stringUtf8CV(`${server.url}{id}.json`)),
         });
-      agent
-        .get(`http://m.io`)
-        .intercept({
-          path: '/1.json',
-          method: 'GET',
-        })
-        .reply(200, metadata);
+      server.serve('/1.json', { body: metadata });
       setGlobalDispatcher(agent);
 
       await new ProcessTokenJob({ db, job: tokenJob, network: 'mainnet' }).work();
@@ -819,7 +783,7 @@ describe('ProcessTokenJob', () => {
         })
         .reply(200, {
           okay: true,
-          result: cvToHex(stringUtf8CV('http://m.io/{id}.json')),
+          result: cvToHex(stringUtf8CV(`${server.url}{id}.json`)),
         });
       setGlobalDispatcher(agent);
     });
@@ -864,24 +828,22 @@ describe('ProcessTokenJob', () => {
     });
 
     test('saves rate limited hosts', async () => {
-      agent
-        .get(`http://m.io`)
-        .intercept({
-          path: '/1.json',
-          method: 'GET',
-        })
-        .reply(429, { error: 'nope' }, { headers: { 'retry-after': '999' } });
+      server.serve('/1.json', {
+        status: 429,
+        body: { error: 'nope' },
+        headers: { 'retry-after': '999' },
+      });
       await assert.doesNotReject(
         new ProcessTokenJob({ db, job: tokenJob, network: 'mainnet' }).work()
       );
-      const host = await db.getRateLimitedHost({ hostname: 'm.io' });
+      const host = await db.getRateLimitedHost({ hostname: '127.0.0.1' });
       assert.notStrictEqual(host, undefined);
     });
 
     test('skips request to rate limited host', async () => {
       await db.core.insertRateLimitedHost({
         values: {
-          hostname: 'm.io',
+          hostname: '127.0.0.1',
           retry_after: 99999,
         },
       });
@@ -889,7 +851,7 @@ describe('ProcessTokenJob', () => {
         new ProcessTokenJob({ db, job: tokenJob, network: 'mainnet' }).handler(),
         /skipping fetch to rate-limited hostname/
       );
-      const host = await db.getRateLimitedHost({ hostname: 'm.io' });
+      const host = await db.getRateLimitedHost({ hostname: '127.0.0.1' });
       assert.notStrictEqual(host, undefined);
     });
 
@@ -909,17 +871,11 @@ describe('ProcessTokenJob', () => {
           colection_name: 'Mutant Monkeys',
         },
       };
-      agent
-        .get(`http://m.io`)
-        .intercept({
-          path: '/1.json',
-          method: 'GET',
-        })
-        .reply(200, metadata);
+      server.serve('/1.json', { body: metadata });
       // Insert manually so we can set date in the past
       await db.sql`
         INSERT INTO rate_limited_hosts (hostname, created_at, retry_after)
-        VALUES ('m.io', DEFAULT, NOW() - INTERVAL '40 minutes')
+        VALUES ('127.0.0.1', DEFAULT, NOW() - INTERVAL '40 minutes')
       `;
 
       // Token is processed now.
@@ -928,7 +884,7 @@ describe('ProcessTokenJob', () => {
       );
 
       // Rate limited host is gone.
-      const host = await db.getRateLimitedHost({ hostname: 'm.io' });
+      const host = await db.getRateLimitedHost({ hostname: '127.0.0.1' });
       assert.strictEqual(host, undefined);
     });
   });

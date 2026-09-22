@@ -50,67 +50,113 @@ export async function startTestApiServer(db: PgStore): Promise<TestFastifyServer
   return await buildApiServer({ db });
 }
 
-export type TestHttpServer = {
-  server: http.Server;
-  port: number;
-  url: string;
+/** A response the test HTTP server should return for a given path. */
+export type TestHttpResponse = {
+  /** Defaults to 200. */
+  status?: number;
+  headers?: Record<string, string>;
+  /** Strings are sent verbatim, anything else is JSON encoded. */
+  body?: unknown;
+  /** Hold the response open this long before replying, to exercise header and body timeouts. */
+  delayMs?: number;
+  /** Destroy the socket instead of replying, to produce a real `ECONNRESET` on the client. */
+  destroySocket?: boolean;
 };
 
-export async function startTimeoutServer(delay: number, port: number = 0): Promise<TestHttpServer> {
-  const server = http.createServer((req, res) => {
-    setTimeout(() => {
-      res.statusCode = 200;
-      res.end('Delayed response');
-    }, delay);
-  });
-  server.on('error', e => console.log(e));
-  const serverReady = waiter();
-  server.listen(port, '127.0.0.1', () => serverReady.finish());
-  await serverReady;
-  const address = server.address();
-  if (!address || typeof address === 'string') {
-    throw new Error('Unable to resolve timeout server port');
-  }
-  return {
-    server,
-    port: address.port,
-    url: `http://127.0.0.1:${address.port}/`,
-  };
-}
+export type TestHttpServer = {
+  /** Base url of the server, e.g. `http://127.0.0.1:51234/`. */
+  url: string;
+  port: number;
+  /** Absolute url for a path served by this server. */
+  urlFor: (path: string) => string;
+  /** Registers (or replaces) the response for a path. Routes are served any number of times. */
+  serve: (path: string, response: TestHttpResponse) => void;
+  /** Number of requests received for a path, or across all paths when omitted. */
+  requestCount: (path?: string) => number;
+  close: () => Promise<void>;
+};
 
-export async function startTestResponseServer(
-  response: string,
-  statusCode: number = 200,
-  port: number = 0
+/**
+ * Starts a real HTTP server on loopback for tests that fetch metadata or images.
+ *
+ * Metadata fetches deliberately go through a real server rather than undici's `MockAgent`: a
+ * `MockAgent` has to replace the global dispatcher, which swaps out the live `Agent` the token
+ * processor is configured with and takes its timeouts, payload limits and destination policy out of
+ * the test along with it.
+ * @param routes - responses to serve, keyed by path
+ * @returns the running server
+ */
+export async function startTestHttpServer(
+  routes: Record<string, TestHttpResponse> = {}
 ): Promise<TestHttpServer> {
+  const responses = new Map<string, TestHttpResponse>(Object.entries(routes));
+  const counts = new Map<string, number>();
+  let total = 0;
+
   const server = http.createServer((req, res) => {
-    res.statusCode = statusCode;
-    res.end(response);
+    const path = new URL(req.url ?? '/', 'http://127.0.0.1').pathname;
+    total++;
+    counts.set(path, (counts.get(path) ?? 0) + 1);
+    const response = responses.get(path);
+    if (!response) {
+      res.statusCode = 404;
+      res.end(`No test route registered for ${path}`);
+      return;
+    }
+    if (response.destroySocket) {
+      req.socket.destroy();
+      return;
+    }
+    const reply = () => {
+      res.statusCode = response.status ?? 200;
+      for (const [key, value] of Object.entries(response.headers ?? {})) {
+        res.setHeader(key, value);
+      }
+      const { body } = response;
+      if (body === undefined) {
+        res.end();
+      } else if (typeof body === 'string') {
+        res.end(body);
+      } else {
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify(body));
+      }
+    };
+    if (response.delayMs) {
+      // Unreferenced so a pending delay can never hold the test runner open.
+      setTimeout(reply, response.delayMs).unref();
+    } else {
+      reply();
+    }
   });
   server.on('error', e => console.log(e));
+
   const serverReady = waiter();
-  server.listen(port, '127.0.0.1', () => serverReady.finish());
+  server.listen(0, '127.0.0.1', () => serverReady.finish());
   await serverReady;
   const address = server.address();
   if (!address || typeof address === 'string') {
-    throw new Error('Unable to resolve response server port');
+    throw new Error('Unable to resolve test server port');
   }
-  return {
-    server,
-    port: address.port,
-    url: `http://127.0.0.1:${address.port}/`,
-  };
-}
+  const url = `http://127.0.0.1:${address.port}/`;
 
-export async function closeTestServer(server: http.Server) {
-  const serverDone = waiter();
-  server.close(err => {
-    if (err) {
-      console.log(err);
-    }
-    serverDone.finish();
-  });
-  await serverDone;
+  return {
+    url,
+    port: address.port,
+    urlFor: path => new URL(path, url).toString(),
+    serve: (path, response) => responses.set(path, response),
+    requestCount: path => (path === undefined ? total : (counts.get(path) ?? 0)),
+    close: async () => {
+      const serverDone = waiter();
+      // `closeAllConnections` so a keep-alive socket held by the live Agent can't stall the close.
+      server.closeAllConnections();
+      server.close(err => {
+        if (err) console.log(err);
+        serverDone.finish();
+      });
+      await serverDone;
+    },
+  };
 }
 
 export const SIP_009_ABI: ClarityAbi = {

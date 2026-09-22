@@ -1,64 +1,51 @@
 import { strict as assert } from 'node:assert';
-import { MockAgent, setGlobalDispatcher } from 'undici';
 import { ENV } from '../../src/env.js';
-import { MetadataHttpError, MetadataParseError } from '../../src/token-processor/util/errors.js';
+import {
+  MetadataHttpError,
+  MetadataParseError,
+  MetadataSizeExceededError,
+  MetadataTimeoutError,
+} from '../../src/token-processor/util/errors.js';
 import {
   getFetchableMetadataUrl,
   getMetadataFromUri,
   getTokenSpecificUri,
   fetchMetadata,
 } from '../../src/token-processor/util/metadata-helpers.js';
-import { describe, test } from 'node:test';
+import { startTestHttpServer, TestHttpServer } from '../helpers.js';
+import { afterEach, beforeEach, describe, test } from 'node:test';
 
 describe('Metadata Helpers', () => {
-  test('performs timed and limited request', async () => {
-    const url = new URL('http://test.io/1.json');
+  let server: TestHttpServer;
 
-    const agent = new MockAgent();
-    agent.disableNetConnect();
-    agent
-      .get('http://test.io')
-      .intercept({
-        path: '/1.json',
-        method: 'GET',
-      })
-      .reply(200, 'hello');
-    setGlobalDispatcher(agent);
+  beforeEach(async () => {
+    server = await startTestHttpServer();
+  });
+
+  afterEach(async () => {
+    await server.close();
+  });
+  test('performs timed and limited request', async () => {
+    const url = new URL(server.urlFor('/1.json'));
+
+    server.serve('/1.json', { body: 'hello' });
 
     const result = await fetchMetadata(url, 'ABCD.test', 1n);
     assert.strictEqual(result, 'hello');
   });
 
   test('throws on incorrect raw metadata schema', async () => {
-    const agent = new MockAgent();
-    agent.disableNetConnect();
-    agent
-      .get('http://test.io')
-      .intercept({
-        path: '/1.json',
-        method: 'GET',
-      })
-      .reply(200, '[{"test-bad-json": true}]');
-    setGlobalDispatcher(agent);
+    server.serve('/1.json', { body: '[{"test-bad-json": true}]' });
 
     await assert.rejects(
-      getMetadataFromUri('http://test.io/1.json', 'ABCD.test', 1n),
+      getMetadataFromUri(server.urlFor('/1.json'), 'ABCD.test', 1n),
       MetadataParseError
     );
   });
 
   test('throws metadata http errors', async () => {
-    const url = new URL('http://test.io/1.json');
-    const agent = new MockAgent();
-    agent.disableNetConnect();
-    agent
-      .get('http://test.io')
-      .intercept({
-        path: '/1.json',
-        method: 'GET',
-      })
-      .reply(500, { message: 'server error' });
-    setGlobalDispatcher(agent);
+    const url = new URL(server.urlFor('/1.json'));
+    server.serve('/1.json', { status: 500, body: { message: 'server error' } });
 
     await assert.rejects(fetchMetadata(url, 'ABCD.test', 1n), MetadataHttpError);
   });
@@ -87,18 +74,9 @@ describe('Metadata Helpers', () => {
         default: 'en',
       },
     };
-    const agent = new MockAgent();
-    agent.disableNetConnect();
-    agent
-      .get('http://test.io')
-      .intercept({
-        path: '/1.json',
-        method: 'GET',
-      })
-      .reply(200, crashPunks1);
-    setGlobalDispatcher(agent);
+    server.serve('/1.json', { body: crashPunks1 });
 
-    await assert.doesNotReject(getMetadataFromUri('http://test.io/1.json', 'ABCD.test', 1n));
+    await assert.doesNotReject(getMetadataFromUri(server.urlFor('/1.json'), 'ABCD.test', 1n));
   });
 
   test('throws when metadata does not contain a name', async () => {
@@ -106,19 +84,10 @@ describe('Metadata Helpers', () => {
       sip: 16,
       image: 'ipfs://Qmb84UcaMr1MUwNbYBnXWHM3kEaDcYrKuPWwyRLVTNKELC/294.png',
     };
-    const agent = new MockAgent();
-    agent.disableNetConnect();
-    agent
-      .get('http://test.io')
-      .intercept({
-        path: '/1.json',
-        method: 'GET',
-      })
-      .reply(200, crashPunks1);
-    setGlobalDispatcher(agent);
+    server.serve('/1.json', { body: crashPunks1 });
 
     await assert.rejects(
-      getMetadataFromUri('http://test.io/1.json', 'ABCD.test', 1n),
+      getMetadataFromUri(server.urlFor('/1.json'), 'ABCD.test', 1n),
       MetadataParseError
     );
   });
@@ -145,18 +114,9 @@ describe('Metadata Helpers', () => {
         artist: 'Bitcoin Monkeys',
       },
     };
-    const agent = new MockAgent();
-    agent.disableNetConnect();
-    agent
-      .get('http://test.io')
-      .intercept({
-        path: '/1.json',
-        method: 'GET',
-      })
-      .reply(200, json);
-    setGlobalDispatcher(agent);
+    server.serve('/1.json', { body: json });
 
-    const metadata = await getMetadataFromUri('http://test.io/1.json', 'ABCD.test', 1n);
+    const metadata = await getMetadataFromUri(server.urlFor('/1.json'), 'ABCD.test', 1n);
     assert.strictEqual(metadata.name, 'Mutant Monkeys #27');
     assert.strictEqual(
       metadata.image,
@@ -173,18 +133,9 @@ describe('Metadata Helpers', () => {
   test('parses valid JSON5 strings', async () => {
     const json =
       '{\n  "name": "Boombox [4th Edition]",\n  "description": "The first ever Boombox to exist IRL, this art was created by 3D printing a model and photographing it under some very Boomerific lighting. 💥",\n  "creator": "Official Boomboxes",\n  "image": "https://cloudflare-ipfs.com/ipfs/bafybeiggfn5e4k3lu23ibs3mgpfonsscr4nadwwkyflqk7xo5kepmfnwhu",  \n  "properties": {\n    "external_url": {\n      "display_type": "url",\n      "trait_type": "string",\n      "value": "https://app.sigle.io/boom.id.blockstack/tOja1EkEDtKlR5-CH9ogG"\n    },\n    "twitter_url": {\n      "display_type": "url",\n      "trait_type": "string",\n      "value": "https://twitter.com/boom_wallet"\n    },\n    "discord_url": {\n      "display_type": "url",\n      "trait_type": "string",\n      "value": "https://discord.gg/4PhujhCGzB"\n    },\n  },\n}\n';
-    const agent = new MockAgent();
-    agent.disableNetConnect();
-    agent
-      .get('http://test.io')
-      .intercept({
-        path: '/1.json',
-        method: 'GET',
-      })
-      .reply(200, json);
-    setGlobalDispatcher(agent);
+    server.serve('/1.json', { body: json });
 
-    const metadata = await getMetadataFromUri('http://test.io/1.json', 'ABCD.test', 1n);
+    const metadata = await getMetadataFromUri(server.urlFor('/1.json'), 'ABCD.test', 1n);
     assert.strictEqual(metadata.name, 'Boombox [4th Edition]');
     assert.strictEqual(
       metadata.description,
@@ -282,18 +233,9 @@ describe('Metadata Helpers', () => {
   });
 
   test('catches ECONNRESET errors', async () => {
-    const url = new URL('http://test.io/1.json');
-    const agent = new MockAgent();
-    agent.disableNetConnect();
-    agent
-      .get('http://test.io')
-      .intercept({
-        path: '/1.json',
-        method: 'GET',
-      })
-      // Simulate the weird error thrown by Undici.
-      .replyWithError(Object.assign(new TypeError(), { cause: new Error('read ECONNRESET') }));
-    setGlobalDispatcher(agent);
+    const url = new URL(server.urlFor('/1.json'));
+    // A real reset: the server drops the socket instead of answering.
+    server.serve('/1.json', { destroySocket: true });
 
     await assert.rejects(fetchMetadata(url, 'ABCD.test', 1n), MetadataHttpError);
   });

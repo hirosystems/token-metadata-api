@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
-import http from 'node:http';
-import { after, before, describe, test } from 'node:test';
-import { Agent, getGlobalDispatcher, request, setGlobalDispatcher } from 'undici';
+import { after, before, describe, mock, test } from 'node:test';
+import dns from 'node:dns';
+import { Agent, request } from 'undici';
 import { ENV } from '../../src/env.js';
 import { processImageCache } from '../../src/token-processor/images/image-cache.js';
 import {
@@ -25,34 +25,12 @@ import {
   DbToken,
   DbTokenType,
 } from '../../src/pg/types.js';
-import { waiter } from '@stacks/api-toolkit';
+import { startTestHttpServer, TestHttpResponse } from '../helpers.js';
 
 /** An address in a blocked range that is never routable, used as a redirect target. */
 const CLOUD_METADATA_URL = 'http://169.254.169.254/latest/meta-data/';
 
-async function startCountingServer(
-  handler: (req: http.IncomingMessage, res: http.ServerResponse) => void
-): Promise<{ url: string; close: () => Promise<void>; requestCount: () => number }> {
-  let requests = 0;
-  const server = http.createServer((req, res) => {
-    requests++;
-    handler(req, res);
-  });
-  const ready = waiter();
-  server.listen(0, '127.0.0.1', () => ready.finish());
-  await ready;
-  const address = server.address();
-  if (!address || typeof address === 'string') throw new Error('Unable to resolve server port');
-  return {
-    url: `http://127.0.0.1:${address.port}/`,
-    requestCount: () => requests,
-    close: async () => {
-      const done = waiter();
-      server.close(() => done.finish());
-      await done;
-    },
-  };
-}
+const startCountingServer = (response: TestHttpResponse) => startTestHttpServer({ '/': response });
 
 describe('Fetch destination policy', () => {
   describe('address classification', () => {
@@ -198,7 +176,7 @@ describe('Fetch destination policy', () => {
     const agent = new Agent({ connect: createFetchDestinationConnector({}) });
 
     test('refuses an IPv4 literal before the server is contacted', async () => {
-      const server = await startCountingServer((_req, res) => res.end('secret'));
+      const server = await startCountingServer({ body: 'secret' });
       try {
         await assert.rejects(request(server.url, { dispatcher: agent }), error => {
           assert.ok(error instanceof Error);
@@ -221,7 +199,7 @@ describe('Fetch destination policy', () => {
     });
 
     test('refuses a hostname that resolves to loopback', async () => {
-      const server = await startCountingServer((_req, res) => res.end('secret'));
+      const server = await startCountingServer({ body: 'secret' });
       const port = new URL(server.url).port;
       try {
         await assert.rejects(request(`http://localhost:${port}/`, { dispatcher: agent }), error => {
@@ -238,23 +216,18 @@ describe('Fetch destination policy', () => {
   });
 
   describe('metadata fetch path', () => {
-    // `fetchMetadata` swaps its own agent out for the global dispatcher under `NODE_ENV=test` so
-    // suites can inject a `MockAgent`. Installing a real agent that carries the production
-    // connector exercises the same policy end to end.
-    let previousDispatcher: ReturnType<typeof getGlobalDispatcher>;
+    // No dispatcher juggling: `fetchMetadata` now always uses the live `METADATA_FETCH_HTTP_AGENT`,
+    // so this exercises the connector the worker actually runs with.
     let previousLoopbackAllowed: boolean;
     before(() => {
       previousLoopbackAllowed = setLoopbackAllowedForTesting(false);
-      previousDispatcher = getGlobalDispatcher();
-      setGlobalDispatcher(new Agent({ connect: createFetchDestinationConnector({}) }));
     });
     after(() => {
-      setGlobalDispatcher(previousDispatcher);
       setLoopbackAllowedForTesting(previousLoopbackAllowed);
     });
 
     test('rejects a token URI pointing at loopback', async () => {
-      const server = await startCountingServer((_req, res) => res.end('{"name":"leak"}'));
+      const server = await startCountingServer({ body: '{"name":"leak"}' });
       try {
         await assert.rejects(
           fetchMetadata(new URL(server.url), 'ABCD.test', 1n),
@@ -292,10 +265,9 @@ describe('Fetch destination policy', () => {
     test('rejects a redirect into a blocked range', async () => {
       // The image path uses `fetch`, which follows redirects internally. The first hop is a
       // permitted host, so only per-hop enforcement can stop the second one.
-      const server = await startCountingServer((_req, res) => {
-        res.statusCode = 302;
-        res.setHeader('location', CLOUD_METADATA_URL);
-        res.end();
+      const server = await startCountingServer({
+        status: 302,
+        headers: { location: CLOUD_METADATA_URL },
       });
       try {
         await assert.rejects(
@@ -334,24 +306,11 @@ describe('Fetch destination policy', () => {
       updated_at: null,
     } as DbToken;
 
-    let previousDispatcher: ReturnType<typeof getGlobalDispatcher>;
     let previousLoopbackAllowed: boolean;
-    let connectAttempts = 0;
     before(() => {
       previousLoopbackAllowed = setLoopbackAllowedForTesting(false);
-      previousDispatcher = getGlobalDispatcher();
-      const connect = createFetchDestinationConnector({});
-      setGlobalDispatcher(
-        new Agent({
-          connect: (options, callback) => {
-            connectAttempts++;
-            connect(options, callback);
-          },
-        })
-      );
     });
     after(() => {
-      setGlobalDispatcher(previousDispatcher);
       setLoopbackAllowedForTesting(previousLoopbackAllowed);
     });
 
@@ -360,14 +319,25 @@ describe('Fetch destination policy', () => {
         ENV.METADATA_MAX_IMMEDIATE_URI_RETRIES > 1,
         'this test is only meaningful when immediate retries are enabled'
       );
-      connectAttempts = 0;
-      await assert.rejects(
-        fetchAllMetadataLocalesFromBaseUri(CLOUD_METADATA_URL, contract, token),
-        BlockedFetchDestinationError
-      );
+      // The fetch runs on the live agent, so attempts are counted where the policy actually runs:
+      // `localhost` costs exactly one hostname resolution per attempt before it is refused.
+      let lookups = 0;
+      const lookup = dns.lookup;
+      mock.method(dns, 'lookup', (...args: unknown[]) => {
+        lookups++;
+        return (lookup as (...a: unknown[]) => unknown)(...args);
+      });
+      try {
+        await assert.rejects(
+          fetchAllMetadataLocalesFromBaseUri('http://localhost/1.json', contract, token),
+          BlockedFetchDestinationError
+        );
+      } finally {
+        mock.restoreAll();
+      }
       // A blocked destination is terminal, so the loop must give up after the first attempt rather
       // than burning all `METADATA_MAX_IMMEDIATE_URI_RETRIES` on a fetch that can never succeed.
-      assert.equal(connectAttempts, 1);
+      assert.equal(lookups, 1);
     });
   });
 

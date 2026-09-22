@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { ENV } from '../../src/env.js';
 import { processImageCache } from '../../src/token-processor/images/image-cache.js';
-import { closeTestServer, startTestResponseServer, startTimeoutServer } from '../helpers.js';
+import { startTestHttpServer } from '../helpers.js';
 import {
   ImageHttpError,
   ImageTimeoutError,
@@ -22,29 +22,34 @@ describe('Image cache', () => {
 
   test('throws image fetch timeout error', async () => {
     ENV.METADATA_FETCH_TIMEOUT_MS = 50;
-    const timeoutServer = await startTimeoutServer(100);
-    await assert.rejects(
-      processImageCache(timeoutServer.url, contract, tokenNumber),
-      ImageTimeoutError
-    );
-    await closeTestServer(timeoutServer.server);
+    const server = await startTestHttpServer({ '/': { delayMs: 100, body: 'Delayed response' } });
+    try {
+      await assert.rejects(processImageCache(server.url, contract, tokenNumber), ImageTimeoutError);
+    } finally {
+      await server.close();
+    }
   });
 
   test('throws rate limit error', async () => {
-    const responseServer = await startTestResponseServer('rate limit exceeded', 429);
-    await assert.rejects(
-      processImageCache(responseServer.url, contract, tokenNumber),
-      TooManyRequestsHttpError
-    );
-    await closeTestServer(responseServer.server);
+    const server = await startTestHttpServer({
+      '/': { status: 429, body: 'rate limit exceeded' },
+    });
+    try {
+      await assert.rejects(
+        processImageCache(server.url, contract, tokenNumber),
+        TooManyRequestsHttpError
+      );
+    } finally {
+      await server.close();
+    }
   });
 
   test('throws other server errors', async () => {
-    const responseServer = await startTestResponseServer('not found', 404);
-    await assert.rejects(
-      processImageCache(responseServer.url, contract, tokenNumber),
-      ImageHttpError
-    );
-    await closeTestServer(responseServer.server);
+    const server = await startTestHttpServer({ '/': { status: 404, body: 'not found' } });
+    try {
+      await assert.rejects(processImageCache(server.url, contract, tokenNumber), ImageHttpError);
+    } finally {
+      await server.close();
+    }
   });
 });
