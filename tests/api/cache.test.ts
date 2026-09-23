@@ -478,6 +478,22 @@ describe('Dynamic token cache control', () => {
     assert.ok(age !== undefined && age > 290 && age <= 300, `unexpected max-age: ${age}`);
   });
 
+  test('a ttl longer than the cap keeps advertising the cap', async () => {
+    ENV.METADATA_DYNAMIC_TOKEN_MAX_CACHE_AGE = 300;
+    await insertTestUpdateNotification(db, {
+      token_id: 1,
+      update_mode: DbTokenUpdateMode.dynamic,
+      ttl: 3600,
+    });
+    // Well past the cap but still an hour short of the token's own TTL, so the metadata provably
+    // can't change yet and we should keep advertising the capped lifetime.
+    await db.sql`UPDATE tokens SET updated_at = NOW() - INTERVAL '20 minutes' WHERE id = 1`;
+
+    const response = await fastify.inject({ method: 'GET', url });
+    assert.strictEqual(response.statusCode, 200);
+    assert.strictEqual(maxAge(response), 300);
+  });
+
   test('dynamic token without a ttl must revalidate', async () => {
     await insertTestUpdateNotification(db, {
       token_id: 1,

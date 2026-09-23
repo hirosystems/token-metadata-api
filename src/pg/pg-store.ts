@@ -38,7 +38,7 @@ import {
 } from '@stacks/api-toolkit';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import { StacksCorePgStore } from './stacks-core-pg-store.js';
+import { MAX_TOKEN_TTL_SECONDS, StacksCorePgStore } from './stacks-core-pg-store.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -208,8 +208,6 @@ export class PgStore extends BasePgStore {
     contractPrincipal: string;
     tokenNumber: bigint;
   }): Promise<DbTokenCacheInfo | undefined> {
-    // Cap the TTL before turning it into an `interval` so an absurd value declared by a contract
-    // can't overflow postgres' interval type.
     const maxAge = ENV.METADATA_DYNAMIC_TOKEN_MAX_CACHE_AGE;
     const result = await this.sql<{ etag: string; max_age: number | null }[]>`
       SELECT
@@ -217,11 +215,17 @@ export class PgStore extends BasePgStore {
         -- A job that is not done means a refresh is already in flight (e.g. a notification just
         -- arrived), and we keep serving the previous metadata until it completes. Advertising
         -- freshness then would cache metadata we already know is about to change.
+        -- Seconds left until the token may change, capped by the configured max. The TTL itself
+        -- is only clamped to keep an absurd value from overflowing the interval type, so a TTL
+        -- longer than the cap keeps advertising the cap instead of expiring along with it.
         CASE WHEN n.update_mode = 'dynamic' AND n.ttl IS NOT NULL AND j.status = 'done' THEN
-          CEIL(EXTRACT(EPOCH FROM (
-            COALESCE(t.updated_at, t.created_at)
-              + INTERVAL '1 seconds' * LEAST(n.ttl, ${maxAge}) - NOW()
-          )))::int
+          LEAST(
+            CEIL(EXTRACT(EPOCH FROM (
+              COALESCE(t.updated_at, t.created_at)
+                + INTERVAL '1 seconds' * LEAST(n.ttl, ${MAX_TOKEN_TTL_SECONDS}) - NOW()
+            ))),
+            ${maxAge}
+          )::int
         END AS max_age
       FROM tokens AS t
       INNER JOIN smart_contracts AS s ON s.id = t.smart_contract_id
@@ -242,7 +246,7 @@ export class PgStore extends BasePgStore {
     const cache: DbTokenCacheInfo = { etag: result[0].etag };
     // Only advertise a freshness lifetime if the token isn't already due for a refresh.
     if (result[0].max_age !== null && result[0].max_age > 0) {
-      cache.maxAge = Math.min(result[0].max_age, maxAge);
+      cache.maxAge = result[0].max_age;
     }
     return cache;
   }
