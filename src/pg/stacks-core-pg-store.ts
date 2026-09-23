@@ -30,7 +30,7 @@ import { DecodedStacksBlock } from '../stacks-core/stacks-core-block-processor.j
  * they can be arbitrarily large, and postgres throws `interval out of range` when converting them,
  * which would abort block ingestion.
  */
-const MAX_TOKEN_TTL_SECONDS = 3_153_600_000;
+export const MAX_TOKEN_TTL_SECONDS = 3_153_600_000;
 
 export class StacksCorePgStore extends BasePgStoreModule {
   /**

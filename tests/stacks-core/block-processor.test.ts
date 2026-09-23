@@ -310,8 +310,8 @@ describe('block processor', () => {
             event_index: 0,
           });
         // Re-orgs keep notification rows and only flip `canonical`. An orphaned 'frozen' event
-        // must not stop token 1 from being refreshed, and an orphaned 'dynamic' event must not
-        // make token 2 eligible.
+        // must not stop token 1 from being refreshed, and token 2's only notification is orphaned
+        // so it must not be treated as dynamic at all.
         await insertTestUpdateNotification(db, {
           token_id: 1,
           update_mode: DbTokenUpdateMode.frozen,
