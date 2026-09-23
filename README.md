@@ -199,6 +199,7 @@ All configuration is done via environment variables. Defaults are shown in paren
 | `METADATA_MAX_PAYLOAD_BYTE_SIZE` | Max metadata JSON payload size (bytes) | `1000000` |
 | `METADATA_MAX_NFT_CONTRACT_TOKEN_COUNT` | Max tokens to index per NFT contract | `50000` |
 | `METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL` | Interval for dynamic token refreshes (seconds) | `86400` |
+| `METADATA_DYNAMIC_TOKEN_MAX_CACHE_AGE` | Max `max-age` advertised for dynamic tokens with a TTL (seconds) | `86400` |
 | `METADATA_RATE_LIMITED_HOST_RETRY_AFTER` | Wait time after a 429 response (seconds) | `60` |
 | `METADATA_FETCH_MAX_REDIRECTIONS` | Max HTTP redirects to follow | `5` |
 

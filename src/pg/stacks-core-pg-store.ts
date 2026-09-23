@@ -25,6 +25,13 @@ import {
 import { dbSipNumberToDbTokenType } from '../token-processor/util/helpers.js';
 import { DecodedStacksBlock } from '../stacks-core/stacks-core-block-processor.js';
 
+/**
+ * Upper bound (seconds, ~100 years) for a SIP-019 TTL declared by a contract. TTLs are `uint`s so
+ * they can be arbitrarily large, and postgres throws `interval out of range` when converting them,
+ * which would abort block ingestion.
+ */
+const MAX_TOKEN_TTL_SECONDS = 3_153_600_000;
+
 export class StacksCorePgStore extends BasePgStoreModule {
   /**
    * Writes a processed Stacks Core block to the database.
@@ -435,18 +442,35 @@ export class StacksCorePgStore extends BasePgStoreModule {
     const interval = ENV.METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL.toString();
     await this.sql`
       WITH dynamic_tokens AS (
-        SELECT DISTINCT ON (token_id) token_id, ttl
+        SELECT DISTINCT ON (token_id)
+          token_id, ttl, block_height, tx_index, COALESCE(event_index, -1) AS notif_event_index
         FROM update_notifications
         WHERE update_mode = 'dynamic'
         ORDER BY token_id, block_height DESC, tx_index DESC, event_index DESC
       ),
+      current_dynamic_tokens AS (
+        -- A token is only dynamic if its latest notification says so. Any later notification with
+        -- a different update mode (e.g. 'frozen' or 'standard') supersedes the 'dynamic' one.
+        SELECT d.token_id, d.ttl
+        FROM dynamic_tokens AS d
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM update_notifications AS n
+          WHERE n.token_id = d.token_id
+            AND n.update_mode <> 'dynamic'
+            AND (n.block_height, n.tx_index, COALESCE(n.event_index, -1))
+              > (d.block_height, d.tx_index, d.notif_event_index)
+        )
+      ),
       due_for_refresh AS (
         SELECT d.token_id
-        FROM dynamic_tokens AS d
+        FROM current_dynamic_tokens AS d
         INNER JOIN tokens AS t ON t.id = d.token_id
         WHERE CASE
           WHEN d.ttl IS NOT NULL THEN
-            COALESCE(t.updated_at, t.created_at) < (NOW() - INTERVAL '1 seconds' * ttl)
+            -- Cap the TTL so an absurd value declared by a contract can't overflow the interval.
+            COALESCE(t.updated_at, t.created_at) <
+              (NOW() - INTERVAL '1 seconds' * LEAST(d.ttl, ${MAX_TOKEN_TTL_SECONDS}))
           ELSE
             COALESCE(t.updated_at, t.created_at) <
               (NOW() - INTERVAL '${this.sql(interval)} seconds')
@@ -454,7 +478,7 @@ export class StacksCorePgStore extends BasePgStoreModule {
       )
       UPDATE jobs
       SET status = 'pending', updated_at = NOW()
-      WHERE status IN ('done', 'failed') AND token_id = (
+      WHERE status IN ('done', 'failed') AND token_id IN (
         SELECT token_id FROM due_for_refresh
       )
     `;

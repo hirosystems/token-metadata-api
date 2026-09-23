@@ -18,6 +18,7 @@ import {
   DbFungibleTokenOrder,
   DbJobInvalidReason,
   DbBlock,
+  DbTokenCacheInfo,
 } from './types.js';
 import {
   ContractNotFoundError,
@@ -196,26 +197,50 @@ export class PgStore extends BasePgStore {
   }
 
   /**
-   * Returns a token ETag based on its last updated date.
+   * Returns a token's cache information based on its last updated date. If the token is marked as
+   * `dynamic` with an explicit TTL (see SIP-019), we also return the number of seconds remaining
+   * until its metadata may change, so clients can avoid revalidating until then.
    * @param contractPrincipal - smart contract principal
    * @param tokenNumber - token number
-   * @returns ETag
+   * @returns `DbTokenCacheInfo`
    */
-  async getTokenEtag(args: {
+  async getTokenCacheInfo(args: {
     contractPrincipal: string;
     tokenNumber: bigint;
-  }): Promise<string | undefined> {
-    const result = await this.sql<{ etag: string }[]>`
-      SELECT date_part('epoch', t.updated_at)::text AS etag
+  }): Promise<DbTokenCacheInfo | undefined> {
+    // Cap the TTL before turning it into an `interval` so an absurd value declared by a contract
+    // can't overflow postgres' interval type.
+    const maxAge = ENV.METADATA_DYNAMIC_TOKEN_MAX_CACHE_AGE;
+    const result = await this.sql<{ etag: string; max_age: number | null }[]>`
+      SELECT
+        date_part('epoch', t.updated_at)::text AS etag,
+        CASE WHEN n.update_mode = 'dynamic' AND n.ttl IS NOT NULL THEN
+          CEIL(EXTRACT(EPOCH FROM (
+            COALESCE(t.updated_at, t.created_at)
+              + INTERVAL '1 seconds' * LEAST(n.ttl, ${maxAge}) - NOW()
+          )))::int
+        END AS max_age
       FROM tokens AS t
       INNER JOIN smart_contracts AS s ON s.id = t.smart_contract_id
+      LEFT JOIN LATERAL (
+        SELECT update_mode, ttl
+        FROM update_notifications
+        WHERE token_id = t.id
+        ORDER BY block_height DESC, tx_index DESC, event_index DESC
+        LIMIT 1
+      ) AS n ON TRUE
       WHERE s.principal = ${args.contractPrincipal}
       AND t.token_number = ${args.tokenNumber}
     `;
     if (result.count === 0) {
       return undefined;
     }
-    return result[0].etag;
+    const cache: DbTokenCacheInfo = { etag: result[0].etag };
+    // Only advertise a freshness lifetime if the token isn't already due for a refresh.
+    if (result[0].max_age !== null && result[0].max_age > 0) {
+      cache.maxAge = Math.min(result[0].max_age, maxAge);
+    }
+    return cache;
   }
 
   async getJobStatusCounts(): Promise<{ count: number; status: string }[]> {
