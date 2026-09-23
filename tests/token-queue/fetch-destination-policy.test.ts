@@ -245,6 +245,29 @@ describe('Fetch destination policy', () => {
         BlockedFetchDestinationError
       );
     });
+
+    test('rejects a redirect into a blocked range', async () => {
+      // The metadata path follows redirects through the agent's redirect interceptor, which
+      // re-dispatches every hop. The first hop is a permitted host, so reaching the second one at
+      // all is what proves the connector runs per hop rather than once against the declared URL.
+      const server = await startCountingServer({
+        status: 302,
+        headers: { location: CLOUD_METADATA_URL },
+      });
+      // The surrounding suite turns the loopback exemption off; the first hop has to be reachable
+      // for the second one to be worth asserting on.
+      const previous = setLoopbackAllowedForTesting(true);
+      try {
+        await assert.rejects(
+          fetchMetadata(new URL(server.url), 'ABCD.test', 1n),
+          BlockedFetchDestinationError
+        );
+        assert.equal(server.requestCount(), 1, 'the first hop is allowed, the redirect is not');
+      } finally {
+        setLoopbackAllowedForTesting(previous);
+        await server.close();
+      }
+    });
   });
 
   describe('image fetch path', () => {

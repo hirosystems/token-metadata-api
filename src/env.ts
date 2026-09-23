@@ -126,7 +126,9 @@ const schema = Type.Object({
    */
   METADATA_RATE_LIMITED_HOST_RETRY_AFTER: Type.Number({ default: 60 }), // 1 minute
   /**
-   * Maximum number of HTTP redirections to follow when fetching metadata. Defaults to 5.
+   * Maximum number of HTTP redirections to follow when fetching metadata. Applies to metadata
+   * fetches only: image downloads go through `fetch`, which follows redirects on its own. Every
+   * hop is checked against the fetch destination policy either way. Defaults to 5.
    */
   METADATA_FETCH_MAX_REDIRECTIONS: Type.Number({ default: 5 }),
 

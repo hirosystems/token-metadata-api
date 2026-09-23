@@ -208,6 +208,8 @@ export class PgStore extends BasePgStore {
     contractPrincipal: string;
     tokenNumber: bigint;
   }): Promise<DbTokenCacheInfo | undefined> {
+    // Cap the TTL before turning it into an `interval` so an absurd value declared by a contract
+    // can't overflow postgres' interval type.
     const maxAge = ENV.METADATA_DYNAMIC_TOKEN_MAX_CACHE_AGE;
     const result = await this.sql<{ etag: string; max_age: number | null }[]>`
       SELECT

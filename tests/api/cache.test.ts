@@ -493,7 +493,6 @@ describe('Dynamic token cache control', () => {
     assert.strictEqual(response.statusCode, 200);
     assert.strictEqual(maxAge(response), 300);
   });
-
   test('dynamic token without a ttl must revalidate', async () => {
     await insertTestUpdateNotification(db, {
       token_id: 1,

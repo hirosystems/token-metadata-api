@@ -7,6 +7,8 @@ import { buildAdminRpcServer } from './admin-rpc/init.js';
 import { isProdEnv } from './api/util/helpers.js';
 import { buildProfilerServer, logger, registerShutdownConfig } from '@stacks/api-toolkit';
 import { buildSnpEventStreamHandler } from './stacks-core/snp-event-stream.js';
+import { METADATA_FETCH_HTTP_AGENT } from './token-processor/util/metadata-helpers.js';
+import { IMAGE_FETCH_HTTP_AGENT } from './token-processor/images/image-cache.js';
 import { StacksNetworkName } from '@stacks/network';
 
 /**
@@ -45,6 +47,16 @@ async function initBackgroundServices(db: PgStore) {
     },
   });
   await snpEventStreamHandler.start();
+
+  registerShutdownConfig({
+    name: 'Fetch Agents',
+    forceKillable: true,
+    handler: async () => {
+      // Both agents keep pooled sockets alive between jobs, so they outlive any single fetch and
+      // have to be closed explicitly.
+      await Promise.all([METADATA_FETCH_HTTP_AGENT.close(), IMAGE_FETCH_HTTP_AGENT.close()]);
+    },
+  });
 
   const adminRpcServer = await buildAdminRpcServer({ db, jobQueue });
   registerShutdownConfig({
