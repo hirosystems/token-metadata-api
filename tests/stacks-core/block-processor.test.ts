@@ -299,6 +299,34 @@ describe('block processor', () => {
         assert.deepStrictEqual(await getTokenJobStatuses(), ['pending']);
       });
 
+      test('ignores non-canonical notifications', async () => {
+        ENV.METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL = 99999;
+        await insertAndEnqueueTestContractWithTokens(db, contractId, DbSipNumber.sip009, 2n);
+        for (const token_id of [1, 2])
+          await insertTestUpdateNotification(db, {
+            token_id,
+            update_mode: DbTokenUpdateMode.dynamic,
+            ttl: 3600,
+            event_index: 0,
+          });
+        // Re-orgs keep notification rows and only flip `canonical`. An orphaned 'frozen' event
+        // must not stop token 1 from being refreshed, and an orphaned 'dynamic' event must not
+        // make token 3 eligible.
+        await insertTestUpdateNotification(db, {
+          token_id: 1,
+          update_mode: DbTokenUpdateMode.frozen,
+          event_index: 1,
+          canonical: false,
+        });
+        await db.sql`UPDATE update_notifications SET canonical = false WHERE token_id = 2`;
+        await db.sql`UPDATE tokens SET updated_at = NOW() - INTERVAL '2 hours'`;
+        await markAllJobsAsDone(db);
+
+        await processNextBlock();
+
+        assert.deepStrictEqual(await getTokenJobStatuses(), ['pending', 'done']);
+      });
+
       test('tolerates a ttl large enough to overflow an interval', async () => {
         ENV.METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL = 99999;
         await insertAndEnqueueTestContractWithTokens(db, contractId, DbSipNumber.sip009, 1n);

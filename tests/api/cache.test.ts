@@ -6,6 +6,7 @@ import {
   TestFastifyServer,
   insertAndEnqueueTestContractWithTokens,
   insertTestUpdateNotification,
+  markAllJobsAsDone,
   setupEnv,
   startTestApiServer,
 } from '../helpers.js';
@@ -396,6 +397,7 @@ describe('Dynamic token cache control', () => {
         ],
       },
     });
+    await markAllJobsAsDone(db);
   }
 
   /** Reads the `max-age` directive from a `Cache-Control` header. */
@@ -527,6 +529,61 @@ describe('Dynamic token cache control', () => {
     assert.strictEqual(response.statusCode, 200);
     assert.strictEqual(response.headers['cache-control'], 'public, no-cache, must-revalidate');
     assert.strictEqual(response.headers.expires, undefined);
+  });
+
+  test('a pending refresh suppresses the freshness lifetime', async () => {
+    await insertTestUpdateNotification(db, {
+      token_id: 1,
+      update_mode: DbTokenUpdateMode.dynamic,
+      ttl: 3600,
+    });
+    await db.sql`UPDATE tokens SET updated_at = NOW() WHERE id = 1`;
+    // A notification that just arrived enqueues a refresh while the previous metadata is still
+    // being served, so the response must not be cached for the full TTL.
+    await db.sql`UPDATE jobs SET status = 'pending' WHERE token_id = 1`;
+
+    const response = await fastify.inject({ method: 'GET', url });
+    assert.strictEqual(response.statusCode, 200);
+    assert.strictEqual(response.headers['cache-control'], 'public, no-cache, must-revalidate');
+    assert.strictEqual(response.headers.expires, undefined);
+  });
+
+  test('non-canonical notifications are ignored', async () => {
+    await insertTestUpdateNotification(db, {
+      token_id: 1,
+      update_mode: DbTokenUpdateMode.dynamic,
+      ttl: 3600,
+      canonical: false,
+    });
+    await db.sql`UPDATE tokens SET updated_at = NOW() WHERE id = 1`;
+
+    const response = await fastify.inject({ method: 'GET', url });
+    assert.strictEqual(response.statusCode, 200);
+    assert.strictEqual(response.headers['cache-control'], 'public, no-cache, must-revalidate');
+    assert.strictEqual(response.headers.expires, undefined);
+  });
+
+  test('a non-canonical update mode does not supersede a dynamic ttl', async () => {
+    await insertTestUpdateNotification(db, {
+      token_id: 1,
+      update_mode: DbTokenUpdateMode.dynamic,
+      ttl: 3600,
+      event_index: 0,
+    });
+    // Re-orgs keep notification rows and only flip `canonical`, so this orphaned event must not
+    // affect the token's update mode.
+    await insertTestUpdateNotification(db, {
+      token_id: 1,
+      update_mode: DbTokenUpdateMode.frozen,
+      event_index: 1,
+      canonical: false,
+    });
+    await db.sql`UPDATE tokens SET updated_at = NOW() WHERE id = 1`;
+
+    const response = await fastify.inject({ method: 'GET', url });
+    assert.strictEqual(response.statusCode, 200);
+    const age = maxAge(response);
+    assert.ok(age !== undefined && age > 3590 && age <= 3600, `unexpected max-age: ${age}`);
   });
 
   test('errors are not cacheable', async () => {

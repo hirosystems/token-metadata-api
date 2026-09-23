@@ -1457,15 +1457,17 @@ export async function insertTestUpdateNotification(
     index_block_hash?: string;
     tx_index?: number;
     event_index?: number;
+    canonical?: boolean;
   }
 ): Promise<void> {
   await db.sql`
     INSERT INTO update_notifications
-    (token_id, update_mode, ttl, block_height, index_block_hash, tx_id, tx_index, event_index)
+    (token_id, update_mode, ttl, block_height, index_block_hash, tx_id, tx_index, event_index,
+      canonical)
     VALUES (
       ${args.token_id}, ${args.update_mode}, ${args.ttl ?? null}, ${args.block_height ?? 1},
       ${args.index_block_hash ?? '0x000001'}, '0x123456', ${args.tx_index ?? 0},
-      ${args.event_index ?? 0}
+      ${args.event_index ?? 0}, ${args.canonical ?? true}
     )
   `;
 }

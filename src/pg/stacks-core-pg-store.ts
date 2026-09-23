@@ -445,12 +445,14 @@ export class StacksCorePgStore extends BasePgStoreModule {
         SELECT DISTINCT ON (token_id)
           token_id, ttl, block_height, tx_index, COALESCE(event_index, -1) AS notif_event_index
         FROM update_notifications
-        WHERE update_mode = 'dynamic'
+        WHERE update_mode = 'dynamic' AND canonical = TRUE
         ORDER BY token_id, block_height DESC, tx_index DESC, event_index DESC
       ),
       current_dynamic_tokens AS (
-        -- A token is only dynamic if its latest notification says so. Any later notification with
-        -- a different update mode (e.g. 'frozen' or 'standard') supersedes the 'dynamic' one.
+        -- A token is only dynamic if its latest canonical notification says so. Any later
+        -- notification with a different update mode (e.g. 'frozen' or 'standard') supersedes the
+        -- 'dynamic' one. Re-orgs keep notification rows around and only flip their canonical
+        -- flag, so an orphaned event must not stop a canonical dynamic token from being refreshed.
         SELECT d.token_id, d.ttl
         FROM dynamic_tokens AS d
         WHERE NOT EXISTS (
@@ -458,6 +460,7 @@ export class StacksCorePgStore extends BasePgStoreModule {
           FROM update_notifications AS n
           WHERE n.token_id = d.token_id
             AND n.update_mode <> 'dynamic'
+            AND n.canonical = TRUE
             AND (n.block_height, n.tx_index, COALESCE(n.event_index, -1))
               > (d.block_height, d.tx_index, d.notif_event_index)
         )

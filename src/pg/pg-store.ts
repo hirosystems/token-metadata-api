@@ -214,7 +214,10 @@ export class PgStore extends BasePgStore {
     const result = await this.sql<{ etag: string; max_age: number | null }[]>`
       SELECT
         date_part('epoch', t.updated_at)::text AS etag,
-        CASE WHEN n.update_mode = 'dynamic' AND n.ttl IS NOT NULL THEN
+        -- A job that is not done means a refresh is already in flight (e.g. a notification just
+        -- arrived), and we keep serving the previous metadata until it completes. Advertising
+        -- freshness then would cache metadata we already know is about to change.
+        CASE WHEN n.update_mode = 'dynamic' AND n.ttl IS NOT NULL AND j.status = 'done' THEN
           CEIL(EXTRACT(EPOCH FROM (
             COALESCE(t.updated_at, t.created_at)
               + INTERVAL '1 seconds' * LEAST(n.ttl, ${maxAge}) - NOW()
@@ -222,10 +225,11 @@ export class PgStore extends BasePgStore {
         END AS max_age
       FROM tokens AS t
       INNER JOIN smart_contracts AS s ON s.id = t.smart_contract_id
+      LEFT JOIN jobs AS j ON j.token_id = t.id
       LEFT JOIN LATERAL (
         SELECT update_mode, ttl
         FROM update_notifications
-        WHERE token_id = t.id
+        WHERE token_id = t.id AND canonical = TRUE
         ORDER BY block_height DESC, tx_index DESC, event_index DESC
         LIMIT 1
       ) AS n ON TRUE
