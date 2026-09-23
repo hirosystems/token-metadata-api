@@ -5,7 +5,13 @@ import { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { IncomingMessage, ServerResponse } from 'http';
 import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { SmartContractDeployment } from '../src/token-processor/util/sip-validation.js';
-import { DbJob, DbSipNumber, DbSmartContract, DbUpdateNotification } from '../src/pg/types.js';
+import {
+  DbJob,
+  DbSipNumber,
+  DbSmartContract,
+  DbTokenUpdateMode,
+  DbUpdateNotification,
+} from '../src/pg/types.js';
 import { waiter } from '@stacks/api-toolkit';
 import {
   DecodedStacksBlock,
@@ -1482,6 +1488,31 @@ export async function insertAndEnqueueTestContractWithTokens(
       )
     `;
   });
+}
+
+export async function insertTestUpdateNotification(
+  db: PgStore,
+  args: {
+    token_id: number;
+    update_mode: DbTokenUpdateMode;
+    ttl?: number;
+    block_height?: number;
+    index_block_hash?: string;
+    tx_index?: number;
+    event_index?: number;
+    canonical?: boolean;
+  }
+): Promise<void> {
+  await db.sql`
+    INSERT INTO update_notifications
+    (token_id, update_mode, ttl, block_height, index_block_hash, tx_id, tx_index, event_index,
+      canonical)
+    VALUES (
+      ${args.token_id}, ${args.update_mode}, ${args.ttl ?? null}, ${args.block_height ?? 1},
+      ${args.index_block_hash ?? '0x000001'}, '0x123456', ${args.tx_index ?? 0},
+      ${args.event_index ?? 0}, ${args.canonical ?? true}
+    )
+  `;
 }
 
 export async function markAllJobsAsDone(db: PgStore): Promise<void> {

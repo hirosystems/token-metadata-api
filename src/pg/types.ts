@@ -110,6 +110,17 @@ export type DbJob = {
   retry_after?: string;
 };
 
+/** Cache information for a single token response. */
+export type DbTokenCacheInfo = {
+  /** Token ETag, based on its last updated date. */
+  etag: string;
+  /**
+   * Seconds this response may be considered fresh by clients without revalidating. Only set for
+   * `dynamic` tokens that declare an explicit TTL via SIP-019.
+   */
+  maxAge?: number;
+};
+
 export type DbUpdateNotification = {
   token_id: number;
   block_height: number;

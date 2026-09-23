@@ -5,10 +5,14 @@ import { DbSipNumber } from '../../src/pg/types.js';
 import {
   TestFastifyServer,
   insertAndEnqueueTestContractWithTokens,
+  insertTestUpdateNotification,
+  markAllJobsAsDone,
   setupEnv,
   startTestApiServer,
 } from '../helpers.js';
 import { afterEach, beforeEach, describe, test } from 'node:test';
+import { DbTokenUpdateMode } from '../../src/pg/types.js';
+import { ENV } from '../../src/env.js';
 
 describe('ETag cache', () => {
   let db: PgStore;
@@ -353,5 +357,247 @@ describe('ETag cache', () => {
       headers: { 'if-none-match': etag },
     });
     assert.strictEqual(cached2.statusCode, 200);
+  });
+});
+
+describe('Dynamic token cache control', () => {
+  const contract = 'SP2SYHR84SDJJDK8M09HFS4KBFXPPCX9H7RZ9YVTS.hello-world';
+  const url = `/metadata/v1/nft/${contract}/1`;
+  let db: PgStore;
+  let fastify: TestFastifyServer;
+  let maxCacheAge: number;
+
+  async function insertProcessedNft() {
+    await insertAndEnqueueTestContractWithTokens(db, contract, DbSipNumber.sip009, 1n);
+    await db.core.updateProcessedTokenWithMetadata({
+      id: 1,
+      values: {
+        token: {
+          name: 'hello-world',
+          symbol: null,
+          decimals: null,
+          total_supply: '1',
+          uri: 'http://test.com/uri.json',
+        },
+        metadataLocales: [
+          {
+            metadata: {
+              sip: 16,
+              token_id: 1,
+              name: 'hello-world',
+              l10n_locale: 'en',
+              l10n_uri: null,
+              l10n_default: true,
+              description: 'test',
+              image: null,
+              cached_image: null,
+              cached_thumbnail_image: null,
+            },
+          },
+        ],
+      },
+    });
+    await markAllJobsAsDone(db);
+  }
+
+  /** Reads the `max-age` directive from a `Cache-Control` header. */
+  function maxAge(response: { headers: Record<string, unknown> }): number | undefined {
+    const header = response.headers['cache-control'] as string | undefined;
+    const match = header?.match(/max-age=(\d+)/);
+    return match ? parseInt(match[1]) : undefined;
+  }
+
+  beforeEach(async () => {
+    setupEnv();
+    maxCacheAge = ENV.METADATA_DYNAMIC_TOKEN_MAX_CACHE_AGE;
+    db = await PgStore.connect({ skipMigrations: true });
+    fastify = await startTestApiServer(db);
+    await cycleMigrations(MIGRATIONS_DIR);
+    await insertProcessedNft();
+  });
+
+  afterEach(async () => {
+    ENV.METADATA_DYNAMIC_TOKEN_MAX_CACHE_AGE = maxCacheAge;
+    await fastify.close();
+    await db.close();
+  });
+
+  test('dynamic token with ttl advertises its freshness lifetime', async () => {
+    await insertTestUpdateNotification(db, {
+      token_id: 1,
+      update_mode: DbTokenUpdateMode.dynamic,
+      ttl: 3600,
+    });
+    await db.sql`UPDATE tokens SET updated_at = NOW() WHERE id = 1`;
+
+    const response = await fastify.inject({ method: 'GET', url });
+    assert.strictEqual(response.statusCode, 200);
+    // Allow for a small delta between the DB write and the request.
+    const age = maxAge(response);
+    assert.ok(age !== undefined && age > 3590 && age <= 3600, `unexpected max-age: ${age}`);
+    assert.match(response.headers['cache-control'] as string, /^public, max-age=/);
+    assert.notStrictEqual(response.headers.etag, undefined);
+    const expires = Date.parse(response.headers.expires as string);
+    assert.ok(!isNaN(expires), 'Expires header is not a valid HTTP date');
+    assert.ok(expires > Date.now(), 'Expires header is in the past');
+  });
+
+  test('304 responses keep the freshness lifetime', async () => {
+    await insertTestUpdateNotification(db, {
+      token_id: 1,
+      update_mode: DbTokenUpdateMode.dynamic,
+      ttl: 3600,
+    });
+    await db.sql`UPDATE tokens SET updated_at = NOW() WHERE id = 1`;
+
+    const response = await fastify.inject({ method: 'GET', url });
+    const cached = await fastify.inject({
+      method: 'GET',
+      url,
+      headers: { 'if-none-match': response.headers.etag as string },
+    });
+    assert.strictEqual(cached.statusCode, 304);
+    const age = maxAge(cached);
+    assert.ok(age !== undefined && age > 3590 && age <= 3600, `unexpected max-age: ${age}`);
+    assert.notStrictEqual(cached.headers.expires, undefined);
+  });
+
+  test('freshness lifetime is capped', async () => {
+    ENV.METADATA_DYNAMIC_TOKEN_MAX_CACHE_AGE = 300;
+    await insertTestUpdateNotification(db, {
+      token_id: 1,
+      update_mode: DbTokenUpdateMode.dynamic,
+      // A ttl large enough to overflow postgres' interval type if it weren't capped.
+      ttl: 99999999999999,
+    });
+    await db.sql`UPDATE tokens SET updated_at = NOW() WHERE id = 1`;
+
+    const response = await fastify.inject({ method: 'GET', url });
+    assert.strictEqual(response.statusCode, 200);
+    const age = maxAge(response);
+    assert.ok(age !== undefined && age > 290 && age <= 300, `unexpected max-age: ${age}`);
+  });
+
+  test('dynamic token without a ttl must revalidate', async () => {
+    await insertTestUpdateNotification(db, {
+      token_id: 1,
+      update_mode: DbTokenUpdateMode.dynamic,
+    });
+
+    const response = await fastify.inject({ method: 'GET', url });
+    assert.strictEqual(response.statusCode, 200);
+    assert.strictEqual(response.headers['cache-control'], 'public, no-cache, must-revalidate');
+    assert.strictEqual(response.headers.expires, undefined);
+  });
+
+  test('standard token must revalidate', async () => {
+    const response = await fastify.inject({ method: 'GET', url });
+    assert.strictEqual(response.statusCode, 200);
+    assert.strictEqual(response.headers['cache-control'], 'public, no-cache, must-revalidate');
+    assert.strictEqual(response.headers.expires, undefined);
+  });
+
+  test('dynamic token that is already due for refresh must revalidate', async () => {
+    await insertTestUpdateNotification(db, {
+      token_id: 1,
+      update_mode: DbTokenUpdateMode.dynamic,
+      ttl: 3600,
+    });
+    await db.sql`UPDATE tokens SET updated_at = NOW() - INTERVAL '2 hours' WHERE id = 1`;
+
+    const response = await fastify.inject({ method: 'GET', url });
+    assert.strictEqual(response.statusCode, 200);
+    assert.strictEqual(response.headers['cache-control'], 'public, no-cache, must-revalidate');
+    assert.strictEqual(response.headers.expires, undefined);
+  });
+
+  test('a later update mode supersedes a dynamic ttl', async () => {
+    await insertTestUpdateNotification(db, {
+      token_id: 1,
+      update_mode: DbTokenUpdateMode.dynamic,
+      ttl: 3600,
+      event_index: 0,
+    });
+    await insertTestUpdateNotification(db, {
+      token_id: 1,
+      update_mode: DbTokenUpdateMode.frozen,
+      event_index: 1,
+    });
+    await db.sql`UPDATE tokens SET updated_at = NOW() WHERE id = 1`;
+
+    const response = await fastify.inject({ method: 'GET', url });
+    assert.strictEqual(response.statusCode, 200);
+    assert.strictEqual(response.headers['cache-control'], 'public, no-cache, must-revalidate');
+    assert.strictEqual(response.headers.expires, undefined);
+  });
+
+  test('a pending refresh suppresses the freshness lifetime', async () => {
+    await insertTestUpdateNotification(db, {
+      token_id: 1,
+      update_mode: DbTokenUpdateMode.dynamic,
+      ttl: 3600,
+    });
+    await db.sql`UPDATE tokens SET updated_at = NOW() WHERE id = 1`;
+    // A notification that just arrived enqueues a refresh while the previous metadata is still
+    // being served, so the response must not be cached for the full TTL.
+    await db.sql`UPDATE jobs SET status = 'pending' WHERE token_id = 1`;
+
+    const response = await fastify.inject({ method: 'GET', url });
+    assert.strictEqual(response.statusCode, 200);
+    assert.strictEqual(response.headers['cache-control'], 'public, no-cache, must-revalidate');
+    assert.strictEqual(response.headers.expires, undefined);
+  });
+
+  test('non-canonical notifications are ignored', async () => {
+    await insertTestUpdateNotification(db, {
+      token_id: 1,
+      update_mode: DbTokenUpdateMode.dynamic,
+      ttl: 3600,
+      canonical: false,
+    });
+    await db.sql`UPDATE tokens SET updated_at = NOW() WHERE id = 1`;
+
+    const response = await fastify.inject({ method: 'GET', url });
+    assert.strictEqual(response.statusCode, 200);
+    assert.strictEqual(response.headers['cache-control'], 'public, no-cache, must-revalidate');
+    assert.strictEqual(response.headers.expires, undefined);
+  });
+
+  test('a non-canonical update mode does not supersede a dynamic ttl', async () => {
+    await insertTestUpdateNotification(db, {
+      token_id: 1,
+      update_mode: DbTokenUpdateMode.dynamic,
+      ttl: 3600,
+      event_index: 0,
+    });
+    // Re-orgs keep notification rows and only flip `canonical`, so this orphaned event must not
+    // affect the token's update mode.
+    await insertTestUpdateNotification(db, {
+      token_id: 1,
+      update_mode: DbTokenUpdateMode.frozen,
+      event_index: 1,
+      canonical: false,
+    });
+    await db.sql`UPDATE tokens SET updated_at = NOW() WHERE id = 1`;
+
+    const response = await fastify.inject({ method: 'GET', url });
+    assert.strictEqual(response.statusCode, 200);
+    const age = maxAge(response);
+    assert.ok(age !== undefined && age > 3590 && age <= 3600, `unexpected max-age: ${age}`);
+  });
+
+  test('errors are not cacheable', async () => {
+    await insertTestUpdateNotification(db, {
+      token_id: 1,
+      update_mode: DbTokenUpdateMode.dynamic,
+      ttl: 3600,
+    });
+    await db.sql`UPDATE tokens SET updated_at = NOW() WHERE id = 1`;
+
+    const response = await fastify.inject({ method: 'GET', url: `/metadata/v1/nft/${contract}/2` });
+    assert.strictEqual(response.statusCode, 404);
+    assert.strictEqual(response.headers['cache-control'], undefined);
+    assert.strictEqual(response.headers.expires, undefined);
+    assert.strictEqual(response.headers.etag, undefined);
   });
 });

@@ -107,6 +107,19 @@ const schema = Type.Object({
    */
   METADATA_DYNAMIC_TOKEN_REFRESH_INTERVAL: Type.Number({ default: 86_400 }), // 24 hours
   /**
+   * Maximum `max-age` (seconds) this API will advertise to clients for `dynamic` token metadata
+   * that declares an explicit TTL via SIP-019. Tokens declaring a TTL longer than this will be
+   * advertised with this value instead, so clients are never told to cache a response for an
+   * unreasonable amount of time. Must be a non-negative integer because it is emitted as an HTTP
+   * `delta-seconds` directive. Set it to `0` to always require revalidation. Defaults to 86400
+   * seconds (24 hours).
+   */
+  METADATA_DYNAMIC_TOKEN_MAX_CACHE_AGE: Type.Integer({
+    default: 86_400, // 24 hours
+    minimum: 0,
+    maximum: 2_147_483_647,
+  }),
+  /**
    * Time that must elapse between a 429 'Too many requests' response returned by a hostname and the
    * next request that is sent to it (seconds). This value will be overridden by the `Retry-After`
    * header returned by the domain, if any.
