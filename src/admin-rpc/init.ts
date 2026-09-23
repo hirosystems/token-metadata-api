@@ -30,12 +30,9 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
       },
     },
     async (request, reply) => {
-      await fastify.db.sqlWriteTransaction(async sql => {
+      const contractFound = await fastify.db.sqlWriteTransaction(async sql => {
         const contract = await fastify.db.getSmartContract({ principal: request.body.contractId });
-        if (!contract) {
-          await reply.code(422).send({ error: 'Contract not found' });
-          return;
-        }
+        if (!contract) return false;
         await sql`
           UPDATE jobs
           SET status = 'pending', updated_at = NOW()
@@ -54,8 +51,16 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
           request.body.tokenIds,
           `AdminRPC refreshing tokens for contract: ${contract.principal}`
         );
-        await reply.code(200).send();
+        return true;
       });
+      // Replying outside the transaction is what makes the 200 mean the work is durable. Sending
+      // it from inside returns before the COMMIT, so a caller that reads straight afterwards can
+      // miss the jobs it was just told were enqueued.
+      if (!contractFound) {
+        await reply.code(422).send({ error: 'Contract not found' });
+        return;
+      }
+      await reply.code(200).send();
     }
   );
 
@@ -71,20 +76,23 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
       },
     },
     async (request, reply) => {
-      await fastify.db.sqlWriteTransaction(async sql => {
+      const tokenFound = await fastify.db.sqlWriteTransaction(async sql => {
         const token = await fastify.db.getToken({ id: request.body.tokenId });
-        if (!token) {
-          await reply.code(422).send({ error: 'Token not found' });
-          return;
-        }
+        if (!token) return false;
         await sql`
           INSERT INTO jobs (token_supply_id) VALUES (${token.id})
           ON CONFLICT (token_supply_id) WHERE smart_contract_id IS NULL AND token_id IS NULL DO
             UPDATE SET updated_at = NOW(), status = 'pending'
         `;
         logger.info(`AdminRPC refreshing token supply for token: ${token.id}`);
-        await reply.code(200).send();
+        return true;
       });
+      // See `/refresh-token`: the reply has to wait for the COMMIT.
+      if (!tokenFound) {
+        await reply.code(422).send({ error: 'Token not found' });
+        return;
+      }
+      await reply.code(200).send();
     }
   );
 

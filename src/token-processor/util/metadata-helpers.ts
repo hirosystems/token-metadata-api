@@ -1,6 +1,6 @@
 import * as querystring from 'querystring';
 import JSON5 from 'json5';
-import { Agent, errors, request } from 'undici';
+import { Agent, errors, interceptors, request } from 'undici';
 import {
   DbMetadataAttributeInsert,
   DbMetadataInsert,
@@ -21,6 +21,7 @@ import {
   UndiciCauseTypeError,
 } from './errors.js';
 import { createFetchDestinationConnector } from './fetch-destination-policy.js';
+import { stripHeadersOffOrigin } from './fetch-header-policy.js';
 import { RetryableJobError } from '../queue/errors.js';
 import { processImageCache } from '../images/image-cache.js';
 import {
@@ -33,7 +34,7 @@ import {
 } from './types.js';
 import { logger } from '@stacks/api-toolkit';
 
-const METADATA_FETCH_HTTP_AGENT = new Agent({
+const METADATA_FETCH_BASE_AGENT = new Agent({
   headersTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
   bodyTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
   maxResponseSize: ENV.METADATA_MAX_PAYLOAD_BYTE_SIZE,
@@ -41,6 +42,15 @@ const METADATA_FETCH_HTTP_AGENT = new Agent({
     rejectUnauthorized: false, // Ignore SSL cert errors.
   }),
 });
+
+// The redirect interceptor is the only way to follow redirects here: `maxRedirections` throws when
+// passed to `request()` and is ignored by the `Agent` constructor. Each hop is dispatched through
+// the agent again, so `createFetchDestinationConnector` vets every one of them, not just the URL
+// the token declared.
+const redirectInterceptor = () =>
+  interceptors.redirect({ maxRedirections: ENV.METADATA_FETCH_MAX_REDIRECTIONS });
+
+export const METADATA_FETCH_HTTP_AGENT = METADATA_FETCH_BASE_AGENT.compose(redirectInterceptor());
 
 /**
  * A metadata URL that was analyzed and normalized into a fetchable URL. Specifies the URL, the
@@ -274,7 +284,15 @@ export async function fetchMetadata(
     const result = await request(url, {
       method: 'GET',
       headers,
-      dispatcher: METADATA_FETCH_HTTP_AGENT,
+      dispatcher:
+        headers && Object.keys(headers).length
+          ? METADATA_FETCH_BASE_AGENT.compose(
+              // Composing per request is what pins the headers to this URL's origin. It reuses the
+              // one base agent and its pool; only the interceptor chain is per request.
+              stripHeadersOffOrigin(httpUrl.origin, Object.keys(headers)),
+              redirectInterceptor()
+            )
+          : METADATA_FETCH_HTTP_AGENT,
     });
     if (result.statusCode >= 400) {
       const responseError = new errors.ResponseError(
@@ -286,6 +304,24 @@ export async function fetchMetadata(
         throw new TooManyRequestsHttpError(httpUrl, responseError);
       }
       throw new MetadataHttpError(`${url}: ${result.statusCode}`, responseError);
+    }
+    if (result.statusCode >= 300) {
+      // A 3xx that undici did not resolve: the redirect budget ran out, or the response is one that
+      // is never followed, such as a 304 or a redirect with no `Location`. Either way the body is
+      // not metadata, and without this it would reach the JSON parser and be reported as
+      // unparseable, which says nothing about the real problem.
+      await result.body.dump();
+      throw new MetadataHttpError(
+        `${url}: unfollowed ${result.statusCode} response ` +
+          `(redirect limit ${ENV.METADATA_FETCH_MAX_REDIRECTIONS})`,
+        new errors.ResponseError(
+          result.statusText || `HTTP ${result.statusCode}`,
+          result.statusCode,
+          {
+            headers: result.headers,
+          }
+        )
+      );
     }
     return await result.body.text();
   } catch (error) {

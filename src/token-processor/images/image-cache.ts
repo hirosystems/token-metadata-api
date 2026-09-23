@@ -16,9 +16,27 @@ import {
   ImageParseError,
 } from '../util/errors.js';
 import { createFetchDestinationConnector } from '../util/fetch-destination-policy.js';
+import { stripHeadersOffOrigin } from '../util/fetch-header-policy.js';
 import { pipeline } from 'node:stream/promises';
 import { Storage } from '@google-cloud/storage';
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+
+/**
+ * Shared agent for every image download, mirroring `METADATA_FETCH_HTTP_AGENT`. Building it per
+ * call threw away the connection pool and rebuilt the destination policy connector on each image.
+ *
+ * `fetch` follows redirects on its own, so no redirect interceptor is composed here; the connector
+ * still vets each hop it opens. Timeouts and the payload limit are read from `ENV` once, at import,
+ * which is how the tests in `image-fetch-config.test.ts` have to configure them.
+ */
+export const IMAGE_FETCH_HTTP_AGENT = new Agent({
+  headersTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
+  bodyTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
+  maxResponseSize: ENV.IMAGE_CACHE_MAX_BYTE_SIZE,
+  connect: createFetchDestinationConnector({
+    rejectUnauthorized: false, // Ignore SSL cert errors.
+  }),
+});
 
 /** Saves an image provided via a `data:` uri string to disk for processing. */
 function convertDataImage(uri: string, tmpPath: string): string {
@@ -45,14 +63,15 @@ async function downloadImage(
     fetch(imgUrl, {
       headers,
       signal: AbortSignal.timeout(ENV.METADATA_FETCH_TIMEOUT_MS),
-      dispatcher: new Agent({
-        headersTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
-        bodyTimeout: ENV.METADATA_FETCH_TIMEOUT_MS,
-        maxResponseSize: ENV.IMAGE_CACHE_MAX_BYTE_SIZE,
-        connect: createFetchDestinationConnector({
-          rejectUnauthorized: false, // Ignore SSL cert errors.
-        }),
-      }),
+      dispatcher:
+        headers && Object.keys(headers).length
+          ? // `fetch` follows redirects itself and sheds only `authorization` when it crosses
+            // origins, so the gateway headers have to be pinned to the origin they were issued
+            // for. Composing reuses the one agent and its pool; only the chain is per call.
+            IMAGE_FETCH_HTTP_AGENT.compose(
+              stripHeadersOffOrigin(new URL(imgUrl).origin, Object.keys(headers))
+            )
+          : IMAGE_FETCH_HTTP_AGENT,
     })
       .then(response => {
         if (response.status == 429) {

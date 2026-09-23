@@ -84,6 +84,49 @@ export type TestHttpServer = {
   close: () => Promise<void>;
 };
 
+export type HeaderRecordingServer = {
+  url: string;
+  /** Headers of every request this server received, in order. */
+  seen: http.IncomingHttpHeaders[];
+  close: () => Promise<void>;
+};
+
+/**
+ * Starts a server that records the headers of every request it receives, which
+ * {@link startTestHttpServer} does not expose. Each one listens on its own port, so two of them are
+ * two different origins — which is what makes them useful for asserting on redirects that cross an
+ * origin boundary.
+ * @param respond - fills in the response for a request
+ * @returns the running server, the headers it saw, and a teardown
+ */
+export async function startHeaderRecordingServer(
+  respond: (res: http.ServerResponse) => void
+): Promise<HeaderRecordingServer> {
+  const seen: http.IncomingHttpHeaders[] = [];
+  const server = http.createServer((req, res) => {
+    seen.push(req.headers);
+    respond(res);
+  });
+  server.on('error', e => console.log(e));
+  const serverReady = waiter();
+  server.listen(0, '127.0.0.1', () => serverReady.finish());
+  await serverReady;
+  const address = server.address();
+  if (!address || typeof address === 'string') {
+    throw new Error('Unable to resolve header recording server port');
+  }
+  return {
+    url: `http://127.0.0.1:${address.port}/`,
+    seen,
+    close: async () => {
+      const serverDone = waiter();
+      server.closeAllConnections();
+      server.close(() => serverDone.finish());
+      await serverDone;
+    },
+  };
+}
+
 /**
  * Starts a real HTTP server on loopback for tests that fetch metadata or images.
  *
