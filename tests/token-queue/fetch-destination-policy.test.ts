@@ -14,6 +14,7 @@ import {
   isBlockedIpAddress,
   setLoopbackAllowedForTesting,
 } from '../../src/token-processor/util/fetch-destination-policy.js';
+import { stripHeadersOffOrigin } from '../../src/token-processor/util/fetch-header-policy.js';
 import {
   fetchAllMetadataLocalesFromBaseUri,
   fetchMetadata,
@@ -369,5 +370,27 @@ describe('Fetch destination policy', () => {
       getUserErrorInvalidReason(new BlockedFetchDestinationError('169.254.169.254')),
       DbJobInvalidReason.fetchDestinationBlocked
     );
+  });
+
+  test('keeps headers on same-origin redirects despite default port spelling differences', () => {
+    let dispatchedHeaders: Dispatcher.DispatchOptions['headers'] | undefined;
+    const intercept = stripHeadersOffOrigin('http://example.com', ['X-Api-Key'])(
+      ((opts: Dispatcher.DispatchOptions) => {
+        dispatchedHeaders = opts.headers;
+        return true;
+      }) as Dispatcher['dispatch']
+    );
+
+    intercept(
+      {
+        origin: 'http://example.com:80',
+        path: '/',
+        method: 'GET',
+        headers: { 'X-Api-Key': 'gateway-secret' },
+      },
+      {} as Dispatcher.DispatchHandlers
+    );
+
+    assert.deepStrictEqual(dispatchedHeaders, { 'X-Api-Key': 'gateway-secret' });
   });
 });

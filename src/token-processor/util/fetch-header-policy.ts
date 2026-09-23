@@ -1,5 +1,9 @@
 import { Dispatcher } from 'undici';
 
+function normalizeOrigin(origin: string): string {
+  return new URL(origin).origin;
+}
+
 /**
  * Drops the named headers from a dispatch, whatever shape undici is carrying them in: the first
  * dispatch gets the object the caller passed, while a redirected one gets the flat
@@ -47,8 +51,9 @@ export function stripHeadersOffOrigin(
   headerNames: string[]
 ): Dispatcher.DispatcherComposeInterceptor {
   const drop = new Set(headerNames.map(name => name.toLowerCase()));
+  const normalizedOrigin = normalizeOrigin(origin);
   return dispatch => (opts, handler) => {
-    if (String(opts.origin) === origin) return dispatch(opts, handler);
+    if (normalizeOrigin(String(opts.origin)) === normalizedOrigin) return dispatch(opts, handler);
     return dispatch({ ...opts, headers: withoutHeaders(opts.headers, drop) }, handler);
   };
 }
