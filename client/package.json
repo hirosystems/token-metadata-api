@@ -38,5 +38,10 @@
   },
   "dependencies": {
     "openapi-fetch": "0.12.2"
+  },
+  "overrides": {
+    "microbundle": {
+      "rollup-plugin-typescript2": "0.37.0"
+    }
   }
 }
