@@ -46,6 +46,7 @@ export const AdminApi: FastifyPluginCallback<Record<never, never>, Server, TypeB
                   : sql``
               }
           )
+          AND smart_contract_id IS NULL AND token_supply_id IS NULL
         `;
         logger.info(
           request.body.tokenIds,

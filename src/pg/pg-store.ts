@@ -231,7 +231,10 @@ export class PgStore extends BasePgStore {
         END AS max_age
       FROM tokens AS t
       INNER JOIN smart_contracts AS s ON s.id = t.smart_contract_id
+      -- Repeat the token job index's predicate (implied by the jobs' check constraint, which the
+      -- planner ignores) so it can use that partial index instead of scanning all jobs.
       LEFT JOIN jobs AS j ON j.token_id = t.id
+        AND j.smart_contract_id IS NULL AND j.token_supply_id IS NULL
       LEFT JOIN LATERAL (
         SELECT update_mode, ttl
         FROM update_notifications
@@ -430,7 +433,9 @@ export class PgStore extends BasePgStore {
   ): Promise<DbTokenMetadataLocaleBundle> {
     // Is token invalid?
     const tokenJobStatus = await this.sql<{ status: string; invalid_reason: DbJobInvalidReason }[]>`
-      SELECT status, invalid_reason FROM jobs WHERE token_id = ${tokenId}
+      SELECT status, invalid_reason
+      FROM jobs
+      WHERE token_id = ${tokenId} AND smart_contract_id IS NULL AND token_supply_id IS NULL
     `;
     if (tokenJobStatus.count === 0) {
       throw new TokenNotFoundError();
