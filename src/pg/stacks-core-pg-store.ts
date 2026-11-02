@@ -190,6 +190,7 @@ export class StacksCorePgStore extends BasePgStoreModule {
       UPDATE jobs
       SET status = 'pending', updated_at = NOW()
       WHERE token_supply_id IN ${sql(Array.from(supplyRefreshIds))}
+        AND smart_contract_id IS NULL AND token_id IS NULL
     `;
     await sql`
       UPDATE jobs
@@ -201,6 +202,7 @@ export class StacksCorePgStore extends BasePgStoreModule {
       UPDATE jobs
       SET status = 'pending', updated_at = NOW()
       WHERE smart_contract_id IN ${sql(Array.from(contractRefreshIds))}
+        AND token_id IS NULL AND token_supply_id IS NULL
     `;
 
     return true;
@@ -404,6 +406,7 @@ export class StacksCorePgStore extends BasePgStoreModule {
       UPDATE jobs
       SET status = 'pending', updated_at = NOW()
       WHERE token_id IN (SELECT token_id FROM new_mode_inserts)
+        AND smart_contract_id IS NULL AND token_supply_id IS NULL
     `;
   }
 

@@ -123,6 +123,8 @@ export class PgStore extends BasePgStore {
         INNER JOIN smart_contracts ON jobs.smart_contract_id = smart_contracts.id
         WHERE smart_contracts.principal = ${args.contractPrincipal}
           AND smart_contracts.canonical = true
+          -- Repeat the contract job index's predicate so the planner can use it.
+          AND jobs.token_id IS NULL AND jobs.token_supply_id IS NULL
       `;
       if (contractJobStatus.count === 0) {
         throw new ContractNotFoundError();
